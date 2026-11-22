@@ -170,24 +170,230 @@ html.dark,
   cursor: not-allowed;
 }
 
-/* ==================== V9 Model Picker Popover Glass Polish ==================== */
-[data-model-picker-content] {
+/* ==================== V9 Model Picker Popover — 1:1 Unified Vertical Stack (386px, matching Red Box 1) ==================== */
+[data-slot="popover-popup"]:has([data-model-picker-content]) {
+  width: 386px !important;
+  max-width: calc(100vw - 16px) !important;
   background: var(--v9-glass-strong) !important;
-  backdrop-filter: blur(12px) saturate(1.4);
-  -webkit-backdrop-filter: blur(12px) saturate(1.4);
-  border-radius: 18px !important;
+  backdrop-filter: blur(14px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.4) !important;
+  border-radius: 20px !important;
   box-shadow: var(--v9-shadow-float) !important;
   border: 0.5px solid var(--v9-line) !important;
+  padding: 12px !important;
+  color: var(--v9-fg) !important;
+  overflow: visible !important;
+}
+[data-slot="popover-popup"]:has([data-model-picker-content]) > [data-slot="popover-viewport"] {
+  padding: 0 !important;
+  overflow: visible !important;
+}
+[data-slot="popover-popup"]:has([data-model-picker-content]) > [data-slot="popover-viewport"] > div > div:first-child {
+  display: flex !important;
+  flex-direction: column !important;
+  height: auto !important;
+  width: 100% !important;
+  gap: 8px !important;
+}
+[data-model-picker-content] {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: auto !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  gap: 6px !important;
+}
+[data-model-picker-sidebar] {
+  width: 100% !important;
+  height: auto !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 0.5px solid var(--v9-hair) !important;
+  padding: 0 0 7px 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+}
+[data-model-picker-sidebar]::-webkit-scrollbar {
+  display: none !important;
+}
+[data-model-picker-sidebar] > div {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+[data-model-picker-sidebar] > div > div {
+  flex-direction: row !important;
+  align-items: center !important;
+  min-height: 0 !important;
+  gap: 4px !important;
+  padding: 0 !important;
+}
+[data-model-picker-selected-indicator] {
+  display: none !important;
+}
+[data-model-picker-sidebar] [data-model-picker-provider] {
+  width: auto !important;
+  flex-shrink: 0 !important;
+}
+[data-model-picker-sidebar] [aria-hidden="true"].border-b {
+  display: none !important;
+}
+[data-model-picker-sidebar] button[type="button"] {
+  width: auto !important;
+  height: 26px !important;
+  aspect-ratio: auto !important;
+  padding: 0 10px !important;
+  border-radius: 999px !important;
+  font-size: 11.5px !important;
+  font-weight: 550 !important;
+  color: var(--v9-fg-2) !important;
+  background: transparent !important;
+  white-space: nowrap !important;
+  gap: 4px !important;
+}
+[data-model-picker-sidebar] button[type="button"]:hover:not(:disabled) {
+  background: var(--v9-fill) !important;
+  color: var(--v9-fg) !important;
+}
+[data-model-picker-sidebar] button[type="button"][aria-pressed="true"] {
+  background: var(--v9-fg) !important;
+  color: var(--v9-surface) !important;
+  font-weight: 700 !important;
+}
+[data-model-picker-content] [data-slot="combobox-input"],
+[data-model-picker-content] input[placeholder] {
+  height: 34px !important;
+  border-radius: 10px !important;
+  background: var(--v9-fill) !important;
+  border: 0.5px solid var(--v9-hair) !important;
+  font-size: 12.5px !important;
+  color: var(--v9-fg) !important;
+}
+[data-model-picker-content] [data-slot="combobox-list"] {
+  max-height: 148px !important;
+  padding: 2px 0 !important;
+}
+[data-model-picker-content] [role="option"] {
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  padding: 6px 9px !important;
+  margin-bottom: 2px !important;
+}
+[data-model-picker-content] [role="option"][aria-selected="true"] {
+  background: var(--v9-sel-surface) !important;
+  font-weight: 600 !important;
+}
+/* Clean muted quota text on model rows (matching Red Box 1 `剩 72%` — no loud colored pill!) */
+.t3-mp-quota-badge {
+  display: inline-flex;
+  align-items: center;
+  height: auto !important;
+  padding: 0 2px !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--v9-fg-3) !important;
+}
+.t3-mp-quota-warn {
+  color: var(--v9-warn) !important;
+}
+.t3-mp-quota-danger {
+  color: var(--v9-bad) !important;
+}
+.t3-mp-provider-pill {
+  display: none !important;
 }
 [data-model-picker-effort] {
-  width: 248px !important;
-  padding: 8px !important;
+  width: 100% !important;
+  height: auto !important;
+  border-left: 0 !important;
+  border-top: 0 !important;
+  padding: 0 !important;
   background: transparent !important;
 }
-@media (max-width: 640px) {
-  [data-model-picker-effort] {
-    width: 100% !important;
-  }
+/* V9 Permission Row inside Popover (Red Box 1 bottom) */
+[data-v9-perm-row] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 9px;
+  margin-top: 8px;
+  border-top: 0.5px solid var(--v9-hair);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--v9-fg-3);
+}
+[data-v9-perm-seg] {
+  display: inline-flex;
+  align-items: center;
+  background: var(--v9-fill);
+  border-radius: 10px;
+  padding: 2px;
+  gap: 1px;
+  flex-shrink: 0;
+}
+[data-v9-perm-opt] {
+  padding: 3px 8px;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--v9-fg-2);
+  border-radius: 7.5px;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+}
+[data-v9-perm-opt]:hover {
+  color: var(--v9-fg);
+}
+[data-v9-perm-opt][aria-checked="true"] {
+  background: var(--v9-surface);
+  color: var(--v9-fg);
+  font-weight: 650;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+/* Blue frosted glass permission pill on composer bar (Red Box 2) */
+[data-composer-permissions-trigger] {
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 999px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  background: var(--v9-blue-bg) !important;
+  color: var(--v9-blue) !important;
+  border: 0.5px solid color-mix(in srgb, var(--v9-blue) 30%, transparent) !important;
+}
+[data-composer-permissions-trigger]:hover {
+  background: color-mix(in srgb, var(--v9-blue) 24%, transparent) !important;
+}
+/* Unified rounded dark model+effort capsule on composer bar (Red Box 2) */
+[data-chat-provider-model-picker="true"],
+[data-composer-model-trigger] {
+  height: 30px !important;
+  padding: 0 10px 0 8px !important;
+  border-radius: 999px !important;
+  background: var(--v9-fill) !important;
+  border: 0.5px solid var(--v9-line) !important;
+  color: var(--v9-fg) !important;
+  font-size: 12px !important;
+  font-weight: 560 !important;
+}
+[data-chat-provider-model-picker="true"]:hover,
+[data-composer-model-trigger]:hover {
+  background: var(--v9-fill-hover) !important;
 }
 
 /* ==================== V9 Centered Magnetic-Spring Session Stats Pill ==================== */
