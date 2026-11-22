@@ -99,6 +99,11 @@ resolve_script() {
   local dest="${WORK_TMP}/${name}"
   echo "==> Downloading ${name}..." >&2
   curl -fsSL "${REPO_RAW_BASE}/scripts/${name}" -o "${dest}"
+  if [[ "${name}" == "patch-asar.mjs" ]]; then
+    mkdir -p "${WORK_TMP}/stardust"
+    curl -fsSL "${REPO_RAW_BASE}/scripts/stardust/v18-starship-scenes.js" -o "${WORK_TMP}/stardust/v18-starship-scenes.js"
+    curl -fsSL "${REPO_RAW_BASE}/scripts/stardust/v9-stardust.css" -o "${WORK_TMP}/stardust/v9-stardust.css"
+  fi
   printf '%s\n' "${dest}"
 }
 

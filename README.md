@@ -2,13 +2,13 @@
 
 <img src="assets/icon.svg" width="68" height="68" alt="T3 Code Quota UI" />
 
-# T3 Code Quota UI · 界面与多账号配额增强版 `v1.3.0`
+# T3 Code Quota UI · 界面与多账号配额增强版 `v1.4.0`
 
-**一行命令，为 macOS 版 [T3 Code](https://github.com/pingdotgg/t3code) 注入「星舰曲速 Canvas 推理滑块（2秒自动休眠零GPU）+ 底部悬浮会话统计胶囊 + 橙色发送与输入台药丸美化 + 顶栏常驻额度胶囊 + 模型选择器余量 + 燃尽预测 + `¥ CNY / $ USD` 与 `中 / EN` 实时切换」**
+**一行命令，为 macOS 版 [T3 Code](https://github.com/pingdotgg/t3code) 注入「1:1 原版 V18 流体写实星舰滑块（离屏精灵预烘焙 + 50×44 液态玻璃透镜 + 2秒自动休眠）+ Composer V9 磁吸弹簧会话统计 + 内置预览图钉批注与截图联动 + macOS 磁盘缓存先预览再清理中心 + 双 Antigravity 20x 物理隔离 + `¥ CNY / $ USD` 与 `中 / EN` 实时切换」**
 
-*One-command macOS UI & multi-account quota enhancement pack for T3 Code — featuring a Cosmic Warp-Drive Canvas Reasoning Slider (2s auto-idle sleep), Floating Session Telemetry Pill, Stardust Composer Polish, Topbar Quota Pills, Model Picker Quota Badges, Burn-rate Forecast, `¥ CNY / $ USD`, and live `中 / EN` switching.*
+*One-command macOS UI & multi-account quota enhancement pack for T3 Code — porting T3 Stardust's original MIT V18 Starship Fluid Slider & Composer V9 CSS 1:1 (zero telemetry), plus Preview Pin Annotations, macOS Disk Cache Preview & Cleanup Center, multi-account Antigravity file isolation, `¥ CNY / $ USD`, and live `中 / EN` switching.*
 
-[![Release: v1.3.0](https://img.shields.io/badge/Release-v1.3.0-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.3.0)
+[![Release: v1.4.0](https://img.shields.io/badge/Release-v1.4.0-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.4.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon%20%26%20Intel)-38bdf8.svg)](#一键安装--quick-install)
 [![Upstream: pingdotgg/t3code](https://img.shields.io/badge/Upstream-pingdotgg%2Ft3code-8b5cf6.svg)](https://github.com/pingdotgg/t3code)
@@ -20,19 +20,19 @@
 
 ---
 
-## `v1.3.0` 重磅升级（T3 Stardust 星尘视觉全套融合）
+## `v1.4.0` 重磅升级（1:1 移植原版 V18 流体星舰滑块 + Composer V9 + 预览图钉批注 + 磁盘缓存清理，严格 0 遥测）
 
-深度参考并致谢 MIT 开源项目 **[T3 Stardust (`zds-xiaoxin/xiaoxin-t3code`)](https://github.com/zds-xiaoxin/xiaoxin-t3code)** 的四大核心视觉与高频交互模块，以零依赖轻量热补丁方式原生融合进 T3 Code（完整保留 `v1.1.3` 双账号物理隔离与 `v1.2.x` 全部配额增强）：
+严格遵循 MIT 协议，直接 1:1 移植社区开源项目 **[T3 Stardust (`zds-xiaoxin/xiaoxin-t3code`)](https://github.com/zds-xiaoxin/xiaoxin-t3code)** 原版 `cosmicSliderScenes.ts`、`CosmicEffortSlider.tsx` 与 `composerV9.css` 核心实现（**严格 0 遥测上报**，完整保留 `v1.1.3` 双 Antigravity 物理隔离与 `v1.2.x` 全部配额护城河）：
 
-1. **星舰曲速 Canvas 推理强度滑块（Cosmic Warp-Drive Slider，2秒自动休眠 0% 静置 GPU）**：
-   - 将模型选择器右侧的推理强度升级为 **HTML5 Canvas 深空星轨 + 发光能量核心 + 动态曲速光束 + 金属胶囊滑块**；
-   - 标题实时联动档位与状态副标题（如 **`● 推理强度 · Max` / `深空曲速巡航 · 满载任务` / `5 档`**），支持鼠标拖拽、点击轨道、点击底部档位按钮与键盘方向键；交互停止 **2 秒后自动休眠**，静置零 GPU/CPU 占用。
-2. **底部居中悬浮会话统计胶囊（Floating Session Telemetry Pill）**：
-   - 在输入台正下方新增极简深色玻璃胶囊，实时汇总 **`● 3 轮 12 步 · 94 tok/s | 42.8K 令牌 · 缓存 86%`**，一眼掌握当前会话轮次、工具步数、生成速率、总令牌与缓存命中率。
-3. **输入台右下角药丸栏 + 活力橙发送按钮（Stardust Composer Polish）**：
-   - 权限切换与模型选择器触发按钮统一为圆润药丸质感，搭配高辨识度渐变橙色圆形发送按钮（`↑`）；右侧栏 `产物 / 终端` 标签与卡片同步圆角质感抛光。
-4. **模型选择器 `剩 XX%` 徽章 + 顶栏零重叠额度胶囊 + 限额卡片全宽燃尽预测**：
-   - 模型选择器右侧统一以 **`剩 72%`** 分色药丸呈现；顶栏胶囊自带右侧按钮区安全留白（永不重叠）；`用量与配额 → 限额` 每张卡片底部全宽外显燃尽预测（`✅ 节奏平稳 · 重置前够用` / `⚡ 消耗偏快 · 约 X 后触顶` / `✨ 满血可用`）。
+1. **1:1 原版 V18 流体写实星舰滑块（`scripts/stardust/v18-starship-scenes.js`）**：
+   - 完整移植 993 行原版 `cosmicSliderScenes.ts`：发射台液氧冷雾 → 猛禽点火夹钳释放 → Max-Q 突破云层 → 太空边缘真空羽流（含马赫激波菱形）→ 深空曲速巡航 5 段连续流体物理；
+   - 原版 `50px` 画布 + `3px` 凹槽舞台井 + `50×44` 液态玻璃折射放大透镜（含色散高光、升档顿帧/闪光/后坐力反馈、柔和和声提示音）+ **静止 2 秒自动休眠（0% 静置 GPU/CPU）**。
+2. **1:1 原版 Composer V9 样式 + 底部磁吸弹簧会话统计浮层（`scripts/stardust/v9-stardust.css`）**：
+   - 移植原版 `composerV9.css` 磨砂玻璃弹窗、输入台药丸触发栏、活力橙发送键，以及鼠标滑过平滑弹跳跟随的磁吸弹簧 Dock 统计条（`● 3 轮 12 步 · 94 tok/s | 42.8K 令牌 · 缓存 86%`）。
+3. **内置预览「图钉批注」与截图联动（Preview Pin Annotations）**：
+   - 在内置预览面板工具栏新增 **`📌 批注`** 按钮：开启后可直接在网页预览任意位置扎下编号图钉（`#1`、`#2`…）并写下修改意见，点击 **`发送 (N)`** 一键触发预览截图并把编号坐标与意见注入对话输入台。
+4. **macOS 磁盘缓存「先预览再执行清理」中心（Disk Cache Cleanup Center）**：
+   - 集成进「用量与配额」顶部工具栏 **`🧹 缓存`** 按钮，本地安全扫描 T3 运行日志、Antigravity 历史日志/临时缓存、`~/Library/Caches/t3*` 与 Electron GPU/编译缓存，**先逐项预览精确 MB 体积与文件数，勾选确认后再清理**，绝不触碰会话数据库、项目与账号凭证。
 
 ### `v1.1.x` 既有特性（完整保留）
 

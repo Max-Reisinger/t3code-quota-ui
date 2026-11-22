@@ -25,6 +25,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
+
+const __SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const __STARDUST_V18_JS = fs.existsSync(path.join(__SCRIPT_DIR, "stardust/v18-starship-scenes.js"))
+  ? fs.readFileSync(path.join(__SCRIPT_DIR, "stardust/v18-starship-scenes.js"), "utf8")
+  : "";
+const __STARDUST_V9_CSS = fs.existsSync(path.join(__SCRIPT_DIR, "stardust/v9-stardust.css"))
+  ? fs.readFileSync(path.join(__SCRIPT_DIR, "stardust/v9-stardust.css"), "utf8")
+  : "";
 
 function parseArgs(argv) {
   const opts = {
@@ -325,180 +334,7 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
   background: color-mix(in oklab, var(--muted) 65%, transparent);
   border-color: color-mix(in oklab, var(--border) 70%, transparent);
 }
-/* v1.3.0 Stardust Cosmic Effort Slider (HTML5 Canvas + 2s auto-idle sleep, 0% idle GPU/CPU) */
-.t3-cosmic-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.55rem 0.6rem 0.6rem;
-  border-radius: 0.72rem;
-  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
-  background: color-mix(in oklab, var(--background) 72%, var(--muted));
-  user-select: none;
-}
-.t3-cosmic-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-.t3-cosmic-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--foreground);
-  line-height: 1.2;
-}
-.t3-cosmic-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 9999px;
-  background: var(--t3-ef-c, #38bdf8);
-  box-shadow: 0 0 8px var(--t3-ef-c, #38bdf8);
-  flex-shrink: 0;
-}
-.t3-cosmic-sub {
-  margin-top: 2px;
-  font-size: 10.5px;
-  color: var(--muted-foreground);
-  line-height: 1.25;
-}
-.t3-cosmic-tiers {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-  padding: 0.1rem 0.35rem;
-  border-radius: 9999px;
-  background: color-mix(in oklab, var(--foreground) 7%, transparent);
-}
-.t3-cosmic-canvas-box {
-  position: relative;
-  height: 38px;
-  width: 100%;
-  border-radius: 9999px;
-  overflow: hidden;
-  cursor: pointer;
-  touch-action: none;
-  background: #070913;
-  border: 1px solid color-mix(in oklab, var(--t3-ef-c, #38bdf8) 38%, rgba(255, 255, 255, 0.12));
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.72), 0 0 14px color-mix(in oklab, var(--t3-ef-c, #38bdf8) 22%, transparent);
-}
-.t3-cosmic-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.t3-cosmic-stops {
-  display: grid;
-  gap: 0.18rem;
-}
-.t3-cosmic-stop {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 1.45rem;
-  padding: 0 0.2rem;
-  border-radius: 0.42rem;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted-foreground);
-  font-size: 10.5px;
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
-  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
-  min-width: 0;
-  white-space: nowrap;
-}
-.t3-cosmic-stop:hover:not(:disabled) {
-  color: var(--foreground);
-  background: color-mix(in oklab, var(--foreground) 7%, transparent);
-}
-.t3-cosmic-stop[aria-checked="true"] {
-  color: var(--foreground);
-  font-weight: 700;
-  background: color-mix(in oklab, var(--foreground) 14%, transparent);
-  border-color: color-mix(in oklab, var(--t3-ef-c, #38bdf8) 45%, var(--border));
-  box-shadow: 0 0 8px color-mix(in oklab, var(--t3-ef-c, #38bdf8) 22%, transparent);
-}
-.t3-cosmic-stop:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-/* v1.3.0 Red Box #2: Stardust Composer Bottom-Right Pill & Cosmic Orange Send Button */
-button[data-chat-composer-transition-actions="true"]:not(:disabled) {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
-  color: #ffffff !important;
-  box-shadow: 0 2px 12px rgba(249, 115, 22, 0.42) !important;
-  transition: transform 120ms ease, box-shadow 140ms ease, filter 140ms ease !important;
-}
-button[data-chat-composer-transition-actions="true"]:not(:disabled):hover {
-  filter: brightness(1.08);
-  box-shadow: 0 3px 16px rgba(249, 115, 22, 0.58) !important;
-  transform: translateY(-0.5px);
-}
-[data-composer-model-trigger],
-[data-composer-permissions-trigger] {
-  border-radius: 9999px !important;
-  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent) !important;
-  background: color-mix(in oklab, var(--muted) 48%, transparent) !important;
-}
-[data-composer-model-trigger]:hover,
-[data-composer-permissions-trigger]:hover {
-  background: color-mix(in oklab, var(--muted) 82%, transparent) !important;
-  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border)) !important;
-}
-/* v1.3.0 Red Box #3: Floating Bottom-Center Telemetry Pill */
-.t3-telemetry-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.42rem;
-  height: 1.5rem;
-  padding: 0 0.65rem;
-  border-radius: 9999px;
-  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
-  background: color-mix(in oklab, var(--muted) 52%, var(--background));
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
-}
-.t3-telemetry-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
-  flex-shrink: 0;
-}
-.t3-telemetry-strong {
-  color: var(--foreground);
-  font-weight: 600;
-}
-.t3-telemetry-sep {
-  width: 1px;
-  height: 10px;
-  background: color-mix(in oklab, var(--border) 90%, transparent);
-}
-/* v1.3.0 Red Box #4: Right-hand Inspector / Artifact Card & Tab Polish */
-[data-slot="right-panel"] [role="tablist"],
-[data-right-panel] [role="tablist"] {
-  border-radius: 0.55rem;
-  padding: 2px;
-  background: color-mix(in oklab, var(--muted) 60%, transparent);
-  border: 1px solid color-mix(in oklab, var(--border) 72%, transparent);
-}
-[data-slot="right-panel"] [data-slot="card"],
-[data-right-panel] [data-slot="card"] {
-  border-radius: 0.65rem !important;
-  border-color: color-mix(in oklab, var(--border) 82%, transparent) !important;
-  background: color-mix(in oklab, var(--card, var(--muted)) 72%, var(--background)) !important;
-}
+${__STARDUST_V9_CSS}
 @media (max-width: 960px) {
   .t3-topbar-pill-reset {
     display: none;
@@ -930,6 +766,279 @@ button[data-chat-composer-transition-actions="true"]:not(:disabled):hover {
     return pills;
   }
 
+  const STARSHIP_STORY_ZH = {
+    "Pad standby · cryo mist": "发射台待命 · 液氧冷雾",
+    "Raptors ignite · clamps open": "猛禽点火 · 夹钳释放",
+    "Max-Q · breaking clouds": "Max-Q 突破云层",
+    "Edge of space · vacuum plume": "太空边缘 · 真空羽流",
+    "Deep-space warp · full mission": "深空曲速巡航 · 满载任务"
+  };
+
+  function translateStarshipStory(key) {
+    if (getLang() !== "zh") return key;
+    return STARSHIP_STORY_ZH[key] || key;
+  }
+
+  function fmtBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+    if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + " GB";
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB";
+    if (bytes >= 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return Math.round(bytes) + " B";
+  }
+
+  function openCacheCleaner() {
+    const existing = document.getElementById("t3-cache-cleaner-modal");
+    if (existing) existing.remove();
+    const zh = getLang() === "zh";
+    const backdrop = document.createElement("div");
+    backdrop.id = "t3-cache-cleaner-modal";
+    backdrop.className = "t3-cache-modal-backdrop";
+    backdrop.setAttribute("data-quota-ui-managed", "true");
+    const modal = document.createElement("div");
+    modal.className = "t3-cache-modal";
+    backdrop.appendChild(modal);
+    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+    document.body.appendChild(backdrop);
+
+    let state = { loading: true, cleaning: false, error: "", data: null, selected: new Set(), result: null };
+
+    function render() {
+      modal.innerHTML = "";
+      const head = document.createElement("div");
+      head.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;";
+      head.innerHTML = '<div><div style="font-size:15px;font-weight:700;">' + (zh ? "🧹 macOS 磁盘缓存清理中心" : "🧹 macOS Disk Cache Cleaner") + '</div><div style="font-size:11.5px;color:var(--v9-fg-2);margin-top:2px;">' + (zh ? "先预览各目录占用再确认清理 · 绝不触碰会话数据库、项目与账号凭证" : "Preview exact sizes before cleaning · never touches databases, threads, or auth tokens") + '</div></div>';
+      const closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "t3-pin-bar-btn";
+      closeBtn.textContent = zh ? "关闭" : "Close";
+      closeBtn.onclick = () => backdrop.remove();
+      head.appendChild(closeBtn);
+      modal.appendChild(head);
+
+      if (state.loading) {
+        const p = document.createElement("div");
+        p.style.cssText = "padding:24px 0;text-align:center;font-size:12.5px;color:var(--v9-fg-2);";
+        p.textContent = zh ? "正在扫描本机安全缓存目录…" : "Scanning safe cache directories…";
+        modal.appendChild(p);
+        return;
+      }
+      if (state.error) {
+        const err = document.createElement("div");
+        err.style.cssText = "padding:12px;border-radius:10px;background:var(--v9-bad-bg);color:var(--v9-bad);font-size:12px;";
+        err.textContent = state.error;
+        modal.appendChild(err);
+        return;
+      }
+      if (state.result) {
+        const ok = document.createElement("div");
+        ok.style.cssText = "padding:10px 12px;border-radius:10px;margin-bottom:10px;background:var(--v9-ok-bg);color:var(--v9-ok);font-size:12px;font-weight:600;";
+        ok.textContent = zh
+          ? "✅ 清理完成：已释放 " + fmtBytes(state.result.freedBytes) + "（共清理 " + state.result.removedFiles + " 个缓存文件）"
+          : "✅ Cleaned " + fmtBytes(state.result.freedBytes) + " (" + state.result.removedFiles + " files removed)";
+        modal.appendChild(ok);
+      }
+
+      const items = state.data?.items || [];
+      const list = document.createElement("div");
+      list.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-bottom:14px;";
+      for (const item of items) {
+        const row = document.createElement("label");
+        row.className = "t3-cache-row";
+        row.style.cursor = item.bytes > 0 ? "pointer" : "default";
+        const left = document.createElement("div");
+        left.style.cssText = "display:flex;align-items:flex-start;gap:8px;min-width:0;";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = state.selected.has(item.id);
+        cb.disabled = item.bytes <= 0 || state.cleaning;
+        cb.style.marginTop = "3px";
+        cb.onchange = () => {
+          if (cb.checked) state.selected.add(item.id);
+          else state.selected.delete(item.id);
+          render();
+        };
+        const info = document.createElement("div");
+        info.style.minWidth = "0";
+        info.innerHTML = '<div style="font-size:12.5px;font-weight:600;">' + (zh ? item.labelZh : item.labelEn) + '</div><div style="font-size:11px;color:var(--v9-fg-2);margin-top:1px;">' + (zh ? item.descZh : item.descEn) + '</div><div style="font-size:10.5px;color:var(--v9-fg-3);margin-top:2px;word-break:break-all;">' + item.displayPath + '</div>';
+        left.appendChild(cb);
+        left.appendChild(info);
+        const right = document.createElement("div");
+        right.style.cssText = "text-align:right;flex-shrink:0;";
+        right.innerHTML = '<div style="font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;">' + fmtBytes(item.bytes) + '</div><div style="font-size:10.5px;color:var(--v9-fg-3);">' + item.files + (zh ? " 个文件" : " files") + '</div>';
+        row.appendChild(left);
+        row.appendChild(right);
+        list.appendChild(row);
+      }
+      modal.appendChild(list);
+
+      let selBytes = 0;
+      for (const it of items) { if (state.selected.has(it.id)) selBytes += it.bytes; }
+      const foot = document.createElement("div");
+      foot.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px;border-top:0.5px solid var(--v9-hair);";
+      const summary = document.createElement("div");
+      summary.style.cssText = "font-size:12px;color:var(--v9-fg-2);";
+      summary.innerHTML = (zh ? "已选可释放：" : "Selected to free: ") + '<b style="color:var(--v9-fg);">' + fmtBytes(selBytes) + '</b>';
+      const actions = document.createElement("div");
+      actions.style.cssText = "display:flex;gap:8px;";
+      const rescanBtn = document.createElement("button");
+      rescanBtn.type = "button";
+      rescanBtn.className = "t3-pin-bar-btn";
+      rescanBtn.textContent = zh ? "重新扫描" : "Rescan";
+      rescanBtn.disabled = state.cleaning;
+      rescanBtn.onclick = () => scan();
+      const cleanBtn = document.createElement("button");
+      cleanBtn.type = "button";
+      cleanBtn.className = "t3-pin-bar-btn send";
+      cleanBtn.disabled = state.cleaning || state.selected.size === 0 || selBytes <= 0;
+      cleanBtn.textContent = state.cleaning ? (zh ? "清理中…" : "Cleaning…") : (zh ? "确认清理所选 (" + fmtBytes(selBytes) + ")" : "Clean Selected (" + fmtBytes(selBytes) + ")");
+      cleanBtn.onclick = async () => {
+        state.cleaning = true;
+        state.result = null;
+        render();
+        try {
+          const ids = Array.from(state.selected).join(",");
+          const resp = await fetch("/api/assets/__t3_cache_clean?confirm=1&ids=" + encodeURIComponent(ids));
+          const json = await resp.json();
+          if (!resp.ok) throw new Error(json.error || "Clean failed");
+          state.result = json;
+          state.data = json;
+          state.selected = new Set((json.items || []).filter((x) => x.bytes > 0).map((x) => x.id));
+        } catch (e) {
+          state.error = String(e.message || e);
+        } finally {
+          state.cleaning = false;
+          render();
+        }
+      };
+      actions.appendChild(rescanBtn);
+      actions.appendChild(cleanBtn);
+      foot.appendChild(summary);
+      foot.appendChild(actions);
+      modal.appendChild(foot);
+    }
+
+    async function scan() {
+      state.loading = true;
+      state.error = "";
+      render();
+      try {
+        const resp = await fetch("/api/assets/__t3_cache_scan");
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.error || "Scan failed");
+        state.data = json;
+        state.selected = new Set((json.items || []).filter((x) => x.bytes > 0).map((x) => x.id));
+      } catch (e) {
+        state.error = String(e.message || e);
+      } finally {
+        state.loading = false;
+        render();
+      }
+    }
+    scan();
+  }
+
+  let __pinState = { active: false, pins: [], overlay: null, listeners: new Set() };
+  function notifyPinListeners() {
+    for (const fn of __pinState.listeners) { try { fn({ active: __pinState.active, count: __pinState.pins.length }); } catch {} }
+  }
+  function clearPinOverlay() {
+    if (__pinState.overlay) { __pinState.overlay.remove(); __pinState.overlay = null; }
+    __pinState.active = false;
+    __pinState.pins = [];
+    notifyPinListeners();
+  }
+  function renderPinOverlay() {
+    const ov = __pinState.overlay;
+    if (!ov) return;
+    ov.innerHTML = "";
+    const zh = getLang() === "zh";
+    __pinState.pins.forEach((pin, idx) => {
+      const m = document.createElement("button");
+      m.type = "button";
+      m.className = "t3-pin-marker";
+      m.style.left = pin.xPct.toFixed(1) + "%";
+      m.style.top = pin.yPct.toFixed(1) + "%";
+      m.textContent = String(idx + 1);
+      m.title = pin.note || (zh ? "点击编辑批注" : "Click to edit note");
+      m.onclick = (ev) => { ev.stopPropagation(); pin.editing = !pin.editing; renderPinOverlay(); };
+      ov.appendChild(m);
+      if (pin.editing) {
+        const pop = document.createElement("div");
+        pop.className = "t3-pin-popover";
+        pop.style.left = Math.min(72, Math.max(4, pin.xPct)) + "%";
+        pop.style.top = Math.min(76, Math.max(8, pin.yPct + 2)) + "%";
+        pop.onclick = (ev) => ev.stopPropagation();
+        const ta = document.createElement("textarea");
+        ta.placeholder = zh ? "输入针对此处的修改意见…" : "Describe change for this spot…";
+        ta.value = pin.note || "";
+        ta.oninput = () => { pin.note = ta.value; };
+        const bar = document.createElement("div");
+        bar.style.cssText = "display:flex;justify-content:space-between;gap:6px;margin-top:6px;";
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "t3-pin-bar-btn";
+        del.textContent = zh ? "删除" : "Delete";
+        del.onclick = () => { __pinState.pins.splice(idx, 1); renderPinOverlay(); notifyPinListeners(); };
+        const ok = document.createElement("button");
+        ok.type = "button";
+        ok.className = "t3-pin-bar-btn send";
+        ok.textContent = zh ? "保存" : "Done";
+        ok.onclick = () => { pin.editing = false; renderPinOverlay(); };
+        bar.appendChild(del);
+        bar.appendChild(ok);
+        pop.appendChild(ta);
+        pop.appendChild(bar);
+        ov.appendChild(pop);
+        setTimeout(() => ta.focus(), 10);
+      }
+    });
+  }
+  function togglePreviewPins() {
+    if (__pinState.active) { clearPinOverlay(); return; }
+    const vp = document.querySelector("[data-preview-viewport]");
+    if (!vp) return;
+    if (getComputedStyle(vp).position === "static") vp.style.position = "relative";
+    const ov = document.createElement("div");
+    ov.className = "t3-pin-overlay";
+    ov.setAttribute("data-quota-ui-managed", "true");
+    ov.addEventListener("click", (ev) => {
+      const rect = ov.getBoundingClientRect();
+      const xPct = Math.max(2, Math.min(98, ((ev.clientX - rect.left) / Math.max(1, rect.width)) * 100));
+      const yPct = Math.max(4, Math.min(96, ((ev.clientY - rect.top) / Math.max(1, rect.height)) * 100));
+      __pinState.pins.forEach((p) => { p.editing = false; });
+      __pinState.pins.push({ xPct, yPct, note: "", editing: true });
+      renderPinOverlay();
+      notifyPinListeners();
+    });
+    vp.appendChild(ov);
+    __pinState.overlay = ov;
+    __pinState.active = true;
+    __pinState.pins = [];
+    notifyPinListeners();
+  }
+  function sendPreviewPins(onCapture) {
+    if (__pinState.pins.length === 0) return;
+    const zh = getLang() === "zh";
+    const lines = __pinState.pins.map((p, i) => (i + 1) + ". Pin #" + (i + 1) + " (" + p.xPct.toFixed(0) + "%, " + p.yPct.toFixed(0) + "%): " + (p.note?.trim() || (zh ? "请优化此处视觉/布局" : "Inspect and refine this spot")));
+    const header = zh ? "[内置预览图钉批注]" : "[Preview Pin Annotations]";
+    const payload = header + "\\n" + lines.join("\\n");
+    if (typeof onCapture === "function") { try { onCapture(false); } catch {} }
+    const ed = document.querySelector('.composer-tiptap [contenteditable="true"], [data-slot="composer"] [contenteditable="true"]');
+    if (ed) {
+      ed.focus();
+      try { document.execCommand("insertText", false, (ed.textContent?.trim() ? "\\n\\n" : "") + payload); } catch {}
+    } else if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(payload).catch(() => {});
+    }
+    clearPinOverlay();
+  }
+  function subscribePreviewPins(fn) {
+    __pinState.listeners.add(fn);
+    fn({ active: __pinState.active, count: __pinState.pins.length });
+    return () => __pinState.listeners.delete(fn);
+  }
+
   const api = {
     getLang,
     isZh: () => getLang() === "zh",
@@ -953,11 +1062,16 @@ button[data-chat-composer-transition-actions="true"]:not(:disabled):hover {
       api.setCurrency(getCurrency() === "CNY" ? "USD" : "CNY");
     },
     translateWindowLabel,
+    translateStarshipStory,
     fmtDurShort,
     fmtDurLong,
     computeBurnForecast,
     getProviderQuota,
     buildTopbarPills,
+    openCacheCleaner,
+    togglePreviewPins,
+    sendPreviewPins,
+    subscribePreviewPins,
     subscribe: (listener) => {
       const onUpdate = () => listener({ lang: getLang(), currency: getCurrency(), rate: getRate() });
       window.addEventListener("t3-quota-ui:change", onUpdate);
@@ -987,7 +1101,11 @@ button[data-chat-composer-transition-actions="true"]:not(:disabled):hover {
 })();
 </script>`;
 
-  return `<!-- T3_QUOTA_UI_START -->\n${styleBlock}\n${runtimeScript}\n<!-- T3_QUOTA_UI_END -->`;
+  const v18Script = __STARDUST_V18_JS
+    ? `<script id="t3-stardust-v18">\n${__STARDUST_V18_JS}\n</script>`
+    : "";
+
+  return `<!-- T3_QUOTA_UI_START -->\n${styleBlock}\n${v18Script}\n${runtimeScript}\n<!-- T3_QUOTA_UI_END -->`;
 }
 
 function patchUsageFormatBundle(src) {
@@ -1374,7 +1492,16 @@ function patchUsageLimitsView(src) {
 }
 
 function patchChatUsageBundle(src) {
-  if (src.includes("__T3UsageRootWrapper")) return src;
+  // Auto-heal v1.1-v1.3 already-patched _chat.usage bundle to add macOS Cache Cleaner button
+  if (src.includes("__T3UsageRootWrapper")) {
+    if (!src.includes("openCacheCleaner")) {
+      return src.replace(
+        /return \(0,([A-Za-z0-9_$]+)\.jsxs\)\(\1\.Fragment,\{children:\[([\s\S]+?),__langSeg\]\}\);/,
+        `const __cacheBtn=(0,$1.jsx)("button",{type:"button",className:"t3-pin-bar-btn",title:isZh?"预览并清理 macOS 磁盘缓存":"Preview & clean macOS disk cache",onClick:()=>globalThis.__t3QuotaUi?.openCacheCleaner?.(),children:isZh?"🧹 缓存":"🧹 Cache"});return (0,$1.jsxs)($1.Fragment,{children:[$2,__langSeg,__cacheBtn]});`,
+      );
+    }
+    return src;
+  }
   let out = src;
 
   const reactNsMatch = out.match(/\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.useState\s*\)\([`"']model[`"']\)/);
@@ -1782,7 +1909,14 @@ function __t3RenderToolbarToggles(compact){
       (0,${jsxNs}.jsx)(${toggleItemIdent},{value:"en",title:__langTip,children:"EN"},"en")
     ]
   });
-  return (0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[${currButtonExpr},__langSeg]});
+  const __cacheBtn=(0,${jsxNs}.jsx)("button",{
+    type:"button",
+    className:"t3-pin-bar-btn",
+    title:isZh?"预览并清理 macOS 磁盘缓存":"Preview & clean macOS disk cache",
+    onClick:()=>globalThis.__t3QuotaUi?.openCacheCleaner?.(),
+    children:isZh?"🧹 缓存":"🧹 Cache"
+  });
+  return (0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[${currButtonExpr},__langSeg,__cacheBtn]});
 }
 `;
 
@@ -1906,12 +2040,12 @@ function patchChatTopbarBundle(src) {
     }
   }
 
-  // 2. v1.3.0 Stardust Cosmic Warp-Drive Canvas Reasoning Effort Slider inside XR (with 2s auto-idle sleep, 0% idle GPU/CPU)
+  // 2. v1.4.0 1:1 Original MIT V18 Starship Launch Stack Effort Slider (CosmicEffortSlider.tsx + cosmicSliderScenes.ts)
   if (jsxNs) {
-    const cosmicSliderFn = `function __T3EffortSlider({options,selectedId,disabled,onPick}){const[dragIdx,setDragIdx]=(0,${reactNs}.useState)(null);const[,setLangTick]=(0,${reactNs}.useState)(0);const boxRef=(0,${reactNs}.useRef)(null);const canvasRef=(0,${reactNs}.useRef)(null);const wakeUntilRef=(0,${reactNs}.useRef)(Date.now()+2200);const rafRef=(0,${reactNs}.useRef)(0);const starsRef=(0,${reactNs}.useRef)(null);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setLangTick(x=>x+1))},[]);const count=options.length;if(count<2)return null;const curIdx=Math.max(0,options.findIndex(o=>o.id===selectedId));const activeIdx=dragIdx!==null?dragIdx:curIdx;const activeOpt=options[activeIdx]||options[0];const ratio=count>1?activeIdx/(count-1):0;const tierColor=ratio<=0.05?"#38bdf8":ratio<=0.42?"#34d399":ratio<=0.74?"#fbbf24":"#a855f7";const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const shortLbl=o=>{const id=String(o.id||o.label||"").toLowerCase();if(!zh)return o.label;if(id==="none"||id==="off")return"关";if(id==="minimal")return"极低";if(id==="low")return"低";if(id==="medium")return"中";if(id==="high")return"高";if(id==="xhigh")return"超高";if(id==="max"||id==="ultra")return"Max";return o.label};const subTitle=()=>{if(zh){if(ratio<=0.05)return"轻载快响 · 极速响应";if(ratio<=0.42)return"均衡巡航 · 日常开发";if(ratio<=0.74)return"高能推进 · 深度推理";return"深空曲速巡航 · 满载任务"}if(ratio<=0.05)return"Light cruise · fast response";if(ratio<=0.42)return"Balanced cruise · daily coding";if(ratio<=0.74)return"High thrust · deep reasoning";return"Deep-space warp · full power"};const wake=(ms=2000)=>{wakeUntilRef.current=Math.max(wakeUntilRef.current,Date.now()+ms)};(0,${reactNs}.useEffect)(()=>{wake(2000);const cvs=canvasRef.current;if(!cvs)return;const ctx=cvs.getContext("2d");if(!ctx)return;if(!starsRef.current){const arr=[];for(let i=0;i<26;i++)arr.push({x:Math.random(),y:Math.random(),r:0.5+Math.random()*1.1,s:0.12+Math.random()*0.45,a:0.25+Math.random()*0.65});starsRef.current=arr}let alive=!0;const draw=ts=>{if(!alive)return;const dpr=Math.min(2,window.devicePixelRatio||1);const w=cvs.clientWidth||180,h=cvs.clientHeight||38;if(cvs.width!==Math.round(w*dpr)||cvs.height!==Math.round(h*dpr)){cvs.width=Math.round(w*dpr);cvs.height=Math.round(h*dpr)}ctx.save();ctx.scale(dpr,dpr);const bg=ctx.createLinearGradient(0,0,w,0);bg.addColorStop(0,"#050814");bg.addColorStop(0.55,"#0b1026");bg.addColorStop(1,"#130d24");ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);const cy=h/2,padL=18,padR=20,span=Math.max(20,w-padL-padR),tx=padL+span*ratio;const t=ts*0.001;const speed=0.4+ratio*2.2;for(const st of starsRef.current){const sx=((st.x-t*st.s*speed*0.18)%1+1)%1*w;const sy=st.y*h;ctx.fillStyle="rgba(220,235,255,"+st.a.toFixed(2)+")";ctx.beginPath();ctx.arc(sx,sy,st.r,0,Math.PI*2);ctx.fill()}const orbG=ctx.createRadialGradient(padL-2,cy,1,padL-2,cy,12);orbG.addColorStop(0,"#e0f2fe");orbG.addColorStop(0.35,"#38bdf8");orbG.addColorStop(1,"rgba(56,189,248,0)");ctx.fillStyle=orbG;ctx.beginPath();ctx.arc(padL-2,cy,12,0,Math.PI*2);ctx.fill();const beamW=Math.max(10,tx-padL+4);const outer=ctx.createLinearGradient(padL,cy,tx,cy);outer.addColorStop(0,"rgba(56,189,248,0.18)");outer.addColorStop(0.45,ratio>0.7?"rgba(168,85,247,0.58)":ratio>0.4?"rgba(245,158,11,0.52)":"rgba(52,211,153,0.48)");outer.addColorStop(1,ratio>0.7?"rgba(236,72,153,0.85)":"rgba(56,189,248,0.8)");ctx.fillStyle=outer;ctx.beginPath();ctx.roundRect(padL-2,cy-7.5,beamW,15,8);ctx.fill();const core=ctx.createLinearGradient(padL,cy,tx,cy);core.addColorStop(0,"rgba(186,230,253,0.55)");core.addColorStop(0.6,"rgba(255,255,255,0.88)");core.addColorStop(1,"#ffffff");ctx.fillStyle=core;ctx.beginPath();ctx.roundRect(padL,cy-2.4,beamW,4.8,3);ctx.fill();const streakCount=3+Math.round(ratio*4);ctx.lineWidth=1.1;for(let i=0;i<streakCount;i++){const phase=((t*speed*0.9+i/streakCount)%1);const lx=padL+phase*beamW;const len=10+ratio*16;const ly=cy+Math.sin(i*2.3+t*3)*5.2;ctx.strokeStyle="rgba(255,255,255,"+(0.28+0.45*(1-phase)).toFixed(2)+")";ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(Math.min(tx,lx+len),ly);ctx.stroke()}const cw=22,ch=15,cx=Math.max(padL,Math.min(w-padR,tx));const capG=ctx.createLinearGradient(cx,cy-ch/2,cx,cy+ch/2);capG.addColorStop(0,"#f8fafc");capG.addColorStop(0.45,"#94a3b8");capG.addColorStop(0.7,"#334155");capG.addColorStop(1,"#cbd5e1");ctx.fillStyle=capG;ctx.beginPath();ctx.roundRect(cx-cw/2,cy-ch/2,cw,ch,ch/2);ctx.fill();ctx.strokeStyle="rgba(255,255,255,0.8)";ctx.lineWidth=1;ctx.stroke();ctx.fillStyle="rgba(255,255,255,0.65)";ctx.beginPath();ctx.roundRect(cx-cw/2+3,cy-ch/2+2,cw-6,3.2,2);ctx.fill();ctx.restore();if(Date.now()<wakeUntilRef.current){rafRef.current=requestAnimationFrame(draw)}else{rafRef.current=0}};rafRef.current=requestAnimationFrame(draw);return()=>{alive=!1;if(rafRef.current)cancelAnimationFrame(rafRef.current)}},[ratio,dragIdx,selectedId]);const idxFromX=clientX=>{const el=boxRef.current;if(!el)return curIdx;const rect=el.getBoundingClientRect();const r=Math.max(0,Math.min(1,(clientX-rect.left-14)/Math.max(1,rect.width-28)));return Math.round(r*(count-1))};const commit=idx=>{wake(2000);const opt=options[idx];if(opt&&!disabled&&opt.id!==selectedId)onPick(opt.id)};const onPointerDown=ev=>{if(disabled)return;ev.preventDefault();wake(2500);try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch{}const idx=idxFromX(ev.clientX);setDragIdx(idx);commit(idx)};const onPointerMove=ev=>{if(dragIdx===null||disabled)return;wake(2000);const idx=idxFromX(ev.clientX);if(idx!==dragIdx){setDragIdx(idx);commit(idx)}};const onPointerUp=ev=>{if(dragIdx===null)return;const idx=idxFromX(ev.clientX);setDragIdx(null);commit(idx);try{ev.currentTarget.releasePointerCapture(ev.pointerId)}catch{}};return(0,${jsxNs}.jsxs)("div",{className:"t3-cosmic-wrap",style:{"--t3-ef-c":tierColor},"data-quota-ui-managed":"true",onMouseEnter:()=>wake(2000),children:[(0,${jsxNs}.jsxs)("div",{className:"t3-cosmic-head",children:[(0,${jsxNs}.jsxs)("div",{children:[(0,${jsxNs}.jsxs)("div",{className:"t3-cosmic-title-row",children:[(0,${jsxNs}.jsx)("span",{className:"t3-cosmic-dot"}),(0,${jsxNs}.jsx)("span",{children:(zh?"推理强度 · ":"Reasoning · ")+shortLbl(activeOpt)})]}),(0,${jsxNs}.jsx)("div",{className:"t3-cosmic-sub",children:subTitle()})]}),(0,${jsxNs}.jsx)("span",{className:"t3-cosmic-tiers",children:zh?count+" 档":count+" tiers"})]}),(0,${jsxNs}.jsx)("div",{ref:boxRef,className:"t3-cosmic-canvas-box",onPointerDown,onPointerMove,onPointerUp,onPointerCancel:()=>setDragIdx(null),children:(0,${jsxNs}.jsx)("canvas",{ref:canvasRef,className:"t3-cosmic-canvas"})}),(0,${jsxNs}.jsx)("div",{className:"t3-cosmic-stops",style:{gridTemplateColumns:"repeat("+count+", minmax(0, 1fr))"},children:options.map((o,idx)=>(0,${jsxNs}.jsx)("button",{type:"button",role:"radio","aria-checked":idx===activeIdx,disabled,"data-effort-row":!0,"data-effort-level":!0,tabIndex:idx===activeIdx?0:-1,className:"t3-cosmic-stop",title:o.description||o.label,onClick:()=>commit(idx),children:shortLbl(o)},o.id))})]})}`;
+    const v18SliderFn = `function __T3EffortSlider({options,selectedId,disabled,onPick}){const TRACK_H=50,PAD=28,LENS_W=50,LENS_H=44,SNAP=0.032,IDLE_FRAME_MS=1000/24,IDLE_SLEEP_MS=2000;const wellRef=(0,${reactNs}.useRef)(null);const wrapRef=(0,${reactNs}.useRef)(null);const canvasRef=(0,${reactNs}.useRef)(null);const offRef=(0,${reactNs}.useRef)(null);const particlesRef=(0,${reactNs}.useRef)(null);const wakeLoopRef=(0,${reactNs}.useRef)(null);const[,setLangTick]=(0,${reactNs}.useState)(0);const[dragging,setDragging]=(0,${reactNs}.useState)(!1);const[dragStory,setDragStory]=(0,${reactNs}.useState)(null);const count=Math.max(1,options.length);const foundIdx=options.findIndex(o=>o.id===selectedId);const selectedIndex=Math.max(0,foundIdx);const targetRatio=count<=1?0:selectedIndex/(count-1);const stateRef=(0,${reactNs}.useRef)({val:targetRatio,target:targetRatio,dragging:!1,lastIdx:selectedIndex,t:2.4,hitstop:0,flash:0,shake:0,recoil:0,chroma:0,shock:0,lastIdlePaintMs:0,lastActivityMs:0,hasPainted:!1});const applyJuice=(st,ni,pi)=>{if(ni>pi){st.hitstop=0.028;st.flash=0.36;st.shake=0.95;st.recoil=-5.5;st.chroma=1;st.shock=1}else{st.hitstop=0;st.flash=0.1;st.shake=0.22;st.recoil=2.2;st.chroma=0.3;st.shock=0}};const chime=ratio=>{try{if(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!globalThis.__t3CosmicAudio)globalThis.__t3CosmicAudio=new AC;const ac=globalThis.__t3CosmicAudio;if(ac.state==="suspended")void ac.resume();const now=ac.currentTime,o1=ac.createOscillator(),o2=ac.createOscillator(),g=ac.createGain();o1.type="sine";o2.type="triangle";const f=360+ratio*620;o1.frequency.setValueAtTime(f,now);o1.frequency.exponentialRampToValueAtTime(f*1.35,now+0.045);o2.frequency.setValueAtTime(f*1.5,now);g.gain.setValueAtTime(0.05,now);g.gain.exponentialRampToValueAtTime(0.0008,now+0.075);o1.connect(g);o2.connect(g);g.connect(ac.destination);o1.start(now);o2.start(now);o1.stop(now+0.08);o2.stop(now+0.08)}catch{}};(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setLangTick(x=>x+1))},[]);(0,${reactNs}.useEffect)(()=>{const st=stateRef.current;if(!st.dragging){if(st.lastIdx!==selectedIndex){applyJuice(st,selectedIndex,st.lastIdx);st.lastIdx=selectedIndex}st.target=targetRatio;wakeLoopRef.current?.()}},[selectedIndex,targetRatio]);(0,${reactNs}.useEffect)(()=>{const V18=globalThis.__t3StardustV18;const canvas=canvasRef.current,wrap=wrapRef.current;if(!V18||!canvas||!wrap)return;const ctx=canvas.getContext("2d");if(!ctx)return;if(!offRef.current)offRef.current=document.createElement("canvas");const off=offRef.current,octx=off.getContext("2d");if(!octx)return;if(!particlesRef.current){const pool=V18.createStarshipParticles(68);V18.prewarmStarshipParticles(pool,stateRef.current.val);particlesRef.current=pool}const particles=particlesRef.current;const reduced=Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);let raf=0,lastTs=performance.now();const drawFrame=now=>{if(document.hidden){raf=0;canvas.dataset.renderState="sleeping";return}const layoutW=wrap.clientWidth;if(layoutW<2){raf=0;return}const st=stateRef.current;const activeMotion=st.dragging||st.hitstop>0||st.flash>0.01||st.shake>0.02||Math.abs(st.recoil)>0.08||st.chroma>0.01||st.shock>0.01||Math.abs(st.target-st.val)>0.001;if(activeMotion){st.lastActivityMs=now}else if(!reduced&&st.hasPainted&&now-st.lastActivityMs>=IDLE_SLEEP_MS){raf=0;canvas.dataset.renderState="sleeping";return}const cssW=Math.max(120,Math.min(720,Math.round(layoutW))),cssH=TRACK_H,dpr=Math.min(2,window.devicePixelRatio||1),cw=Math.round(cssW*dpr),ch=Math.round(cssH*dpr),needsResize=canvas.width!==cw||canvas.height!==ch;if(!reduced&&!activeMotion&&!needsResize&&st.hasPainted&&now-st.lastIdlePaintMs<IDLE_FRAME_MS){raf=requestAnimationFrame(drawFrame);return}const dt=Math.min(0.05,Math.max(0.001,(now-lastTs)/1000));lastTs=now;st.lastIdlePaintMs=now;if(needsResize){canvas.width=cw;canvas.height=ch;off.width=cw;off.height=ch}if(reduced){st.val=st.target;st.hitstop=st.flash=st.shake=st.recoil=st.chroma=st.shock=0}else if(st.hitstop>0){st.hitstop=Math.max(0,st.hitstop-dt)}else{st.t+=dt;st.val+=(st.target-st.val)*(st.dragging?0.45:0.24);if(Math.abs(st.target-st.val)<0.0005)st.val=st.target;st.flash=Math.max(0,st.flash-dt*4.6);st.shake=Math.max(0,st.shake-dt*6.4);st.recoil*=Math.pow(0.0008,dt);if(Math.abs(st.recoil)<0.05)st.recoil=0;st.chroma=Math.max(0,st.chroma-dt*7.2);st.shock=Math.max(0,st.shock-dt*4.5)}const well=wellRef.current;if(well){if(!reduced&&st.shake>0.02){well.style.transform="translate3d("+(Math.sin(now*0.095)*1.7*st.shake).toFixed(2)+"px,"+(Math.cos(now*0.13)*1.2*st.shake).toFixed(2)+"px,0)"}else if(well.style.transform){well.style.transform=""}}const kx=PAD+st.val*(cssW-PAD*2)+st.recoil,ky=cssH/2;octx.setTransform(dpr,0,0,dpr,0,0);octx.clearRect(0,0,cssW,cssH);const{nx,ny,angle}=V18.drawStarshipScene(octx,cssW,cssH,st.val,kx,st.t,particles,st.shock);if(!reduced&&st.hitstop<=0)V18.stepStarshipParticles(particles,dt,st.val,nx,ny,angle,cssW);for(let i=0;i<count;i++){const dx=count<=1?cssW/2:PAD+(i/(count-1))*(cssW-PAD*2);octx.fillStyle=i<=st.lastIdx?"rgba(255,255,255,0.88)":"rgba(255,255,255,0.24)";octx.beginPath();octx.arc(dx,cssH-4.2,i===st.lastIdx?1.8:1,0,Math.PI*2);octx.fill()}if(!reduced&&st.flash>0.01){octx.save();octx.fillStyle=V18.sampleStarshipFlash(st.val);octx.globalAlpha=st.flash;octx.fillRect(0,0,cssW,cssH);octx.restore()}ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cw,ch);ctx.drawImage(off,0,0);ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);const kw=LENS_W+st.chroma*3,kh=LENS_H-st.chroma*1.4,kr=kh/2;ctx.save();ctx.shadowColor="rgba(0,0,0,0.42)";ctx.shadowBlur=st.dragging?14:9;ctx.shadowOffsetY=2.5;ctx.fillStyle="rgba(0,0,0,0.18)";ctx.beginPath();ctx.roundRect(kx-kw/2,ky-kh/2,kw,kh,kr);ctx.fill();ctx.restore();ctx.save();ctx.beginPath();ctx.roundRect(kx-kw/2,ky-kh/2,kw,kh,kr);ctx.clip();const mag=st.dragging?1.32:1.22,sw=(kw/mag)*dpr,sh=(kh/mag)*dpr,sx=Math.max(0,Math.min(cw-sw,kx*dpr-sw/2)),sy=Math.max(0,Math.min(ch-sh,ky*dpr-sh/2));ctx.drawImage(off,sx,sy,sw,sh,kx-kw/2,ky-kh/2,kw,kh);const disp=1.2+st.chroma*2.6;ctx.globalCompositeOperation="screen";ctx.globalAlpha=0.18+st.chroma*0.25;ctx.drawImage(off,Math.max(0,sx-disp*dpr),sy,sw,sh,kx-kw/2-disp,ky-kh/2,kw,kh);ctx.drawImage(off,Math.min(cw-sw,sx+disp*dpr),sy,sw,sh,kx-kw/2+disp,ky-kh/2,kw,kh);ctx.globalCompositeOperation="source-over";ctx.globalAlpha=1;const gg=ctx.createLinearGradient(kx,ky-kh/2,kx,ky+kh/2);gg.addColorStop(0,"rgba(255,255,255,0.34)");gg.addColorStop(0.2,"rgba(255,255,255,0.02)");gg.addColorStop(0.84,"rgba(255,255,255,0.01)");gg.addColorStop(1,"rgba(255,255,255,0.22)");ctx.fillStyle=gg;ctx.fillRect(kx-kw/2,ky-kh/2,kw,kh);ctx.fillStyle="rgba(255,255,255,0.68)";ctx.beginPath();ctx.ellipse(kx-2,ky-kh*0.36,kw*0.28,kh*0.06,0,0,Math.PI*2);ctx.fill();ctx.restore();const rg=ctx.createLinearGradient(kx,ky-kh/2,kx,ky+kh/2);rg.addColorStop(0,"rgba(255,255,255,0.92)");rg.addColorStop(0.5,"rgba(255,255,255,0.28)");rg.addColorStop(1,V18.sampleStarshipAccent(st.val));ctx.strokeStyle=rg;ctx.lineWidth=st.dragging||st.chroma>0.2?1.8:1.3;ctx.beginPath();ctx.roundRect(kx-kw/2+0.65,ky-kh/2+0.65,kw-1.3,kh-1.3,kr);ctx.stroke();ctx.restore();st.hasPainted=!0;canvas.dataset.renderState=reduced?"sleeping":"active";raf=reduced?0:requestAnimationFrame(drawFrame)};const wake=()=>{const now=performance.now();stateRef.current.lastActivityMs=now;canvas.dataset.renderState=reduced?"sleeping":"active";if(!raf){lastTs=now;raf=requestAnimationFrame(drawFrame)}};wakeLoopRef.current=wake;wake();let ro;if(typeof ResizeObserver!=="undefined"){ro=new ResizeObserver(()=>wake());ro.observe(wrap)}return()=>{wakeLoopRef.current=null;if(raf)cancelAnimationFrame(raf);if(wellRef.current)wellRef.current.style.transform="";ro?.disconnect()}},[count]);if(count<2)return null;const V18=globalThis.__t3StardustV18;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const shortLbl=o=>{const id=String(o.id||o.label||"").toLowerCase();if(!zh)return o.label;if(id==="none"||id==="off")return"关";if(id==="minimal")return"极低";if(id==="low")return"低";if(id==="medium")return"中";if(id==="high")return"高";if(id==="xhigh")return"超高";if(id==="max"||id==="ultra")return"Max";return o.label};const activeOpt=options[selectedIndex]||options[0];const activeColor=V18?V18.sampleStarshipAccent(targetRatio):"#3cf6ff";const storyKey=dragStory||(V18?V18.starshipStoryAtRatio(targetRatio):"");const storyTxt=globalThis.__t3QuotaUi?.translateStarshipStory?globalThis.__t3QuotaUi.translateStarshipStory(storyKey):storyKey;const p2i=cx=>{const rect=wrapRef.current?.getBoundingClientRect();if(!rect||rect.width<=0||count<=1)return{ratio:targetRatio,idx:selectedIndex};let raw=Math.max(0,Math.min(1,(cx-rect.left-PAD)/Math.max(20,rect.width-PAD*2)));for(let i=0;i<count;i++){const det=i/(count-1);if(Math.abs(raw-det)<SNAP){raw=det;break}}return{ratio:raw,idx:Math.round(raw*(count-1))}};const commit=(idx,snd=!0)=>{const opt=options[idx];if(!opt||disabled)return;if(opt.id!==selectedId){if(snd)chime(count<=1?0:idx/(count-1));onPick(opt.id)}};return(0,${jsxNs}.jsxs)("div",{"data-cosmic-effort-slider":"","data-cosmic-scene":"starship","data-quota-ui-managed":"true",className:disabled?"opacity-60":"",onPointerEnter:()=>wakeLoopRef.current?.(),onFocus:()=>wakeLoopRef.current?.(),children:[(0,${jsxNs}.jsx)("div",{"data-cosmic-embed-head":"",children:(0,${jsxNs}.jsxs)("b",{children:[(0,${jsxNs}.jsx)("span",{"aria-hidden":"true","data-cosmic-state-dot":"",style:{background:activeColor,boxShadow:"0 0 8px "+activeColor}}),(0,${jsxNs}.jsx)("span",{className:"truncate","data-cosmic-level-heading":"",children:(zh?"推理强度 · ":"Reasoning effort · ")+shortLbl(activeOpt)})]})}),(0,${jsxNs}.jsxs)("div",{"data-cosmic-sub-row":"",children:[(0,${jsxNs}.jsx)("span",{className:"truncate","data-cosmic-story":storyKey,children:storyTxt},storyKey),(0,${jsxNs}.jsx)("span",{className:"shrink-0 tabular-nums","data-cosmic-stage":"",children:zh?count+" 档":count+" levels"})]}),(0,${jsxNs}.jsx)("div",{ref:wellRef,"data-cosmic-stage-well":"",children:(0,${jsxNs}.jsx)("div",{ref:wrapRef,role:"slider",tabIndex:-1,"aria-valuemin":0,"aria-valuemax":count-1,"aria-valuenow":selectedIndex,"data-cosmic-track":"",className:disabled?"pointer-events-none":dragging?"cursor-grabbing":"cursor-grab",onPointerDown:ev=>{if(disabled||ev.button!==0)return;try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch{}setDragging(!0);stateRef.current.dragging=!0;const{ratio,idx}=p2i(ev.clientX);stateRef.current.target=ratio;stateRef.current.val=ratio;if(V18)setDragStory(V18.starshipStoryAtRatio(ratio));wakeLoopRef.current?.();if(idx!==stateRef.current.lastIdx){applyJuice(stateRef.current,idx,stateRef.current.lastIdx);stateRef.current.lastIdx=idx;commit(idx,!0)}},onPointerMove:ev=>{if(!stateRef.current.dragging||disabled)return;const{ratio,idx}=p2i(ev.clientX);stateRef.current.target=ratio;if(V18){const ns=V18.starshipStoryAtRatio(ratio);setDragStory(p=>p===ns?p:ns)}if(idx!==stateRef.current.lastIdx){applyJuice(stateRef.current,idx,stateRef.current.lastIdx);stateRef.current.lastIdx=idx;commit(idx,!0)}},onPointerUp:()=>{if(!stateRef.current.dragging)return;stateRef.current.dragging=!1;setDragging(!1);setDragStory(null);const idx=Math.round(stateRef.current.target*(count-1));stateRef.current.target=count<=1?0:idx/(count-1);commit(idx,!1);wakeLoopRef.current?.()},onPointerCancel:()=>{if(!stateRef.current.dragging)return;stateRef.current.dragging=!1;setDragging(!1);setDragStory(null);stateRef.current.target=targetRatio;wakeLoopRef.current?.()},children:(0,${jsxNs}.jsx)("canvas",{ref:canvasRef,"aria-hidden":"true",className:"pointer-events-none absolute inset-0 block size-full rounded-full"})})}),(0,${jsxNs}.jsx)("div",{"data-cosmic-tier-scale":"",children:options.map((o,idx)=>(0,${jsxNs}.jsx)("button",{type:"button",role:"radio","aria-checked":idx===selectedIndex,disabled,"data-effort-row":!0,"data-effort-level":!0,tabIndex:idx===selectedIndex?0:-1,title:o.description||o.label,onClick:()=>{applyJuice(stateRef.current,idx,stateRef.current.lastIdx);stateRef.current.lastIdx=idx;commit(idx,!0);wakeLoopRef.current?.()},children:shortLbl(o)},o.id))})]})}`;
 
     if (out.includes("function __T3EffortSlider(")) {
-      out = out.replace(/function __T3EffortSlider\([\s\S]*?\}\n/, `${cosmicSliderFn}\n`);
+      out = out.replace(/function __T3EffortSlider\([\s\S]*?\}\n/, `${v18SliderFn}\n`);
     } else {
       const xrRegex = /([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\.map\(\(([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\)=>\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{label:\3\.label,selected:\3\.id===([A-Za-z0-9_$]+),tabStop:[A-Za-z0-9_$]+\?\3\.id===\7:\4===0,description:\3\.description,isDefault:\3\.isDefault,disabled:([A-Za-z0-9_$]+),onPick:\(\)=>([A-Za-z0-9_$]+)\.changeSelect\(([A-Za-z0-9_$]+)\.descriptor,\3\.id\)\},\3\.id\)\)/;
       if (xrRegex.test(out)) {
@@ -1920,29 +2054,57 @@ function patchChatTopbarBundle(src) {
           (full, fV, eOpts, _opt, _idx, jNs, _qR, selId, disV, traitsV, ctrlV) =>
             `${fV}=${eOpts}.length>=2?(0,${jNs}.jsx)(__T3EffortSlider,{options:${eOpts},selectedId:${selId},disabled:${disV},onPick:__id=>${traitsV}.changeSelect(${ctrlV}.descriptor,__id)}):${full.slice(fV.length + 1)}`,
         );
-        out += `\n${cosmicSliderFn}\n`;
+        out += `\n${v18SliderFn}\n`;
       }
     }
   }
 
-  // 3. v1.3.0 Red Box #3: Bottom-Center Floating Telemetry Pill inside jU (composer-telemetry-strip)
-  if (!out.includes("__T3TelemetryPill") && jsxNs) {
-    const juMatch = out.match(
-      /function ([A-Za-z0-9_$]+)\(e\)\{let t=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),\{contextWindow:([A-Za-z0-9_$]+),providerInstanceId:[A-Za-z0-9_$]+,activeModel:[A-Za-z0-9_$]+,providers:[A-Za-z0-9_$]+,sources:[A-Za-z0-9_$]+,isWorking:([A-Za-z0-9_$]+),liveTurn:([A-Za-z0-9_$]+),latestCacheTurn:([A-Za-z0-9_$]+),sessionCacheHitPercent:([A-Za-z0-9_$]+),sessionCacheTurnCount:[A-Za-z0-9_$]+,turnCount:([A-Za-z0-9_$]+),toolCallCount:([A-Za-z0-9_$]+),[\s\S]{0,3600}?"data-slot":[`"']composer-telemetry-strip[`"'],className:[`"']justify-between gap-2 pt-1\.5 pb-0\.5[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}/,
-    );
-    if (juMatch) {
-      const [, , ctxV, workV, liveV, cacheTurnV, cachePctV, turnV, toolV, leftV, rightV] = juMatch;
-      out = out.replace(
-        juMatch[0],
-        juMatch[0].replace(
-          `children:[${leftV},${rightV}]}`,
-          `children:[${leftV},(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:${ctxV},liveTurn:${liveV},latestTurn:${cacheTurnV},turnCount:${turnV},toolCallCount:${toolV},cacheHitPercent:${cachePctV},isWorking:${workV}}),${rightV}]}`,
-        ),
+  // 3. v1.4.0 1:1 Original MIT V9 Magnetic-Spring Session Stats Pill inside jU (composer-telemetry-strip)
+  if (jsxNs) {
+    const v9StatsFn = `function __T3TelemetryPill({usage,liveTurn,latestTurn,turnCount,toolCallCount,cacheHitPercent,isWorking}){const[,setTick]=(0,${reactNs}.useState)(0);const clusterRef=(0,${reactNs}.useRef)(null);const dockRef=(0,${reactNs}.useRef)(null);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const turns=Number.isFinite(turnCount)?turnCount:0;const steps=Number.isFinite(toolCallCount)?toolCallCount:0;const tObj=liveTurn||latestTurn||null;let tps=tObj?.outputTokensPerSecond??tObj?.tokensPerSecond??tObj?.genTokensPerSecond??null;if((!Number.isFinite(tps)||tps<=0)&&tObj&&Number.isFinite(tObj.outputTokens)&&Number.isFinite(tObj.durationMs)&&tObj.durationMs>200){tps=tObj.outputTokens/(tObj.durationMs/1000)}const tokRaw=usage?.usedTokens??usage?.totalTokens??usage?.contextTokens??tObj?.totalTokens??null;const fmtTok=n=>{if(!Number.isFinite(n)||n<=0)return null;if(n>=1e6)return(n/1e6).toFixed(1)+"M";if(n>=1e3)return(n/1e3).toFixed(1)+"K";return String(Math.round(n))};const tokStr=fmtTok(tokRaw);const cacheStr=Number.isFinite(cacheHitPercent)?Math.round(cacheHitPercent)+"%":null;if(turns<=0&&steps<=0&&!tokStr)return null;const leftTxt=zh?(turns+" 轮"+(steps>0?" "+steps+" 步":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":"")):(turns+"t"+(steps>0?" · "+steps+"s":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":""));const rightParts=[];if(tokStr)rightParts.push(tokStr+(zh?" 令牌":" tok"));if(cacheStr)rightParts.push((zh?"缓存 ":"cache ")+cacheStr);const dockTo=ev=>{const d=dockRef.current,c=clusterRef.current;if(!d||!c)return;const cr=c.getBoundingClientRect(),tr=ev.currentTarget.getBoundingClientRect();d.style.transform="translateX("+(tr.left-cr.left)+"px)";d.style.width=tr.width+"px";d.style.opacity="1"};const undock=()=>{const d=dockRef.current;if(d)d.style.opacity="0"};return(0,${jsxNs}.jsxs)("div",{ref:clusterRef,"data-v9-stats-cluster":"","data-quota-ui-managed":"true",onMouseLeave:undock,children:[(0,${jsxNs}.jsx)("span",{ref:dockRef,"data-v9-stats-dock-pill":"","aria-hidden":"true"}),(0,${jsxNs}.jsxs)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:[(0,${jsxNs}.jsx)("span",{"data-v9-stats-dot":"","data-running":isWorking?"true":"false"}),(0,${jsxNs}.jsx)("span",{children:leftTxt})]}),rightParts.length>0?(0,${jsxNs}.jsx)("span",{"data-v9-stats-sep":"","aria-hidden":"true"}):null,rightParts.length>0?(0,${jsxNs}.jsx)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:rightParts.join(" · ")}):null]})}`;
+
+    if (out.includes("function __T3TelemetryPill(")) {
+      out = out.replace(/function __T3TelemetryPill\([\s\S]*?\}\n/, `${v9StatsFn}\n`);
+    } else {
+      const juMatch = out.match(
+        /function ([A-Za-z0-9_$]+)\(e\)\{let t=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),\{contextWindow:([A-Za-z0-9_$]+),providerInstanceId:[A-Za-z0-9_$]+,activeModel:[A-Za-z0-9_$]+,providers:[A-Za-z0-9_$]+,sources:[A-Za-z0-9_$]+,isWorking:([A-Za-z0-9_$]+),liveTurn:([A-Za-z0-9_$]+),latestCacheTurn:([A-Za-z0-9_$]+),sessionCacheHitPercent:([A-Za-z0-9_$]+),sessionCacheTurnCount:[A-Za-z0-9_$]+,turnCount:([A-Za-z0-9_$]+),toolCallCount:([A-Za-z0-9_$]+),[\s\S]{0,3600}?"data-slot":[`"']composer-telemetry-strip[`"'],className:[`"']justify-between gap-2 pt-1\.5 pb-0\.5[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}/,
       );
-      out += `\nfunction __T3TelemetryPill({usage,liveTurn,latestTurn,turnCount,toolCallCount,cacheHitPercent,isWorking}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const turns=Number.isFinite(turnCount)?turnCount:0;const steps=Number.isFinite(toolCallCount)?toolCallCount:0;const tObj=liveTurn||latestTurn||null;let tps=tObj?.outputTokensPerSecond??tObj?.tokensPerSecond??tObj?.genTokensPerSecond??null;if((!Number.isFinite(tps)||tps<=0)&&tObj&&Number.isFinite(tObj.outputTokens)&&Number.isFinite(tObj.durationMs)&&tObj.durationMs>200){tps=tObj.outputTokens/(tObj.durationMs/1000)}const tokRaw=usage?.usedTokens??usage?.totalTokens??usage?.contextTokens??tObj?.totalTokens??null;const fmtTok=n=>{if(!Number.isFinite(n)||n<=0)return null;if(n>=1e6)return(n/1e6).toFixed(1)+"M";if(n>=1e3)return(n/1e3).toFixed(1)+"K";return String(Math.round(n))};const tokStr=fmtTok(tokRaw);const cacheStr=Number.isFinite(cacheHitPercent)?Math.round(cacheHitPercent)+"%":null;if(turns<=0&&steps<=0&&!tokStr)return null;const leftTxt=zh?(turns+" 轮"+(steps>0?" "+steps+" 步":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":"")):(turns+"t"+(steps>0?" · "+steps+"s":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":""));const rightParts=[];if(tokStr)rightParts.push(tokStr+(zh?" 令牌":" tok"));if(cacheStr)rightParts.push((zh?"缓存 ":"cache ")+cacheStr);return(0,${jsxNs}.jsxs)("div",{className:"t3-telemetry-pill","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsx)("span",{className:"t3-telemetry-dot",style:isWorking?{opacity:1}:{opacity:0.75}}),(0,${jsxNs}.jsx)("span",{children:leftTxt}),rightParts.length>0?(0,${jsxNs}.jsx)("span",{className:"t3-telemetry-sep"}):null,rightParts.length>0?(0,${jsxNs}.jsx)("span",{className:"t3-telemetry-strong",children:rightParts.join(" · ")}):null]})}\n`;
+      if (juMatch) {
+        const [, , ctxV, workV, liveV, cacheTurnV, cachePctV, turnV, toolV, leftV, rightV] = juMatch;
+        out = out.replace(
+          juMatch[0],
+          juMatch[0].replace(
+            `children:[${leftV},${rightV}]}`,
+            `children:[${leftV},(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:${ctxV},liveTurn:${liveV},latestTurn:${cacheTurnV},turnCount:${turnV},toolCallCount:${toolV},cacheHitPercent:${cachePctV},isWorking:${workV}}),${rightV}]}`,
+          ),
+        );
+        out += `\n${v9StatsFn}\n`;
+      }
     }
   }
 
+  return out;
+}
+
+function patchPreviewPanelBundle(src) {
+  if (src.includes("__T3PreviewPinBtn")) return src;
+  let out = src;
+  const reactMatch = out.match(/var ([A-Za-z0-9_$]+)=e\(t\(\),1\)/);
+  const formMatch = out.match(
+    /onClick:e=>([A-Za-z0-9_$]+)\(e\.shiftKey\)[\s\S]{0,1600}?"data-surface-subheader":!0,children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/,
+  );
+  const jsxMatch = out.match(/\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']form[`"'],\{onSubmit:/);
+  if (!reactMatch || !formMatch || !jsxMatch) return src;
+  const reactNs = reactMatch[1];
+  const captureFn = formMatch[1];
+  const jsxNs = jsxMatch[1];
+
+  out = out.replace(
+    `children:[${formMatch[2]},${formMatch[3]},${formMatch[4]},${formMatch[5]},${formMatch[6]},${formMatch[7]},${formMatch[8]}]`,
+    `children:[${formMatch[2]},${formMatch[3]},${formMatch[4]},${formMatch[5]},${formMatch[6]},(0,${jsxNs}.jsx)(__T3PreviewPinBtn,{onCapture:${captureFn}}),${formMatch[7]},${formMatch[8]}]`,
+  );
+
+  out += `\nfunction __T3PreviewPinBtn({onCapture}){const[st,setSt]=(0,${reactNs}.useState)({active:!1,count:0});(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribePreviewPins)return;return globalThis.__t3QuotaUi.subscribePreviewPins(setSt)},[]);const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsxs)("div",{className:"inline-flex shrink-0 items-center gap-1","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsx)("button",{type:"button",className:"t3-pin-bar-btn"+(st.active?" active":""),title:zh?"点击在预览页面扎图钉写修改意见":"Drop numbered pins on preview to annotate",onClick:()=>globalThis.__t3QuotaUi?.togglePreviewPins?.(),children:zh?(st.active?"📌 退出批注":"📌 批注"):(st.active?"📌 Exit Pins":"📌 Pins")}),st.active?(0,${jsxNs}.jsx)("button",{type:"button",className:"t3-pin-bar-btn send",disabled:st.count===0,onClick:()=>globalThis.__t3QuotaUi?.sendPreviewPins?.(onCapture),children:zh?"发送 ("+st.count+")":"Send ("+st.count+")"}):null]})}\n`;
   return out;
 }
 
@@ -2029,6 +2191,110 @@ function patchServerBundle(src) {
 			makeRuntime: (runtimeOpts) => { __t3PrepareAgySignIn(); return makeDisposableRuntime(runtimeOpts); },
 			onAuthenticated: (started, runtime) => sync(__t3SnapshotAgyOAuth).pipe(andThen(suspend(() => provider.onSignedIn)), andThen(publishCatalog(started, runtime))),
 			onSignedOut: sync(__t3ClearAgyOAuth).pipe(andThen(suspend(() => provider.onSignedOut))),`,
+    );
+  }
+
+  // 3. v1.4.0 Local macOS Disk Cache Preview & Safe Cleanup API inside layerAssetRoute
+  if (out.includes("const layerAssetRoute =") && !out.includes("__t3_cache_scan")) {
+    out = out.replace(
+      `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);`,
+      `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);
+	if (suffix === "__t3_cache_scan" || suffix === "__t3_cache_clean") {
+		const __fs = process.getBuiltinModule("node:fs");
+		const __p = process.getBuiltinModule("node:path");
+		const __os = process.getBuiltinModule("node:os");
+		const __home = __os.homedir();
+		const __collectDirs = () => {
+			const agyRoot = __p.join(__home, ".t3", "userdata", "providers", "antigravity");
+			const agyLogs = [], agyCaches = [];
+			try {
+				for (const d of __fs.readdirSync(agyRoot)) {
+					if (d.startsWith(".")) continue;
+					const lp = __p.join(agyRoot, d, "antigravity-acp", "log");
+					const cp = __p.join(agyRoot, d, "antigravity-acp", "cache");
+					if (__fs.existsSync(lp)) agyLogs.push(lp);
+					if (__fs.existsSync(cp)) agyCaches.push(cp);
+				}
+			} catch {}
+			const libCaches = [];
+			try {
+				const lc = __p.join(__home, "Library", "Caches");
+				for (const d of __fs.readdirSync(lc)) {
+					if (/^(t3|com\\.t3tools|t3code)/i.test(d)) libCaches.push(__p.join(lc, d));
+				}
+			} catch {}
+			const gpuCaches = [];
+			try {
+				const asDir = __p.join(__home, "Library", "Application Support");
+				for (const d of __fs.readdirSync(asDir)) {
+					if (/^t3/i.test(d)) {
+						for (const sub of ["GPUCache", "Code Cache", "Cache", "DawnGraphiteCache", "DawnWebGPUCache"]) {
+							const sp = __p.join(asDir, d, sub);
+							if (__fs.existsSync(sp)) gpuCaches.push(sp);
+						}
+					}
+				}
+			} catch {}
+			return [
+				{ id: "t3-logs", labelZh: "T3 运行日志", labelEn: "T3 Runtime Logs", descZh: "客户端与服务端历史日志文件", descEn: "Client & server historical log files", displayPath: "~/.t3/userdata/logs", dirs: [__p.join(__home, ".t3", "userdata", "logs")] },
+				{ id: "agy-logs", labelZh: "Antigravity 进程日志", labelEn: "Antigravity ACP Logs", descZh: "多实例 ACP 历史调试日志", descEn: "Historical ACP server debug logs", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/log", dirs: agyLogs },
+				{ id: "agy-cache", labelZh: "Antigravity 临时缓存", labelEn: "Antigravity Temp Cache", descZh: "可安全重建的临时运行缓存（不动登录凭证）", descEn: "Rebuildable runtime cache (keeps auth tokens)", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/cache", dirs: agyCaches },
+				{ id: "app-caches", labelZh: "macOS 应用系统缓存", labelEn: "macOS App Caches", descZh: "系统级缓存与更新残留包", descEn: "System-level caches & updater artifacts", displayPath: "~/Library/Caches/t3*", dirs: libCaches },
+				{ id: "electron-gpu", labelZh: "Electron GPU / 编译缓存", labelEn: "Electron GPU & Code Cache", descZh: "Chromium 渲染与 JS 字节码缓存", descEn: "Chromium GPU & JS bytecode cache", displayPath: "~/Library/Application Support/t3*/{GPUCache,Code Cache,Cache}", dirs: gpuCaches }
+			];
+		};
+		const __statDir = (dir) => {
+			let bytes = 0, files = 0;
+			const stack = [dir];
+			while (stack.length) {
+				const cur = stack.pop();
+				let ents;
+				try { ents = __fs.readdirSync(cur, { withFileTypes: true }); } catch { continue; }
+				for (const e of ents) {
+					const full = __p.join(cur, e.name);
+					if (e.isDirectory()) stack.push(full);
+					else if (e.isFile()) { try { bytes += __fs.statSync(full).size; files += 1; } catch {} }
+				}
+			}
+			return { bytes, files };
+		};
+		const __cleanDir = (dir) => {
+			let freed = 0, removed = 0;
+			let ents;
+			try { ents = __fs.readdirSync(dir, { withFileTypes: true }); } catch { return { freed, removed }; }
+			for (const e of ents) {
+				const full = __p.join(dir, e.name);
+				if (e.isDirectory()) {
+					const sub = __cleanDir(full);
+					freed += sub.freed; removed += sub.removed;
+					try { __fs.rmdirSync(full); } catch {}
+				} else if (e.isFile()) {
+					try { const sz = __fs.statSync(full).size; __fs.unlinkSync(full); freed += sz; removed += 1; } catch {}
+				}
+			}
+			return { freed, removed };
+		};
+		const defs = __collectDirs();
+		let freedBytes = 0, removedFiles = 0;
+		if (suffix === "__t3_cache_clean" && url.value.searchParams.get("confirm") === "1") {
+			const allow = new Set((url.value.searchParams.get("ids") || "").split(",").filter(Boolean));
+			for (const def of defs) {
+				if (!allow.has(def.id)) continue;
+				for (const d of def.dirs) {
+					if (__fs.existsSync(d)) {
+						const r = __cleanDir(d);
+						freedBytes += r.freed; removedFiles += r.removed;
+					}
+				}
+			}
+		}
+		const items = defs.map((def) => {
+			let bytes = 0, files = 0;
+			for (const d of def.dirs) { if (__fs.existsSync(d)) { const s = __statDir(d); bytes += s.bytes; files += s.files; } }
+			return { id: def.id, labelZh: def.labelZh, labelEn: def.labelEn, descZh: def.descZh, descEn: def.descEn, displayPath: def.displayPath, bytes, files };
+		});
+		return text$4(JSON.stringify({ freedBytes, removedFiles, items }), { status: 200, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+	}`,
     );
   }
 
@@ -2339,6 +2605,13 @@ function main() {
       updated.includes("onOpenUsageLimits:")
     ) {
       updated = patchChatTopbarBundle(updated);
+    }
+
+    if (
+      updated.includes("Screenshot · Shift-click to record") &&
+      updated.includes("data-preview-viewport")
+    ) {
+      updated = patchPreviewPanelBundle(updated);
     }
 
     if (opts.lang === "zh") {

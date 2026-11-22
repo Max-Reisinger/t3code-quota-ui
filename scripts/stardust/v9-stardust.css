@@ -1,0 +1,398 @@
+/*
+ * T3 Stardust V9 / V18 Exact Stylesheet (ported 1:1 from zds-xiaoxin/xiaoxin-t3code composerV9.css, MIT License)
+ * + Preview Pin Annotation Overlay & macOS Disk Cache Cleanup Center styles.
+ */
+:root {
+  --v9-spring: cubic-bezier(0.3, 0.7, 0.2, 1);
+  --v9-ease-exit: cubic-bezier(0.4, 0, 0.85, 0.6);
+  --v9-ac: var(--primary, #ff5a1f);
+  --v9-ac-soft: color-mix(in srgb, var(--primary, #ff5a1f) 10%, transparent);
+  --v9-ac-glow: color-mix(in srgb, var(--primary, #ff5a1f) 24%, transparent);
+  --v9-surface: #ffffff;
+  --v9-surface-2: #f5f5f8;
+  --v9-logo-bg: #f2f2f5;
+  --v9-glass-strong: rgba(255, 255, 255, 0.95);
+  --v9-fg: #1d1d1f;
+  --v9-fg-2: #6e6e73;
+  --v9-fg-3: #9a9aa1;
+  --v9-line: rgba(0, 0, 0, 0.085);
+  --v9-hair: rgba(0, 0, 0, 0.055);
+  --v9-fill: rgba(118, 118, 128, 0.095);
+  --v9-fill-hover: rgba(118, 118, 128, 0.155);
+  --v9-sel-surface: rgba(0, 0, 0, 0.048);
+  --v9-ok: #1d8a3f;
+  --v9-ok-bg: rgba(52, 199, 89, 0.13);
+  --v9-warn: #c25400;
+  --v9-warn-bg: rgba(255, 149, 0, 0.14);
+  --v9-bad: #d70015;
+  --v9-bad-bg: rgba(255, 59, 48, 0.12);
+  --v9-blue: #007aff;
+  --v9-blue-bg: rgba(0, 122, 255, 0.12);
+  --v9-shadow-float:
+    0 0 0 0.5px rgba(0, 0, 0, 0.09), 0 16px 40px -8px rgba(0, 0, 0, 0.16),
+    0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+html.dark,
+.dark {
+  --v9-surface: #18181b;
+  --v9-surface-2: #222226;
+  --v9-logo-bg: #2c2c30;
+  --v9-glass-strong: rgba(30, 30, 34, 0.96);
+  --v9-fg: #f5f5f7;
+  --v9-fg-2: #a1a1a6;
+  --v9-fg-3: #76767d;
+  --v9-line: rgba(255, 255, 255, 0.11);
+  --v9-hair: rgba(255, 255, 255, 0.07);
+  --v9-fill: rgba(255, 255, 255, 0.085);
+  --v9-fill-hover: rgba(255, 255, 255, 0.145);
+  --v9-sel-surface: rgba(255, 255, 255, 0.08);
+  --v9-ok: #30d158;
+  --v9-ok-bg: rgba(48, 209, 88, 0.16);
+  --v9-warn: #ff9f0a;
+  --v9-warn-bg: rgba(255, 159, 10, 0.18);
+  --v9-bad: #ff453a;
+  --v9-bad-bg: rgba(255, 69, 58, 0.16);
+  --v9-blue: #0a84ff;
+  --v9-blue-bg: rgba(10, 132, 255, 0.18);
+  --v9-shadow-float: 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 20px 50px rgba(0, 0, 0, 0.65);
+}
+
+/* ==================== V18 Starship Fluid Cosmic Effort Slider (1:1 composerV9.css) ==================== */
+[data-cosmic-effort-slider] {
+  padding: 10px 11px 9px;
+  border-radius: 14px;
+  background: var(--v9-surface-2);
+  border: 0.5px solid var(--v9-hair);
+  user-select: none;
+}
+[data-cosmic-embed-head] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11.8px;
+  line-height: 1.4;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+[data-cosmic-embed-head] > b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--v9-fg);
+}
+[data-cosmic-state-dot] {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+@keyframes v16-story-fade {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+[data-cosmic-sub-row] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--v9-fg-2);
+  margin-bottom: 4px;
+}
+[data-cosmic-story] {
+  animation: v16-story-fade 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-cosmic-story] { animation: none; }
+}
+[data-cosmic-stage-well] {
+  position: relative;
+  margin: 6px 0 5px;
+  padding: 3px;
+  border-radius: 999px;
+  will-change: transform;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.02));
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.14), 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+.dark [data-cosmic-stage-well] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.38));
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.58), 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+[data-cosmic-track] {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  border-radius: 999px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5), inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
+}
+[data-cosmic-tier-scale] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--v9-fg-3);
+  gap: 2px;
+}
+[data-cosmic-tier-scale] button {
+  padding: 2px 5px;
+  border-radius: 6px;
+  font-size: 10.6px;
+  line-height: 1.35;
+  color: var(--v9-fg-3);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 160ms ease, background 160ms ease;
+}
+[data-cosmic-tier-scale] button:hover:not(:disabled) {
+  color: var(--v9-fg);
+  background: var(--v9-fill);
+}
+[data-cosmic-tier-scale] button[aria-checked="true"] {
+  color: var(--v9-fg);
+  font-weight: 700;
+  background: var(--v9-fill-hover);
+}
+[data-cosmic-tier-scale] button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==================== V9 Model Picker Popover Glass Polish ==================== */
+[data-model-picker-content] {
+  background: var(--v9-glass-strong) !important;
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  border-radius: 18px !important;
+  box-shadow: var(--v9-shadow-float) !important;
+  border: 0.5px solid var(--v9-line) !important;
+}
+[data-model-picker-effort] {
+  width: 248px !important;
+  padding: 8px !important;
+  background: transparent !important;
+}
+@media (max-width: 640px) {
+  [data-model-picker-effort] {
+    width: 100% !important;
+  }
+}
+
+/* ==================== V9 Centered Magnetic-Spring Session Stats Pill ==================== */
+[data-v9-stats-cluster] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 999px;
+  border: 0.5px solid var(--v9-line);
+  background: var(--v9-glass-strong);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+}
+[data-v9-stats-dock-pill] {
+  position: absolute;
+  top: 2px;
+  height: calc(100% - 4px);
+  left: 0;
+  width: 0;
+  border-radius: 999px;
+  background: var(--v9-fill-hover);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 280ms var(--v9-spring), width 280ms var(--v9-spring), opacity 180ms ease;
+}
+[data-v9-stats-trig] {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11.2px;
+  line-height: 1.4;
+  color: var(--v9-fg-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+[data-v9-stats-trig]:hover {
+  color: var(--v9-fg);
+}
+[data-v9-stats-dot] {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--v9-ok);
+}
+[data-v9-stats-dot][data-running="true"] {
+  background: var(--v9-ac);
+}
+[data-v9-stats-sep] {
+  width: 1px;
+  height: 11px;
+  background: var(--v9-line);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ==================== V9 Composer Pill Bar & Vibrant Orange Send Button ==================== */
+button[data-chat-composer-transition-actions="true"]:not(:disabled) {
+  background: linear-gradient(135deg, #ff6b2b 0%, #ff5a1f 55%, #ea580c 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 12px rgba(255, 90, 31, 0.42) !important;
+  transition: transform 140ms var(--v9-spring), box-shadow 160ms ease, filter 140ms ease !important;
+}
+button[data-chat-composer-transition-actions="true"]:not(:disabled):hover {
+  filter: brightness(1.07);
+  box-shadow: 0 4px 16px rgba(255, 90, 31, 0.58) !important;
+  transform: translateY(-0.5px);
+}
+[data-composer-model-trigger],
+[data-composer-permissions-trigger] {
+  border-radius: 9999px !important;
+  border: 0.5px solid var(--v9-line) !important;
+  background: var(--v9-fill) !important;
+  transition: background 150ms ease, border-color 150ms ease !important;
+}
+[data-composer-model-trigger]:hover,
+[data-composer-permissions-trigger]:hover {
+  background: var(--v9-fill-hover) !important;
+}
+
+/* ==================== Preview Pin Annotation Overlay ==================== */
+.t3-pin-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  cursor: crosshair;
+  background: rgba(15, 23, 42, 0.06);
+  border: 2px dashed rgba(255, 90, 31, 0.65);
+  pointer-events: auto;
+}
+.t3-pin-marker {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px 999px 999px 2px;
+  background: #ff5a1f;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 3px 12px rgba(255, 90, 31, 0.52), 0 0 0 2px #ffffff;
+  cursor: pointer;
+  z-index: 46;
+}
+.t3-pin-popover {
+  position: absolute;
+  z-index: 48;
+  width: 240px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--v9-glass-strong);
+  border: 0.5px solid var(--v9-line);
+  box-shadow: var(--v9-shadow-float);
+  backdrop-filter: blur(12px);
+}
+.t3-pin-popover textarea {
+  width: 100%;
+  min-height: 54px;
+  resize: none;
+  border-radius: 8px;
+  border: 1px solid var(--v9-line);
+  background: var(--v9-surface);
+  color: var(--v9-fg);
+  padding: 6px 8px;
+  font-size: 12px;
+  outline: none;
+}
+.t3-pin-popover textarea:focus {
+  border-color: #ff5a1f;
+}
+.t3-pin-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 0.5px solid var(--v9-line);
+  background: var(--v9-fill);
+  color: var(--v9-fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.t3-pin-bar-btn.active {
+  background: rgba(255, 90, 31, 0.18);
+  border-color: rgba(255, 90, 31, 0.55);
+  color: #ff5a1f;
+}
+.t3-pin-bar-btn.send {
+  background: #ff5a1f;
+  border-color: #ff5a1f;
+  color: #ffffff;
+}
+.t3-pin-bar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==================== macOS Disk Cache Cleanup Center ==================== */
+.t3-cache-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.t3-cache-modal {
+  width: 560px;
+  max-width: 100%;
+  max-height: 82vh;
+  overflow: auto;
+  border-radius: 18px;
+  background: var(--v9-glass-strong);
+  border: 0.5px solid var(--v9-line);
+  box-shadow: var(--v9-shadow-float);
+  padding: 18px 20px;
+  color: var(--v9-fg);
+}
+.t3-cache-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 0.5px solid var(--v9-hair);
+  background: var(--v9-surface-2);
+}
