@@ -199,20 +199,32 @@ html.dark,
   display: flex !important;
   flex-direction: column !important;
   width: 100% !important;
-  height: auto !important;
+  height: 246px !important;
+  min-height: 246px !important;
+  flex-shrink: 0 !important;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
   padding: 0 !important;
   gap: 6px !important;
 }
+[data-model-picker-content] > div:not([data-model-picker-sidebar]) {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 0% !important;
+  min-height: 196px !important;
+  background: transparent !important;
+  border: 0 !important;
+}
 [data-model-picker-sidebar] {
   width: 100% !important;
-  height: auto !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  flex-shrink: 0 !important;
   background: transparent !important;
   border: 0 !important;
   border-bottom: 0.5px solid var(--v9-hair) !important;
-  padding: 0 0 7px 0 !important;
+  padding: 0 0 6px 0 !important;
   overflow-x: auto !important;
   overflow-y: hidden !important;
   scrollbar-width: none !important;
