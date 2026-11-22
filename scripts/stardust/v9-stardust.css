@@ -188,38 +188,57 @@ html.dark,
   padding: 0 !important;
   overflow: visible !important;
 }
-[data-slot="popover-popup"]:has([data-model-picker-content]) > [data-slot="popover-viewport"] > div > div:first-child {
+/* 100% bulletproof vertical stack: slider ALWAYS sits INSIDE & DIRECTLY BELOW model list */
+div:has(> [data-model-picker-effort]) {
   display: flex !important;
   flex-direction: column !important;
   height: auto !important;
+  min-height: 0 !important;
   width: 100% !important;
   gap: 8px !important;
+}
+/* Hide redundant Thinking Level header above V18 Starship slider */
+[data-model-picker-effort] > div:not(:has([data-cosmic-effort-slider])):not([data-cosmic-effort-slider]),
+[data-model-picker-effort] > div > div:not(:has([data-cosmic-effort-slider])):not([data-cosmic-effort-slider]) {
+  display: none !important;
+}
+/* Collapse duplicate bottom footer bar cleanly while keeping trigger clickable for permission switching */
+div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 [data-model-picker-content] {
   display: flex !important;
   flex-direction: column !important;
   width: 100% !important;
-  height: 246px !important;
-  min-height: 246px !important;
+  height: 230px !important;
+  min-height: 230px !important;
   flex-shrink: 0 !important;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
   padding: 0 !important;
-  gap: 6px !important;
+  gap: 0 !important;
 }
-[data-model-picker-content] > div:not([data-model-picker-sidebar]) {
+[data-model-picker-content] > div {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 0% !important;
-  min-height: 196px !important;
+  min-height: 226px !important;
   background: transparent !important;
   border: 0 !important;
+  gap: 6px !important;
 }
 [data-model-picker-sidebar] {
   width: 100% !important;
-  height: 36px !important;
-  min-height: 36px !important;
+  height: 32px !important;
+  min-height: 32px !important;
   flex-shrink: 0 !important;
   background: transparent !important;
   border: 0 !important;

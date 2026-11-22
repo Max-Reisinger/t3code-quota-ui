@@ -1965,20 +1965,51 @@ function patchModelPickerBundle(src) {
     );
   }
 
-  // v1.4.1 Upgrade qe sidebar tabs to horizontal text pills (`常用 | Claude | Codex | ...`) on already-patched bundles too
-  if (out.includes("__T3MpQuotaBadge") && !out.includes("__t3MpShortTabName")) {
-    out = out.replace(
+  // v1.4.3 Full 1:1 Red-Box-1 ProviderModelPicker structural transform (works on both fresh & already-patched bundles):
+  //   1) Move horizontal provider tabs (qt) BELOW search bar (tn) and ABOVE model list (St)
+  //   2) Turn EVERY provider icon tab into clean text pill (`常用 | Claude | Codex | AG1 | AG2 | Cursor | Grok`)
+  //   3) Switch Gt split container directly to vertical flex-col so V18 Starship slider ALWAYS sits INSIDE popover
+  //   4) Localize search placeholder `搜索模型…`
+  const applyV9ModelPickerStructure = (code) => {
+    let s = code;
+    // 1. Force vertical stack on Gt container holding [G, effortColumn]
+    s = s.replace(
+      /className:`flex h-86\.5 min-h-0 max-sm:h-auto max-sm:flex-col`/g,
+      'className:`flex flex-col h-auto min-h-0 gap-2`',
+    );
+    // 2. Move provider tabs (qt) below search bar (tn): [qt, (0,Q.jsx)(U,{...,children:(0,Q.jsxs)(`div`,{className:Qt,children:[tn, ...
+    s = s.replace(
+      /"data-model-picker-content":`true`,children:\[([A-Za-z0-9_$]+),(\(0,[A-Za-z0-9_$]+\.jsx\)\([A-Za-z0-9_$]+,\{inline:!0,[\s\S]{0,220}?children:\(0,[A-Za-z0-9_$]+\.jsxs\)\(`div`,\{className:[A-Za-z0-9_$]+,children:\[([A-Za-z0-9_$]+),)/,
+      '"data-model-picker-content":`true`,children:[$2$1,',
+    );
+    // 3. Localize search box placeholder
+    s = s.replace(
+      /placeholder:`Search models\.\.\.`/g,
+      'placeholder:(globalThis.__t3QuotaUi?.isZh?.()?"搜索模型…":"Search models...")',
+    );
+    // 4. Turn Favorites icon tab into text `常用` / `Fav`
+    s = s.replace(
       /children:\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{className:`size-5 fill-current shrink-0`,"aria-hidden":!0\}\)/,
       'children:(globalThis.__t3QuotaUi?.isZh?.()?"常用":"Fav")',
     );
-    out = out.replace(
+    // 5. Turn EVERY provider tab button icon (`children:(0,Q.jsx)(we,{driverKind:t.driverKind,...})`) into clean text pill
+    s = s.replace(
+      /children:\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{driverKind:([A-Za-z0-9_$]+)\.driverKind,displayName:\3\.displayName,[\s\S]{0,360}?\}\)/,
+      'children:__t3MpShortTabName($3)',
+    );
+    s = s.replace(
       /children:\(0,([A-Za-z0-9_$]+)\.jsxs\)\(\1\.Fragment,\{children:\[\(0,\1\.jsx\)\(([A-Za-z0-9_$]+),\{driverKind:([A-Za-z0-9_$]+)\.driverKind,[\s\S]{0,360}?\}\),\(0,\1\.jsx\)\(__T3MpProviderMini,\{entry:\3\}\)\]\}\)/,
       'children:__t3MpShortTabName($3)',
     );
-    out += `\nfunction __t3MpShortTabName(t){const n=String(t?.displayName||t?.driverKind||"");if(/antigravity/i.test(n)){const m=n.match(/\\d+/);return m?"AG"+m[0]:"AG"}if(/claude/i.test(n))return"Claude";if(/codex|openai/i.test(n))return"Codex";if(/gemini/i.test(n))return"Gemini";if(/grok|xai/i.test(n))return"Grok";if(/cursor/i.test(n))return"Cursor";return n.split(/\\s+/)[0].slice(0,10)}\n`;
-  }
+    if (!s.includes("function __t3MpShortTabName(")) {
+      s += `\nfunction __t3MpShortTabName(t){const n=String(t?.displayName||t?.driverKind||"");if(/antigravity/i.test(n)){const m=n.match(/\\d+/);return m?"AG"+m[0]:"AG1"}if(/claude/i.test(n)){const m=n.match(/\\d+/);return m?"Claude"+m[0]:"Claude"}if(/codex|openai/i.test(n))return"Codex";if(/gemini/i.test(n))return"Gemini";if(/grok|xai/i.test(n))return"Grok";if(/cursor/i.test(n))return"Cursor";return n.split(/\\s+/)[0].slice(0,10)}\n`;
+    }
+    return s;
+  };
 
-  if (out.includes("__T3MpQuotaBadge")) return out;
+  if (out.includes("__T3MpQuotaBadge")) {
+    return applyV9ModelPickerStructure(out);
+  }
 
   const reactMatch = out.match(/\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.useState\s*\)\([`"'][`"']\)/);
   const jsxMatch = out.match(/\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']flex shrink-0 items-center gap-1\.5[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/);
@@ -2012,20 +2043,7 @@ function patchModelPickerBundle(src) {
 
   out += `\nfunction __T3MpQuotaBadge({entry,modelSlug}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const q=globalThis.__t3QuotaUi?.getProviderQuota?.(entry,modelSlug,Date.now());if(!q)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("span",{className:"t3-mp-quota-badge t3-mp-quota-"+q.tone,title:q.tooltip,children:(zh?"剩 ":"")+q.remaining+"%"})}\nfunction __T3MpProviderMini({entry}){const q=globalThis.__t3QuotaUi?.getProviderQuota?.(entry,null,Date.now());if(!q)return null;return(0,${jsxNs}.jsx)("span",{className:"t3-mp-provider-pill t3-q-"+q.tone,title:q.tooltip,children:q.remaining})}\n`;
 
-  // 3b. v1.4.1 Render horizontal text pill tabs (`常用 | Claude | Codex | ...`) in qe (matching Red Box 1)
-  if (!out.includes("__t3MpShortTabName")) {
-    out = out.replace(
-      /children:\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{className:`size-5 fill-current shrink-0`,"aria-hidden":!0\}\)/,
-      'children:(globalThis.__t3QuotaUi?.isZh?.()?"常用":"Fav")',
-    );
-    out = out.replace(
-      /children:\(0,([A-Za-z0-9_$]+)\.jsxs\)\(\1\.Fragment,\{children:\[\(0,\1\.jsx\)\(([A-Za-z0-9_$]+),\{driverKind:([A-Za-z0-9_$]+)\.driverKind,[\s\S]{0,360}?\}\),\(0,\1\.jsx\)\(__T3MpProviderMini,\{entry:\3\}\)\]\}\)/,
-      'children:__t3MpShortTabName($3)',
-    );
-    out += `\nfunction __t3MpShortTabName(t){const n=String(t?.displayName||t?.driverKind||"");if(/antigravity/i.test(n)){const m=n.match(/\\d+/);return m?"AG"+m[0]:"AG"}if(/claude/i.test(n))return"Claude";if(/codex|openai/i.test(n))return"Codex";if(/gemini/i.test(n))return"Gemini";if(/grok|xai/i.test(n))return"Grok";if(/cursor/i.test(n))return"Cursor";return n.split(/\\s+/)[0].slice(0,10)}\n`;
-  }
-
-  return out;
+  return applyV9ModelPickerStructure(out);
 }
 
 function patchChatTopbarBundle(src) {
