@@ -664,7 +664,7 @@ function patchUsageLimitsView(src) {
   );
   out = out.replace(
     /([A-Za-z0-9_$]+)\?\.replace\([`"']resets in [`"'],[`"']↻ [`"']\)/g,
-    '(__t3LimViewZh()?($1?.replace(/^(.+)后重置$/,"↻ $1")):($1?.replace("resets in ","↻ ")))',
+    '(__t3LimViewZh()?($1?.replace(/^(.+)后重置$/,"↻ $$1")):($1?.replace("resets in ","↻ ")))',
   );
   out = out.replace(
     /([`"'])\$0 cap\1/g,
@@ -1214,15 +1214,22 @@ function patchServerBundle(src) {
     );
   }
 
-  // 2. Isolate per-instance Antigravity file credentials when antigravity-oauth-token is present
-  if (
-    out.includes("AGY_ACP_FORCE_FILE_STORAGE") &&
-    !out.includes("antigravity-oauth-token")
-  ) {
-    out = out.replace(
-      /(GEMINI_HOME:\s*profile\.geminiHome,\s*AGY_ACP_FORCE_FILE_STORAGE:\s*"1",)/,
-      `$1 ...(auth.authMethod === "oauth-personal" && process.getBuiltinModule("node:fs").existsSync(profile.acpDirectory + "/antigravity-oauth-token") ? { SSH_CONNECTION: "127.0.0.1 0 127.0.0.1 0" } : {}),`,
-    );
+  // 2. Force per-instance file credential storage (SSH_CONNECTION) whenever >1 Antigravity profile exists OR antigravity-oauth-token is present,
+  //    so signing in a 2nd Antigravity account writes to its own isolated antigravity-oauth-token instead of shared macOS Keychain.
+  const isolationExpr = `...(auth.authMethod === "oauth-personal" && (() => { try { const __fs = process.getBuiltinModule("node:fs"), __p = process.getBuiltinModule("node:path"); return __fs.existsSync(profile.acpDirectory + "/antigravity-oauth-token") || __fs.readdirSync(__p.dirname(profile.geminiHome)).filter((d) => !d.startsWith(".")).length > 1; } catch { return false; } })() ? { SSH_CONNECTION: "127.0.0.1 0 127.0.0.1 0" } : {}),`;
+
+  if (out.includes("AGY_ACP_FORCE_FILE_STORAGE") && !out.includes("readdirSync(__p.dirname(profile.geminiHome))")) {
+    if (out.includes('"/antigravity-oauth-token"')) {
+      out = out.replace(
+        /\.\.\.\(auth\.authMethod === "oauth-personal" && [A-Za-z0-9_$.()]+\.existsSync\(profile\.acpDirectory \+ "\/antigravity-oauth-token"\) \? \{ SSH_CONNECTION: "127\.0\.0\.1 0 127\.0\.0\.1 0" \} : \{\}\),/,
+        isolationExpr,
+      );
+    } else {
+      out = out.replace(
+        /(GEMINI_HOME:\s*profile\.geminiHome,\s*AGY_ACP_FORCE_FILE_STORAGE:\s*"1",)/,
+        `$1 ${isolationExpr}`,
+      );
+    }
   }
 
   return out;

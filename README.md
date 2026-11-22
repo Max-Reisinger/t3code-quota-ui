@@ -2,13 +2,13 @@
 
 <img src="assets/icon.svg" width="68" height="68" alt="T3 Code Quota UI" />
 
-# T3 Code Quota UI · 界面与多账号配额增强版 `v1.1.1`
+# T3 Code Quota UI · 界面与多账号配额增强版 `v1.1.2`
 
 **一行命令，为 macOS 版 [T3 Code](https://github.com/pingdotgg/t3code) 注入「双列紧凑配额大盘 + 双账号左右分列 & 单卡厂商同行并排 + `¥ 人民币 / $ 美元` 一键换算 + `中 / EN` 实时免重启双语切换」**
 
 *One-command macOS UI & multi-account quota enhancement pack for T3 Code — featuring side-by-side multi-account columns, paired single-card providers, instant `¥ CNY / $ USD` currency conversion, and live `中 / EN` bilingual switching.*
 
-[![Release: v1.1.1](https://img.shields.io/badge/Release-v1.1.1-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.1.1)
+[![Release: v1.1.2](https://img.shields.io/badge/Release-v1.1.2-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.1.2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon%20%26%20Intel)-38bdf8.svg)](#一键安装--quick-install)
 [![Upstream: pingdotgg/t3code](https://img.shields.io/badge/Upstream-pingdotgg%2Ft3code-8b5cf6.svg)](https://github.com/pingdotgg/t3code)
