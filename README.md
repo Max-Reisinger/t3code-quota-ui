@@ -2,32 +2,41 @@
 
 <img src="assets/icon.svg" width="68" height="68" alt="T3 Code Quota UI" />
 
-# T3 Code Quota UI · 界面与多账号配额增强版 `v1.1.2`
+# T3 Code Quota UI · 界面与多账号配额增强版 `v1.2.0`
 
-**一行命令，为 macOS 版 [T3 Code](https://github.com/pingdotgg/t3code) 注入「双列紧凑配额大盘 + 双账号左右分列 & 单卡厂商同行并排 + `¥ 人民币 / $ 美元` 一键换算 + `中 / EN` 实时免重启双语切换」**
+**一行命令，为 macOS 版 [T3 Code](https://github.com/pingdotgg/t3code) 注入「顶栏常驻额度胶囊 + 模型选择器剩余额度徽章 + 额度燃尽预测 + 双列紧凑配额大盘 + `¥ CNY / $ USD` 一键换算 + `中 / EN` 实时免重启双语切换」**
 
-*One-command macOS UI & multi-account quota enhancement pack for T3 Code — featuring side-by-side multi-account columns, paired single-card providers, instant `¥ CNY / $ USD` currency conversion, and live `中 / EN` bilingual switching.*
+*One-command macOS UI & multi-account quota enhancement pack for T3 Code — featuring Topbar Quota Pills, Model Picker Quota Badges, Burn-rate Forecast, side-by-side multi-account columns, instant `¥ CNY / $ USD` currency conversion, and live `中 / EN` bilingual switching.*
 
-[![Release: v1.1.2](https://img.shields.io/badge/Release-v1.1.2-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.1.2)
+[![Release: v1.2.0](https://img.shields.io/badge/Release-v1.2.0-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.2.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon%20%26%20Intel)-38bdf8.svg)](#一键安装--quick-install)
 [![Upstream: pingdotgg/t3code](https://img.shields.io/badge/Upstream-pingdotgg%2Ft3code-8b5cf6.svg)](https://github.com/pingdotgg/t3code)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero%20(Uses%20Bundled%20Runtime)-f59e0b.svg)](#一键安装--quick-install)
 
-[**v1.1.0 新特性**](#v110-重磅升级) · [**核心亮点**](#核心亮点) · [**一键安装**](#一键安装--quick-install) · [**English Guide**](#english-documentation) · [**致谢与协议**](#上游项目致谢与开源协议--credits--license)
+[**v1.2.0 新特性**](#v120-重磅升级) · [**核心亮点**](#核心亮点) · [**一键安装**](#一键安装--quick-install) · [**English Guide**](#english-documentation) · [**致谢与协议**](#上游项目致谢与开源协议--credits--license)
 
 </div>
 
 ---
 
-## `v1.1.0` 重磅升级
+## `v1.2.0` 重磅升级
 
-1. **「`¥ CNY` / `$ USD`」一键货币实时切换（`localStorage` 持久化）**：
-   - 在「用量与配额」顶部工具栏新增原生分段按钮 **`[¥ CNY | $ USD]`**；
-   - 切至人民币后，全页所有金额（**顶部大字总费用、各厂商右侧费用与副标题费用、折线图圆整人民币 Y 轴刻度、Hover Tooltip 浮窗金额与合计、`缓存节省`、`按类型费用`、`按速度费用`、`溢价`、底部 `消耗明细` 表格费用列与模型弹窗**）全部按汇率（默认 `7.25`，Tooltip 自动标注参考汇率，亦可通过 `localStorage["t3code:quota-ui-fx-rate"]` 自定义）毫秒级实时换算为 **`¥` 人民币**；切回 **`$ USD`** 瞬间还原美元。
-2. **「`中` / `EN`」实时免重启双语切换 + `费用 / Token / 限额` 三页签全量深度汉化**：
-   - 顶部工具栏新增 **`[中 | EN]`** 一键切换按钮（默认中文，持久化保存至 `localStorage`，**点击立即生效、无需重启客户端**）；
-   - 彻底补齐 `费用 (Cost)`、`Token (Tokens)`、`限额 (Limits)` 全部文案汉化：`全部环境 / 全部厂商`、`24小时 / 7天 / 30天 / 90天`、`次会话`、`按官方 API 单价估算`、`费用占比 / Token 占比`、`每日估算费用 / 每日处理 Token`、`总计 / 总处理 Token / 缓存命中输入 / 未命中输入 / 输出 / 缓存节省`、`按类型费用 / 按速度费用 / 按类型 Token`、`输入 / 缓存读取 / 缓存写入 / 其他 / 标准 / 极速 / 溢价`、`消耗明细 / 按模型 / 按日期 / 占比 / 合计` 以及 `限额` 页全部配额窗口与重置状态提示。
+吸收社区 MIT 开源项目 **[T3 Stardust (`zds-xiaoxin/xiaoxin-t3code`)](https://github.com/zds-xiaoxin/xiaoxin-t3code)** 中最实用的三大高频配额交互灵感，以零依赖轻量热补丁方式原生融入 T3 Code（完整保留 `v1.1.3` 全部多号物理隔离、浏览器登录修复与双语货币切换）：
+
+1. **顶栏常驻额度胶囊（Topbar Quota Pills）**：
+   - 在聊天界面顶栏常驻极简紧凑的多池额度胶囊，实时展示当前在线主力池（如 `AG1 81% · 3h`、`AG2 96% · 4h`、`Claude`、`Codex`、`Cursor`、`Grok`）的剩余百分比与最近重置倒计时；
+   - 点击任意胶囊一键跳转「用量与配额 → 限额」，悬停查看完整 5h / 7d 窗口与燃尽预测详情；窄屏自动响应式收敛防挤压，支持中/英文与深浅色主题。
+2. **模型选择器内嵌剩余额度（Model Picker Quota Badges）**：
+   - 打开模型选择器时，在每个模型行右侧及左侧提供方图标角标直接展示对应账号与模型池的实时剩余额度百分比（`≥50%` 翠绿、`20%~49%` 琥珀、`<20%` 红色提醒），切模型时一眼拉平双号水位。
+3. **额度燃尽预测（Burn-rate Forecast）**：
+   - 在「用量与配额 → 限额（Limits）」每张窗口卡片上，结合窗口总时长（5h / 7d / 月度）、距重置剩余时间与已消耗比例，实时计算并展示燃尽节奏与预测（如 **`安全 · 重置前够用`**、**`偏快 · 预计 1小时20分 后触顶`**、**`满血可用`**），中英文双语自动切换。
+
+### `v1.1.x` 既有特性（完整保留）
+
+- **「`¥ CNY` / `$ USD`」一键货币实时切换（`localStorage` 持久化）**：在「用量与配额」顶部工具栏一键切换人民币/美元，全页卡片、折线图圆整 Y 轴刻度、Hover Tooltip 与明细表毫秒级实时换算（默认汇率 `7.25`，支持 `localStorage["t3code:quota-ui-fx-rate"]` 自定义）。
+- **「`中` / `EN`」实时免重启双语切换 + 全量汉化**：顶部 `[中 | EN]` 秒切，`费用 / Token / 限额` 全部文案与重置倒计时 100% 双语覆盖。
+- **多 Antigravity 账号物理文件隔离与无缝登录（`v1.1.3`）**：登录阶段保持原生浏览器 Google OAuth 流程，`onAuthenticated` 成功后自动快照至每实例独立 `antigravity-oauth-token`（`0600`），彻底杜绝双号串号与覆盖。
 
 ---
 
@@ -138,7 +147,15 @@ t3code-quota-ui/
 
 ## English Documentation
 
-### What's New in `v1.1.0`?
+### What's New in `v1.2.0`?
+
+Inspired by [T3 Stardust (`zds-xiaoxin/xiaoxin-t3code`)](https://github.com/zds-xiaoxin/xiaoxin-t3code) (MIT License), `v1.2.0` adds three high-frequency quota UX upgrades while preserving all `v1.1.x` fixes:
+
+- **Topbar Quota Pills**: Compact, live multi-pool quota pills (`AG1 81% · 3h`, `AG2`, `Claude`, `Codex`, etc.) pinned in the chat header. Hover for full 5h/7d & burn-rate details; click to jump directly to `Usage -> Limits`.
+- **Model Picker Quota Badges**: Color-coded remaining quota badges (`≥50%` emerald, `20–49%` amber, `<20%` red) embedded directly inside model rows and provider sidebar icons for effortless multi-account load balancing.
+- **Burn-rate Forecast**: Real-time depletion pace & time-to-cap forecast (`Safe · lasts to reset`, `Fast · ~1h 20m to cap`, `Full capacity`) on every `Usage -> Limits` window card, automatically synced with `中 / EN`.
+
+### What's New in `v1.1.x`?
 
 - **Instant `¥ CNY / $ USD` Currency Switcher**: Added a native segmented toggle in the `Usage` header toolbar (`localStorage` persisted). Converts every dollar figure across `Cost` and `Tokens` — headline totals, per-provider totals & subtitles, chart Y-axis ticks (with clean rounded RMB intervals), chart hover tooltips (with reference FX rate note), `Cache savings`, `Cost by type`, `Cost by speed`, `Premium`, and `Breakdown` tables — in real time (`1 USD = 7.25 CNY` default, customizable via `localStorage.setItem("t3code:quota-ui-fx-rate", "7.30")`).
 - **Live `中 / EN` Language Switcher (No Restart Required)**: Switch between full Chinese (`zh-CN`) and original English (`EN`) instantaneously from the `Usage` toolbar, with 100% localization coverage across `Cost`, `Tokens`, and `Limits`.
@@ -199,6 +216,7 @@ curl -fsSL https://raw.githubusercontent.com/Leobai03/t3code-quota-ui/main/unins
 
 - **[pingdotgg/t3code](https://github.com/pingdotgg/t3code)** — 由 Theo Browne 与 Ping Labs（T3 Tools Inc.）打造的官方开源客户端与多代理编排底座（[MIT License](https://github.com/pingdotgg/t3code/blob/main/LICENSE)）。
 - **[nanami-0713/t3code](https://github.com/nanami-0713/t3code)** (`feat/restrained-telemetry-ui`) — 提供了极具美感的克制派底部遥测状态条、Context 分段卡片与 20 格配额燃料矩阵设计灵感与开源分支（MIT License）。
+- **[T3 Stardust (`zds-xiaoxin/xiaoxin-t3code`)](https://github.com/zds-xiaoxin/xiaoxin-t3code)** — `v1.2.0` 新增的「顶栏常驻额度胶囊（Topbar Quota Pills）」「模型选择器内嵌剩余额度（Model Picker Quota Badges）」「额度燃尽预测（Burn-rate Forecast）」三项高频交互设计灵感均致谢于该项目（MIT License）。
 
 ---
 

@@ -1,18 +1,23 @@
 #!/usr/bin/env node
 /**
- * T3 Code Quota & Compact UI Patcher v1.1.1 (macOS app.asar in-place enhancer)
+ * T3 Code Quota & Compact UI Patcher v1.2.0 (macOS app.asar in-place enhancer)
  *
  * Upstream projects & credits:
  * - Official T3 Code: https://github.com/pingdotgg/t3code (MIT License, Copyright (c) 2026 T3 Tools Inc.)
  * - Restrained Telemetry UI fork: https://github.com/nanami-0713/t3code (MIT License)
+ * - T3 Stardust UX inspiration (Topbar Quota Pills, Model Picker Quota Badges, Burn-rate Forecast):
+ *   https://github.com/zds-xiaoxin/xiaoxin-t3code (MIT License)
  *
  * Features applied by this patcher:
  * 1. Compact 2-Column Limits Grid + Dense Single-Card Pairing (e.g. Cursor + Grok side-by-side on one row).
  * 2. Multi-Account Side-by-Side Columns (e.g. Antigravity 1 on left, Antigravity 2 on right for instant 20x comparison).
- * 3. Verified Dynamic Multi-Account Credential Isolation & Sync: exact 35-char OAuth client secret boundary + OAuth verification + per-instance file isolation.
+ * 3. Verified Dynamic Multi-Account Credential Isolation & Sync: exact 35-char OAuth client secret boundary + OAuth verification + per-instance file isolation without breaking browser sign-in.
  * 4. Custom API Endpoint Visibility: surfaces custom Claude API endpoints cleanly in the Usage -> Limits panel.
  * 5. Instant Currency Switcher (¥ CNY / $ USD) with localStorage persistence & clean rounded RMB chart axes.
  * 6. Instant Language Switcher (中 / EN) + Full Usage (Cost / Tokens / Limits) Localization without app restart.
+ * 7. Topbar Quota Pills: live compact multi-pool remaining % & reset countdown pills in the chat header (click to jump to Usage -> Limits).
+ * 8. Model Picker Quota Badges: color-coded remaining % badges right inside the model picker & provider sidebar.
+ * 9. Burn-rate Forecast: real-time depletion pace & time-to-cap forecast on every Usage -> Limits window card.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -151,6 +156,167 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
 }
 .t3-usage-xaxis {
   padding-left: 4.75rem !important;
+}
+/* v1.2.0: Topbar Quota Pills, Model Picker Quota Badges & Burn-rate Forecast */
+.t3-topbar-quota-strip {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.5rem;
+  margin-right: 0.35rem;
+  max-width: 48%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.t3-topbar-quota-strip::-webkit-scrollbar {
+  display: none;
+}
+.t3-topbar-pill {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 1.45rem;
+  padding: 0 0.48rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+  background: color-mix(in oklab, var(--muted) 52%, transparent);
+  color: var(--foreground);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 120ms ease;
+}
+.t3-topbar-pill:hover {
+  background: color-mix(in oklab, var(--muted) 88%, transparent);
+  border-color: color-mix(in oklab, var(--foreground) 25%, var(--border));
+}
+.t3-topbar-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.t3-topbar-pill-name {
+  opacity: 0.78;
+  font-weight: 600;
+}
+.t3-topbar-pill-pct {
+  font-weight: 600;
+}
+.t3-topbar-pill-reset {
+  opacity: 0.62;
+  font-size: 10px;
+}
+.t3-q-ok {
+  color: #10b981;
+}
+.t3-q-warn {
+  color: #f59e0b;
+}
+.t3-q-danger {
+  color: #ef4444;
+}
+.t3-q-dot-ok {
+  background: #10b981;
+}
+.t3-q-dot-warn {
+  background: #f59e0b;
+}
+.t3-q-dot-danger {
+  background: #ef4444;
+}
+.t3-mp-quota-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 1.15rem;
+  padding: 0 0.35rem;
+  border-radius: 9999px;
+  font-size: 10.5px;
+  line-height: 1;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+.t3-mp-quota-ok {
+  color: #10b981;
+  background: color-mix(in oklab, #10b981 13%, transparent);
+  border-color: color-mix(in oklab, #10b981 28%, transparent);
+}
+.t3-mp-quota-warn {
+  color: #f59e0b;
+  background: color-mix(in oklab, #f59e0b 14%, transparent);
+  border-color: color-mix(in oklab, #f59e0b 30%, transparent);
+}
+.t3-mp-quota-danger {
+  color: #ef4444;
+  background: color-mix(in oklab, #ef4444 14%, transparent);
+  border-color: color-mix(in oklab, #ef4444 32%, transparent);
+}
+.t3-mp-provider-pill {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 40;
+  pointer-events: none;
+  padding: 0 2.5px;
+  height: 11px;
+  line-height: 11px;
+  border-radius: 9999px;
+  font-size: 8.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--background);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--border) 80%, transparent);
+}
+.t3-burn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.1rem 0.38rem;
+  border-radius: 0.35rem;
+  font-size: 10.5px;
+  line-height: 1.25;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.t3-burn-ok {
+  color: #10b981;
+  background: color-mix(in oklab, #10b981 11%, transparent);
+}
+.t3-burn-warn {
+  color: #f59e0b;
+  background: color-mix(in oklab, #f59e0b 12%, transparent);
+}
+.t3-burn-danger {
+  color: #ef4444;
+  background: color-mix(in oklab, #ef4444 13%, transparent);
+}
+.t3-burn-muted {
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+}
+@media (max-width: 900px) {
+  .t3-topbar-pill-reset {
+    display: none;
+  }
+}
+@media (max-width: 680px) {
+  .t3-topbar-quota-strip {
+    display: none;
+  }
 }
 </style>`;
 
@@ -363,6 +529,216 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
     );
   }
 
+  function fmtDurShort(ms) {
+    if (!Number.isFinite(ms) || ms <= 0) return "";
+    const zh = getLang() === "zh";
+    const mins = Math.max(1, Math.round(ms / 60000));
+    if (mins < 60) return zh ? mins + "分" : mins + "m";
+    const hrs = Math.round(mins / 60);
+    if (hrs < 48) return zh ? hrs + "h" : hrs + "h";
+    const days = Math.round(hrs / 24);
+    return zh ? days + "天" : days + "d";
+  }
+
+  function fmtDurLong(ms) {
+    if (!Number.isFinite(ms) || ms <= 0) return "";
+    const zh = getLang() === "zh";
+    const totalMins = Math.max(1, Math.round(ms / 60000));
+    if (totalMins < 60) return zh ? totalMins + "分钟" : totalMins + "m";
+    const totalHrs = Math.floor(totalMins / 60);
+    const remMins = totalMins % 60;
+    if (totalHrs < 24) {
+      if (zh) return remMins > 0 ? totalHrs + "小时" + remMins + "分" : totalHrs + "小时";
+      return remMins > 0 ? totalHrs + "h " + remMins + "m" : totalHrs + "h";
+    }
+    const days = Math.floor(totalHrs / 24);
+    const remHrs = totalHrs % 24;
+    if (zh) return remHrs > 0 ? days + "天" + remHrs + "小时" : days + "天";
+    return remHrs > 0 ? days + "d " + remHrs + "h" : days + "d";
+  }
+
+  function inferWindowDurationMs(win, remMs) {
+    if (win && Number.isFinite(win.windowDurationMs) && win.windowDurationMs > 0) return win.windowDurationMs;
+    const kind = String(win?.kind || "").toLowerCase();
+    const lbl = String(win?.label || "").toLowerCase();
+    if (kind === "session" || /5[- ]?hour|5h|session|会话/.test(lbl)) return 5 * 3600000;
+    if (kind === "weekly" || /7[- ]?day|7d|weekly|每周/.test(lbl)) return 7 * 86400000;
+    if (kind === "monthly" || /month|每月|月度/.test(lbl)) return 30 * 86400000;
+    if (Number.isFinite(remMs) && remMs > 0) {
+      if (remMs <= 6 * 3600000) return 5 * 3600000;
+      if (remMs <= 8 * 86400000) return 7 * 86400000;
+      if (remMs <= 32 * 86400000) return 30 * 86400000;
+    }
+    return 0;
+  }
+
+  function computeBurnForecast(poolOrWin, nowInput) {
+    if (!poolOrWin) return null;
+    const zh = getLang() === "zh";
+    const now = Number.isFinite(nowInput) ? nowInput : Date.now();
+    const firstWin = Array.isArray(poolOrWin.columns)
+      ? (poolOrWin.columns.find((c) => c && c.window)?.window || null)
+      : poolOrWin;
+    const rawRem = Number.isFinite(poolOrWin.remainingPercent)
+      ? poolOrWin.remainingPercent
+      : (firstWin && Number.isFinite(firstWin.usedPercent) ? Math.round(100 - firstWin.usedPercent) : null);
+    if (rawRem === null || !Number.isFinite(rawRem)) return null;
+    const remaining = Math.max(0, Math.min(100, rawRem));
+    const used = 100 - remaining;
+
+    if (firstWin && firstWin.id === "custom_api") return null;
+    if (remaining >= 99) {
+      return {
+        tone: "ok",
+        text: zh ? "满血可用" : "Full capacity",
+        title: zh ? "当前窗口额度几乎未消耗" : "Window quota is at full capacity"
+      };
+    }
+    if (remaining <= 0) {
+      return {
+        tone: "danger",
+        text: zh ? "已触顶 · 待重置" : "Depleted · awaiting reset",
+        title: zh ? "当前窗口额度已耗尽" : "Window quota is depleted"
+      };
+    }
+
+    const resetsAtMs = firstWin?.resetsAt ? Date.parse(firstWin.resetsAt) : NaN;
+    const remMs = Number.isFinite(resetsAtMs) ? resetsAtMs - now : NaN;
+    const durMs = inferWindowDurationMs({
+      windowDurationMs: firstWin?.windowDurationMs,
+      kind: poolOrWin.kind || firstWin?.kind,
+      label: poolOrWin.label || firstWin?.label
+    }, remMs);
+
+    if (!Number.isFinite(remMs) || remMs <= 0 || !durMs || durMs <= remMs) {
+      const tone = remaining >= 50 ? "ok" : remaining >= 20 ? "warn" : "danger";
+      return {
+        tone,
+        text: zh ? (remaining >= 50 ? "余量充足" : remaining >= 20 ? "注意余量" : "余量偏低") : (remaining >= 50 ? "Healthy" : remaining >= 20 ? "Watch pace" : "Low quota"),
+        title: ""
+      };
+    }
+
+    const elapsedMs = durMs - remMs;
+    if (elapsedMs < 120000) {
+      return {
+        tone: "ok",
+        text: zh ? "新窗口刚重置" : "Fresh window",
+        title: zh ? "窗口刚刚开始，暂无足够消耗样本" : "Window just reset"
+      };
+    }
+
+    const ratePerMs = used / elapsedMs;
+    const ttfMs = ratePerMs > 0 ? remaining / ratePerMs : Infinity;
+    if (ttfMs < remMs * 0.92) {
+      const durStr = fmtDurLong(ttfMs);
+      const tone = ttfMs < remMs * 0.5 || remaining <= 20 ? "danger" : "warn";
+      return {
+        tone,
+        text: zh ? "偏快 · 预计 " + durStr + " 后触顶" : "Fast · ~" + durStr + " to cap",
+        title: zh
+          ? "按当前消耗速率，预计将在重置前约 " + durStr + " 耗尽额度"
+          : "At current burn rate, quota will hit 0% in ~" + durStr + " before reset"
+      };
+    }
+
+    const projectedLeft = Math.max(0, Math.min(100, Math.round(remaining - ratePerMs * remMs)));
+    return {
+      tone: "ok",
+      text: zh ? "安全 · 重置前够用" : "Safe · lasts to reset",
+      title: zh
+        ? "按当前速率，窗口重置时预计仍剩约 " + projectedLeft + "%"
+        : "At current burn rate, ~" + projectedLeft + "% will remain at reset"
+    };
+  }
+
+  function toneForRemaining(rem) {
+    return rem >= 50 ? "ok" : rem >= 20 ? "warn" : "danger";
+  }
+
+  function extractWindows(entry) {
+    const ul = entry?.usageLimits || entry?.snapshot?.usageLimits;
+    if (!ul || ul.unavailable || !Array.isArray(ul.windows)) return [];
+    return ul.windows.filter((w) => w && w.id !== "custom_api" && Number.isFinite(w.usedPercent));
+  }
+
+  function pickWindowForModel(windows, modelSlug) {
+    if (!windows || windows.length === 0) return null;
+    let pool = windows;
+    if (modelSlug) {
+      const slugLower = String(modelSlug).toLowerCase();
+      const matched = windows.filter((w) => Array.isArray(w.modelIds) && w.modelIds.some((m) => String(m).toLowerCase() === slugLower || slugLower.includes(String(m).toLowerCase())));
+      if (matched.length > 0) pool = matched;
+    }
+    return pool.reduce((best, cur) => (!best || cur.usedPercent > best.usedPercent ? cur : best), null);
+  }
+
+  function getProviderQuota(entry, modelSlug, nowInput) {
+    const wins = extractWindows(entry);
+    if (wins.length === 0) return null;
+    const now = Number.isFinite(nowInput) ? nowInput : Date.now();
+    const target = pickWindowForModel(wins, modelSlug);
+    if (!target) return null;
+    const remaining = Math.max(0, Math.min(100, Math.round(100 - target.usedPercent)));
+    const remMs = target.resetsAt ? Date.parse(target.resetsAt) - now : NaN;
+    const resetShort = Number.isFinite(remMs) && remMs > 0 ? fmtDurShort(remMs) : "";
+    const zh = getLang() === "zh";
+    const lines = wins.map((w) => {
+      const r = Math.max(0, Math.min(100, Math.round(100 - w.usedPercent)));
+      const wRemMs = w.resetsAt ? Date.parse(w.resetsAt) - now : NaN;
+      const wReset = Number.isFinite(wRemMs) && wRemMs > 0 ? " · ↻ " + fmtDurLong(wRemMs) : "";
+      const fc = computeBurnForecast(w, now);
+      const fcTxt = fc ? " (" + fc.text + ")" : "";
+      return translateWindowLabel(w.label || w.kind || w.id) + ": " + r + "%" + (zh ? " 剩余" : " left") + wReset + fcTxt;
+    });
+    return {
+      remaining,
+      tone: toneForRemaining(remaining),
+      resetShort,
+      tooltip: (entry.displayName || entry.driverKind || entry.provider || "") + "\\n" + lines.join("\\n")
+    };
+  }
+
+  function buildTopbarPills(providers, nowInput) {
+    if (!Array.isArray(providers) || providers.length === 0) return [];
+    const now = Number.isFinite(nowInput) ? nowInput : Date.now();
+    const active = providers.filter((p) => p && extractWindows(p).length > 0);
+    if (active.length === 0) return [];
+    const driverTotals = {};
+    const driverSeen = {};
+    for (const p of active) {
+      const dk = String(p.driverKind || p.driver || p.provider || "other");
+      driverTotals[dk] = (driverTotals[dk] || 0) + 1;
+    }
+    const pills = [];
+    for (const p of active) {
+      const dk = String(p.driverKind || p.driver || p.provider || "other");
+      driverSeen[dk] = (driverSeen[dk] || 0) + 1;
+      const idx = driverSeen[dk];
+      const total = driverTotals[dk];
+      let base = dk;
+      if (/antigravity/i.test(dk)) base = "AG";
+      else if (/claude/i.test(dk)) base = "Claude";
+      else if (/codex|openai/i.test(dk)) base = "Codex";
+      else if (/cursor/i.test(dk)) base = "Cursor";
+      else if (/grok|xai/i.test(dk)) base = "Grok";
+      else if (/gemini/i.test(dk)) base = "Gemini";
+      else base = String(p.displayName || dk).split(/\\s+/)[0].slice(0, 8);
+      const shortLabel = total > 1 ? base + idx : base;
+      const q = getProviderQuota(p, null, now);
+      if (!q) continue;
+      pills.push({
+        id: p.instanceId || p.id || (dk + ":" + idx),
+        shortLabel,
+        remaining: q.remaining,
+        tone: q.tone,
+        resetShort: q.resetShort,
+        tooltip: q.tooltip
+      });
+    }
+    return pills;
+  }
+
   const api = {
     getLang,
     isZh: () => getLang() === "zh",
@@ -386,6 +762,11 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
       api.setCurrency(getCurrency() === "CNY" ? "USD" : "CNY");
     },
     translateWindowLabel,
+    fmtDurShort,
+    fmtDurLong,
+    computeBurnForecast,
+    getProviderQuota,
+    buildTopbarPills,
     subscribe: (listener) => {
       const onUpdate = () => listener({ lang: getLang(), currency: getCurrency(), rate: getRate() });
       window.addEventListener("t3-quota-ui:change", onUpdate);
@@ -646,6 +1027,22 @@ function patchUsageLimitsView(src) {
     /([`"'])(?:t3-quota-sections\s+)?flex flex-col gap-(?:8|3\.5)\1/g,
     (_, q) => `${q}t3-quota-sections flex flex-col gap-3.5${q}`,
   );
+
+  // 4b. v1.2.0 Burn-rate Forecast badge inside each PoolWindowCard (we)
+  if (!out.includes("__T3BurnBadge")) {
+    const reactMatch = out.match(/\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.useState\s*\)/);
+    const jsxMatch = out.match(/\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']flex flex-col gap-1[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/);
+    if (reactMatch && jsxMatch) {
+      const reactNs = reactMatch[1];
+      const jsxNs = jsxMatch[1];
+      out = out.replace(
+        /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.c\)\(\d+\),\{pool:([A-Za-z0-9_$]+),color:([A-Za-z0-9_$]+),now:([A-Za-z0-9_$]+),label:([A-Za-z0-9_$]+),description:([A-Za-z0-9_$]+)\}=\2([\s\S]{0,1600}?)\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']flex flex-col gap-1[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/,
+        (_, fnName, arg, memo, cNs, poolV, colorV, nowV, lblV, descV, mid, jNs, c1, c2, c3) =>
+          `function ${fnName}(${arg}){let ${memo}=(0,${cNs}.c)(32),{pool:${poolV},color:${colorV},now:${nowV},label:${lblV},description:${descV}}=${arg}${mid}(0,${jNs}.jsxs)("div",{className:"flex flex-col gap-1",children:[${c1},${c2},${c3},(0,${jNs}.jsx)(__T3BurnBadge,{pool:${poolV},now:${nowV}})]})`,
+      );
+      out += `\nfunction __T3BurnBadge({pool,now}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const fc=globalThis.__t3QuotaUi?.computeBurnForecast?.(pool,now);if(!fc||!fc.text)return null;return(0,${jsxNs}.jsx)("span",{className:"t3-burn-badge t3-burn-"+fc.tone,title:fc.title||fc.text,children:fc.text})}\n`;
+    }
+  }
 
   if (out.includes("__t3LimViewZh")) return out;
 
@@ -1203,6 +1600,70 @@ var ${expVar}=__T3UsageRootWrapper;export{${expVar} as component};`,
   return out;
 }
 
+function patchModelPickerBundle(src) {
+  if (src.includes("__T3MpQuotaBadge")) return src;
+  let out = src;
+
+  const reactMatch = out.match(/\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.useState\s*\)\([`"'][`"']\)/);
+  const jsxMatch = out.match(/\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']flex shrink-0 items-center gap-1\.5[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/);
+  if (!reactMatch || !jsxMatch) return src;
+
+  const reactNs = reactMatch[1];
+  const jsxNs = jsxMatch[1];
+
+  // 1. Pass quotaEntry into Be (model row) inside Tt's renderItem
+  out = out.replace(
+    /(\(0,[A-Za-z0-9_$]+\.jsx\)\([A-Za-z0-9_$]+,\{index:[A-Za-z0-9_$]+,slug:([A-Za-z0-9_$]+)\.slug,name:\2\.name,subProvider:\2\.subProvider,instanceId:\2\.instanceId,)/,
+    "$1quotaEntry:e.instanceEntries?.find(__x=>__x.instanceId===$2.instanceId)??null,",
+  );
+
+  // 2. Render compact color-coded remaining % badge right next to the favorite star in Be
+  out = out.replace(
+    /let ([A-Za-z0-9_$]+);([A-Za-z0-9_$]+)\[(\d+)\]!==([A-Za-z0-9_$]+)\|\|\2\[(\d+)\]!==([A-Za-z0-9_$]+)\?\(\1=\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']flex shrink-0 items-center gap-1\.5[`"'],children:\[\4,\6\]\}\),\2\[\3\]=\4,\2\[\5\]=\6,\2\[(\d+)\]=\1\):\1=\2\[\8\];/,
+    (_, teV, tM, s1, rV, s2, zV, jNs, s3) =>
+      `let ${teV};${teV}=(0,${jNs}.jsxs)("div",{className:"flex shrink-0 items-center gap-1.5",children:[(0,${jNs}.jsx)(__T3MpQuotaBadge,{entry:e.quotaEntry,modelSlug:e.slug}),${rV},${zV}]});`,
+  );
+
+  // 3. Add compact quota badge overlay + enriched tooltip on provider sidebar icons (qe)
+  out = out.replace(
+    /(let ([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\?([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\):([A-Za-z0-9_$]+)\?e\.getDisabledInstanceTooltip\?\.\(\5\)\?\?\5\.displayName:\5\.displayName,([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{[\s\S]{0,900}?children:\(0,\8\.jsx\)\(([A-Za-z0-9_$]+),\{driverKind:\5\.driverKind,[\s\S]{0,360}?\}\)\}\))/,
+    (full, _all, pVar, _nVar, _weFn, tVar, _iVar, _mVar, jNs) =>
+      full.replace(
+        new RegExp(`children:\\(0,${jNs}\\.jsx\\)\\(([A-Za-z0-9_$]+),(\\{driverKind:${tVar}\\.driverKind,[\\s\\S]{0,360}?\\})\\)`),
+        `children:(0,${jNs}.jsxs)(${jNs}.Fragment,{children:[(0,${jNs}.jsx)($1,$2),(0,${jNs}.jsx)(__T3MpProviderMini,{entry:${tVar}})]})`,
+      ),
+  );
+
+  out += `\nfunction __T3MpQuotaBadge({entry,modelSlug}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const q=globalThis.__t3QuotaUi?.getProviderQuota?.(entry,modelSlug,Date.now());if(!q)return null;return(0,${jsxNs}.jsx)("span",{className:"t3-mp-quota-badge t3-mp-quota-"+q.tone,title:q.tooltip,children:q.remaining+"%"})}\nfunction __T3MpProviderMini({entry}){const q=globalThis.__t3QuotaUi?.getProviderQuota?.(entry,null,Date.now());if(!q)return null;return(0,${jsxNs}.jsx)("span",{className:"t3-mp-provider-pill t3-q-"+q.tone,title:q.tooltip,children:q.remaining})}\n`;
+  return out;
+}
+
+function patchChatTopbarBundle(src) {
+  if (src.includes("__T3TopbarQuotaPills")) return src;
+  let out = src;
+
+  // Match the exact topbar header where iV (breadcrumb/title bar) is rendered and capture local vars for providers & onOpenUsageLimits
+  const providersMatch = out.match(/providers:([A-Za-z0-9_$]+),sources:[A-Za-z0-9_$]+,isWorking:[A-Za-z0-9_$]+,[\s\S]{0,320}?onOpenUsageLimits:([A-Za-z0-9_$]+)\?([A-Za-z0-9_$]+):void 0/);
+  const reactMatch = out.match(/var [A-Za-z0-9_$]+=\(0,([A-Za-z0-9_$]+)\.memo\)\(function\([A-Za-z0-9_$]+\)\{let [A-Za-z0-9_$]+=\(0,[A-Za-z0-9_$]+\.c\)\(80\),\{activeThreadEnvironmentId:/);
+  const topbarCallMatch = out.match(/(\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{activeThreadEnvironmentId:[A-Za-z0-9_$]+\.environmentId,activeThreadId:[A-Za-z0-9_$]+\.id,[\s\S]{0,420}?\}\)\s*)\]\}\)/);
+
+  if (!providersMatch || !reactMatch || !topbarCallMatch) return src;
+
+  const providersVar = providersMatch[1];
+  const canOpenVar = providersMatch[2];
+  const openUsageVar = providersMatch[3];
+  const reactNs = reactMatch[1];
+  const jsxNs = topbarCallMatch[2];
+
+  out = out.replace(
+    topbarCallMatch[0],
+    `${topbarCallMatch[1]},(0,${jsxNs}.jsx)(__T3TopbarQuotaPills,{providers:${providersVar},onOpenUsageLimits:${canOpenVar}?${openUsageVar}:void 0})]})`,
+  );
+
+  out += `\nfunction __T3TopbarQuotaPills({providers,onOpenUsageLimits}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const unsub=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof unsub==="function")unsub()}},[]);const pills=globalThis.__t3QuotaUi?.buildTopbarPills?.(providers,now)||[];if(pills.length===0)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("div",{className:"t3-topbar-quota-strip","data-quota-ui-managed":"true","aria-label":zh?"模型额度状态":"Model quota status",children:pills.map(p=>(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-topbar-pill",title:p.tooltip+(onOpenUsageLimits?(zh?"\\n点击查看完整配额面板":"\\nClick to open Usage -> Limits"):""),onClick:()=>{if(typeof onOpenUsageLimits==="function")onOpenUsageLimits()},children:[(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-dot t3-q-dot-"+p.tone}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-name",children:p.shortLabel}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-pct t3-q-"+p.tone,children:p.remaining+"%"}),p.resetShort?(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-reset",children:"· "+p.resetShort}):null]},p.id))})}\n`;
+  return out;
+}
+
 function patchServerBundle(src) {
   let out = src;
 
@@ -1581,6 +2042,21 @@ function main() {
       (updated.includes("Cost by type") || updated.includes("按类型费用"))
     ) {
       updated = patchChatUsageBundle(updated);
+    }
+
+    if (
+      updated.includes("data-model-picker-sidebar") &&
+      updated.includes("Search models...")
+    ) {
+      updated = patchModelPickerBundle(updated);
+    }
+
+    if (
+      updated.includes("activeThreadEnvironmentId") &&
+      updated.includes("workspace-topbar-height") &&
+      updated.includes("onOpenUsageLimits:")
+    ) {
+      updated = patchChatTopbarBundle(updated);
     }
 
     if (opts.lang === "zh") {
