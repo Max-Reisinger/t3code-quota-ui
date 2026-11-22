@@ -252,15 +252,16 @@ fi
 cat <<EOF
 
 ====================================================================
-  ✅ T3 Code Quota UI Enhanced Edition Installed Successfully!
+  ✅ T3 Code Quota UI Enhanced Edition v1.1.0 Installed!
 ====================================================================
   • Patched App : ${TARGET_APP}
-  • UI Language : ${LANG_MODE}
+  • Default UI  : ${LANG_MODE} (Switchable live via [中 / EN] in Usage)
+  • Currency    : [¥ CNY / \$ USD] live toggle in Usage toolbar
   • Safe Backup : ${BACKUP_DIR}
 
   👉 Next Step:
      Press Cmd + Q to quit T3 Code completely, then reopen it!
-     (Open "Usage -> Limits" to view the 2-column multi-account grid)
+     (Open "用量与配额 / Usage" to switch [¥ CNY / \$ USD] & [中 / EN])
 
   🔄 Rollback anytime:
      curl -fsSL ${REPO_RAW_BASE}/uninstall.sh | bash
