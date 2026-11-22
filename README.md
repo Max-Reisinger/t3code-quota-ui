@@ -2,13 +2,13 @@
 
 <img src="assets/icon.svg" width="68" height="68" alt="T3 Code Quota UI" />
 
-# T3 Code Quota UI · 界面与多账号配额增强版 `v1.2.0`
+# T3 Code Quota UI · 界面与多账号配额增强版 `v1.2.1`
 
-**一行命令，为 macOS 版 [T3 Code](https://github.com/pingdotgg/t3code) 注入「顶栏常驻额度胶囊 + 模型选择器剩余额度徽章 + 额度燃尽预测 + 双列紧凑配额大盘 + `¥ CNY / $ USD` 一键换算 + `中 / EN` 实时免重启双语切换」**
+**一行命令，为 macOS 版 [T3 Code](https://github.com/pingdotgg/t3code) 注入「可拖拽发光星舰推理强度滑块 + 顶栏常驻额度胶囊 + 模型选择器剩余额度徽章 + 额度燃尽预测 + 双列紧凑配额大盘 + `¥ CNY / $ USD` 一键换算 + `中 / EN` 免重启双语切换」**
 
-*One-command macOS UI & multi-account quota enhancement pack for T3 Code — featuring Topbar Quota Pills, Model Picker Quota Badges, Burn-rate Forecast, side-by-side multi-account columns, instant `¥ CNY / $ USD` currency conversion, and live `中 / EN` bilingual switching.*
+*One-command macOS UI & multi-account quota enhancement pack for T3 Code — featuring a Draggable Starship Reasoning Effort Slider, Topbar Quota Pills, Model Picker Quota Badges, Burn-rate Forecast, side-by-side multi-account columns, instant `¥ CNY / $ USD` currency conversion, and live `中 / EN` bilingual switching.*
 
-[![Release: v1.2.0](https://img.shields.io/badge/Release-v1.2.0-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.2.0)
+[![Release: v1.2.1](https://img.shields.io/badge/Release-v1.2.1-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.2.1)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon%20%26%20Intel)-38bdf8.svg)](#一键安装--quick-install)
 [![Upstream: pingdotgg/t3code](https://img.shields.io/badge/Upstream-pingdotgg%2Ft3code-8b5cf6.svg)](https://github.com/pingdotgg/t3code)
@@ -20,17 +20,20 @@
 
 ---
 
-## `v1.2.0` 重磅升级
+## `v1.2.1` 重磅升级
 
-吸收社区 MIT 开源项目 **[T3 Stardust (`zds-xiaoxin/xiaoxin-t3code`)](https://github.com/zds-xiaoxin/xiaoxin-t3code)** 中最实用的三大高频配额交互灵感，以零依赖轻量热补丁方式原生融入 T3 Code（完整保留 `v1.1.3` 全部多号物理隔离、浏览器登录修复与双语货币切换）：
+吸收社区 MIT 开源项目 **[T3 Stardust (`zds-xiaoxin/xiaoxin-t3code`)](https://github.com/zds-xiaoxin/xiaoxin-t3code)** 中最受欢迎的四大高频交互灵感，以零依赖轻量热补丁方式原生融入 T3 Code（完整保留 `v1.1.3` 全部多号物理隔离、浏览器登录修复与双语货币切换）：
 
-1. **顶栏常驻额度胶囊（Topbar Quota Pills）**：
+1. **可拖拽星舰/推进器推理强度滑块（Draggable Reasoning Effort Slider，`v1.2.1` 新增）**：
+   - 将模型选择器右侧的推理强度（低 / 中 / 高 / 超高）升级为丝滑可拖拽的发光星舰推进器滑块，支持鼠标 Pointer Capture 实时拖拽 + 点击档位 + 键盘方向键切换；
+   - 按档位动态变色发光（低冷蓝 → 中翠绿 → 高琥珀 → 超高熔岩紫红），静置 **0% CPU 占用**。
+2. **顶栏常驻额度胶囊（Topbar Quota Pills，`v1.2.1` 安全留白修复）**：
    - 在聊天界面顶栏常驻极简紧凑的多池额度胶囊，实时展示当前在线主力池（如 `AG1 81% · 3h`、`AG2 96% · 4h`、`Claude`、`Codex`、`Cursor`、`Grok`）的剩余百分比与最近重置倒计时；
-   - 点击任意胶囊一键跳转「用量与配额 → 限额」，悬停查看完整 5h / 7d 窗口与燃尽预测详情；窄屏自动响应式收敛防挤压，支持中/英文与深浅色主题。
-2. **模型选择器内嵌剩余额度（Model Picker Quota Badges）**：
-   - 打开模型选择器时，在每个模型行右侧及左侧提供方图标角标直接展示对应账号与模型池的实时剩余额度百分比（`≥50%` 翠绿、`20%~49%` 琥珀、`<20%` 红色提醒），切模型时一眼拉平双号水位。
-3. **额度燃尽预测（Burn-rate Forecast）**：
-   - 在「用量与配额 → 限额（Limits）」每张窗口卡片上，结合窗口总时长（5h / 7d / 月度）、距重置剩余时间与已消耗比例，实时计算并展示燃尽节奏与预测（如 **`安全 · 重置前够用`**、**`偏快 · 预计 1小时20分 后触顶`**、**`满血可用`**），中英文双语自动切换。
+   - 自适应右侧操作区安全留白（与右上角按钮始终保持 ≥16px 清晰间距，绝不重叠），点击任意胶囊一键跳转「用量与配额 → 限额」，悬停查看完整 5h / 7d 窗口与燃尽预测详情。
+3. **模型选择器内嵌剩余额度（Model Picker Quota Badges，`v1.2.1` 高对比度增强）**：
+   - 打开模型选择器时，在每个模型行右侧及左侧提供方图标角标直接展示对应账号与模型池的实时剩余额度百分比药丸（`≥50%` 翠绿、`20%~49%` 琥珀、`<20%` 红色提醒），切模型时一眼拉平双号水位。
+4. **额度燃尽预测（Burn-rate Forecast，`v1.2.1` 全宽底部外显）**：
+   - 在「用量与配额 → 限额（Limits）」每张窗口卡片底部独立整行醒目外显燃尽预测标签（如 **`✅ 节奏平稳 · 重置前够用 (余~72%)`**、**`⚡ 消耗偏快 · 约 1小时20分 后触顶`**、**`✨ 满血可用`**），中英文双语自动切换。
 
 ### `v1.1.x` 既有特性（完整保留）
 

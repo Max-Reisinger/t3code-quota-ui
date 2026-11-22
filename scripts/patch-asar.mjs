@@ -157,18 +157,20 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
 .t3-usage-xaxis {
   padding-left: 4.75rem !important;
 }
-/* v1.2.0: Topbar Quota Pills, Model Picker Quota Badges & Burn-rate Forecast */
+/* v1.2.1: Topbar Quota Pills (zero-overlap safe inset), Vivid Model Picker Badges, Full-width Burn-rate Forecast & Draggable Starship Reasoning Effort Slider */
 .t3-topbar-quota-strip {
   -webkit-app-region: no-drag;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  justify-content: flex-end;
+  gap: 0.25rem;
   margin-left: 0.5rem;
-  margin-right: 0.35rem;
-  max-width: 48%;
+  margin-right: 128px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 260px);
   overflow-x: auto;
   scrollbar-width: none;
-  flex-shrink: 0;
 }
 .t3-topbar-quota-strip::-webkit-scrollbar {
   display: none;
@@ -177,41 +179,42 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
   -webkit-app-region: no-drag;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  height: 1.45rem;
-  padding: 0 0.48rem;
+  gap: 0.24rem;
+  height: 1.35rem;
+  padding: 0 0.42rem;
   border-radius: 9999px;
-  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
-  background: color-mix(in oklab, var(--muted) 52%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+  background: color-mix(in oklab, var(--muted) 56%, transparent);
   color: var(--foreground);
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
-  transition: background-color 140ms ease, border-color 140ms ease, transform 120ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease;
 }
 .t3-topbar-pill:hover {
-  background: color-mix(in oklab, var(--muted) 88%, transparent);
-  border-color: color-mix(in oklab, var(--foreground) 25%, var(--border));
+  background: color-mix(in oklab, var(--muted) 92%, transparent);
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
 }
 .t3-topbar-pill-dot {
-  width: 6px;
-  height: 6px;
+  width: 5.5px;
+  height: 5.5px;
   border-radius: 9999px;
   flex-shrink: 0;
 }
 .t3-topbar-pill-name {
-  opacity: 0.78;
+  opacity: 0.82;
   font-weight: 600;
 }
 .t3-topbar-pill-pct {
-  font-weight: 600;
+  font-weight: 700;
 }
 .t3-topbar-pill-reset {
   opacity: 0.62;
-  font-size: 10px;
+  font-size: 9.5px;
 }
 .t3-q-ok {
   color: #10b981;
@@ -234,12 +237,12 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
 .t3-mp-quota-badge {
   display: inline-flex;
   align-items: center;
-  height: 1.15rem;
-  padding: 0 0.35rem;
+  height: 1.22rem;
+  padding: 0 0.44rem;
   border-radius: 9999px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1;
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex-shrink: 0;
@@ -247,46 +250,56 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
 }
 .t3-mp-quota-ok {
   color: #10b981;
-  background: color-mix(in oklab, #10b981 13%, transparent);
-  border-color: color-mix(in oklab, #10b981 28%, transparent);
+  background: color-mix(in oklab, #10b981 18%, transparent);
+  border-color: color-mix(in oklab, #10b981 42%, transparent);
 }
 .t3-mp-quota-warn {
   color: #f59e0b;
-  background: color-mix(in oklab, #f59e0b 14%, transparent);
-  border-color: color-mix(in oklab, #f59e0b 30%, transparent);
+  background: color-mix(in oklab, #f59e0b 20%, transparent);
+  border-color: color-mix(in oklab, #f59e0b 45%, transparent);
 }
 .t3-mp-quota-danger {
   color: #ef4444;
-  background: color-mix(in oklab, #ef4444 14%, transparent);
-  border-color: color-mix(in oklab, #ef4444 32%, transparent);
+  background: color-mix(in oklab, #ef4444 20%, transparent);
+  border-color: color-mix(in oklab, #ef4444 48%, transparent);
 }
 .t3-mp-provider-pill {
   position: absolute;
-  top: 1px;
-  right: 1px;
+  top: 0px;
+  right: 0px;
   z-index: 40;
   pointer-events: none;
-  padding: 0 2.5px;
-  height: 11px;
-  line-height: 11px;
+  padding: 0 3px;
+  height: 12px;
+  line-height: 12px;
   border-radius: 9999px;
   font-size: 8.5px;
-  font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   background: var(--background);
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--border) 80%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, currentColor 42%, var(--border));
+}
+.t3-burn-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+  margin-top: 0.1rem;
+  border-top: 1px dashed color-mix(in oklab, var(--border) 62%, transparent);
 }
 .t3-burn-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  width: fit-content;
+  gap: 0.3rem;
   max-width: 100%;
-  padding: 0.1rem 0.38rem;
-  border-radius: 0.35rem;
-  font-size: 10.5px;
-  line-height: 1.25;
-  font-weight: 500;
+  padding: 0.16rem 0.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid transparent;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -294,26 +307,156 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
 }
 .t3-burn-ok {
   color: #10b981;
-  background: color-mix(in oklab, #10b981 11%, transparent);
+  background: color-mix(in oklab, #10b981 14%, transparent);
+  border-color: color-mix(in oklab, #10b981 30%, transparent);
 }
 .t3-burn-warn {
   color: #f59e0b;
-  background: color-mix(in oklab, #f59e0b 12%, transparent);
+  background: color-mix(in oklab, #f59e0b 15%, transparent);
+  border-color: color-mix(in oklab, #f59e0b 34%, transparent);
 }
 .t3-burn-danger {
   color: #ef4444;
-  background: color-mix(in oklab, #ef4444 13%, transparent);
+  background: color-mix(in oklab, #ef4444 16%, transparent);
+  border-color: color-mix(in oklab, #ef4444 38%, transparent);
 }
 .t3-burn-muted {
   color: var(--muted-foreground);
-  background: color-mix(in oklab, var(--muted) 60%, transparent);
+  background: color-mix(in oklab, var(--muted) 65%, transparent);
+  border-color: color-mix(in oklab, var(--border) 70%, transparent);
 }
-@media (max-width: 900px) {
+/* v1.2.1 Starship / Thruster Draggable Reasoning Effort Slider (inspired by T3 Stardust, 0% idle CPU) */
+.t3-effort-slider-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.45rem 0.5rem 0.55rem;
+  border-radius: 0.6rem;
+  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+  background: color-mix(in oklab, var(--background) 68%, var(--muted));
+  user-select: none;
+}
+.t3-effort-slider-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+.t3-effort-slider-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  letter-spacing: 0.02em;
+}
+.t3-effort-slider-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--t3-ef-c, #10b981);
+  background: color-mix(in oklab, var(--t3-ef-c, #10b981) 18%, transparent);
+  border: 1px solid color-mix(in oklab, var(--t3-ef-c, #10b981) 45%, transparent);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--t3-ef-c, #10b981) 28%, transparent);
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.t3-effort-track {
+  position: relative;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+.t3-effort-track-rail {
+  position: relative;
+  width: 100%;
+  height: 7px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--foreground) 12%, var(--muted));
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  overflow: visible;
+}
+.t3-effort-track-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--t3-ef-c0, #38bdf8), var(--t3-ef-c, #10b981));
+  box-shadow: 0 0 12px color-mix(in oklab, var(--t3-ef-c, #10b981) 65%, transparent);
+  transition: width 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
+}
+.t3-effort-track-dragging .t3-effort-track-fill,
+.t3-effort-track-dragging .t3-effort-thumb {
+  transition: none !important;
+}
+.t3-effort-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, var(--t3-ef-c, #10b981) 70%);
+  border: 2px solid var(--background);
+  box-shadow: 0 0 0 1.5px var(--t3-ef-c, #10b981), 0 0 14px color-mix(in oklab, var(--t3-ef-c, #10b981) 80%, transparent);
+  transition: left 160ms cubic-bezier(0.22, 1, 0.36, 1), transform 140ms ease, box-shadow 180ms ease;
+  pointer-events: none;
+}
+.t3-effort-track:hover .t3-effort-thumb,
+.t3-effort-track-dragging .t3-effort-thumb {
+  transform: translate(-50%, -50%) scale(1.14);
+}
+.t3-effort-stops {
+  display: grid;
+  gap: 0.2rem;
+}
+.t3-effort-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.24rem 0.15rem;
+  border-radius: 0.38rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.15;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+  min-width: 0;
+}
+.t3-effort-stop:hover:not(:disabled) {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
+}
+.t3-effort-stop[aria-checked="true"] {
+  color: var(--t3-ef-c, #10b981);
+  font-weight: 700;
+  background: color-mix(in oklab, var(--t3-ef-c, #10b981) 13%, transparent);
+  border-color: color-mix(in oklab, var(--t3-ef-c, #10b981) 35%, transparent);
+}
+.t3-effort-stop:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.t3-effort-desc {
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--muted-foreground);
+  padding: 0 0.1rem;
+}
+@media (max-width: 960px) {
   .t3-topbar-pill-reset {
     display: none;
   }
 }
-@media (max-width: 680px) {
+@media (max-width: 720px) {
   .t3-topbar-quota-strip {
     display: none;
   }
@@ -590,14 +733,14 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
     if (remaining >= 99) {
       return {
         tone: "ok",
-        text: zh ? "满血可用" : "Full capacity",
+        text: zh ? "✨ 满血可用" : "✨ Full capacity",
         title: zh ? "当前窗口额度几乎未消耗" : "Window quota is at full capacity"
       };
     }
     if (remaining <= 0) {
       return {
         tone: "danger",
-        text: zh ? "已触顶 · 待重置" : "Depleted · awaiting reset",
+        text: zh ? "🛑 已触顶 · 等待重置" : "🛑 Depleted · awaiting reset",
         title: zh ? "当前窗口额度已耗尽" : "Window quota is depleted"
       };
     }
@@ -614,7 +757,7 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
       const tone = remaining >= 50 ? "ok" : remaining >= 20 ? "warn" : "danger";
       return {
         tone,
-        text: zh ? (remaining >= 50 ? "余量充足" : remaining >= 20 ? "注意余量" : "余量偏低") : (remaining >= 50 ? "Healthy" : remaining >= 20 ? "Watch pace" : "Low quota"),
+        text: zh ? (remaining >= 50 ? "✅ 节奏平稳 · 余量充足" : remaining >= 20 ? "⚡ 注意消耗节奏" : "🔥 余量偏低") : (remaining >= 50 ? "✅ Healthy headroom" : remaining >= 20 ? "⚡ Watch pace" : "🔥 Low quota"),
         title: ""
       };
     }
@@ -623,7 +766,7 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
     if (elapsedMs < 120000) {
       return {
         tone: "ok",
-        text: zh ? "新窗口刚重置" : "Fresh window",
+        text: zh ? "✨ 新窗口刚重置" : "✨ Fresh window",
         title: zh ? "窗口刚刚开始，暂无足够消耗样本" : "Window just reset"
       };
     }
@@ -635,7 +778,7 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
       const tone = ttfMs < remMs * 0.5 || remaining <= 20 ? "danger" : "warn";
       return {
         tone,
-        text: zh ? "偏快 · 预计 " + durStr + " 后触顶" : "Fast · ~" + durStr + " to cap",
+        text: zh ? "⚡ 消耗偏快 · 约 " + durStr + " 后触顶" : "⚡ Fast · ~" + durStr + " to cap",
         title: zh
           ? "按当前消耗速率，预计将在重置前约 " + durStr + " 耗尽额度"
           : "At current burn rate, quota will hit 0% in ~" + durStr + " before reset"
@@ -645,7 +788,7 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
     const projectedLeft = Math.max(0, Math.min(100, Math.round(remaining - ratePerMs * remMs)));
     return {
       tone: "ok",
-      text: zh ? "安全 · 重置前够用" : "Safe · lasts to reset",
+      text: zh ? "✅ 节奏平稳 · 重置前够用 (余~" + projectedLeft + "%)" : "✅ Steady · ~" + projectedLeft + "% at reset",
       title: zh
         ? "按当前速率，窗口重置时预计仍剩约 " + projectedLeft + "%"
         : "At current burn rate, ~" + projectedLeft + "% will remain at reset"
@@ -1028,19 +1171,37 @@ function patchUsageLimitsView(src) {
     (_, q) => `${q}t3-quota-sections flex flex-col gap-3.5${q}`,
   );
 
-  // 4b. v1.2.0 Burn-rate Forecast badge inside each PoolWindowCard (we)
-  if (!out.includes("__T3BurnBadge")) {
+  // 4b. v1.2.1 Full-width Burn-rate Forecast footer row inside each PoolWindowCard (we)
+  //     Also auto-heals v1.2.0's cramped left-column placement if upgrading in-place.
+  if (out.includes("children:[l,m,h,(0,") && out.includes("__T3BurnBadge")) {
+    out = out.replace(
+      /\(0,([A-Za-z0-9_$]+)\.jsxs\)\("div",\{className:"flex flex-col gap-1",children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),\(0,\1\.jsx\)\(__T3BurnBadge,\{pool:([A-Za-z0-9_$]+),now:([A-Za-z0-9_$]+)\}\)\]\}\)/,
+      `(0,$1.jsxs)("div",{className:"flex flex-col gap-1",children:[$2,$3,$4]})`,
+    );
+  }
+  if (!out.includes("t3-burn-row")) {
     const reactMatch = out.match(/\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.useState\s*\)/);
-    const jsxMatch = out.match(/\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']flex flex-col gap-1[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/);
-    if (reactMatch && jsxMatch) {
+    const cardMatch = out.match(
+      /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.c\)\(\d+\),\{pool:([A-Za-z0-9_$]+),color:([A-Za-z0-9_$]+),now:([A-Za-z0-9_$]+),label:([A-Za-z0-9_$]+),description:([A-Za-z0-9_$]+)\}=\2([\s\S]{0,2400}?)\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']t3-quota-card[^`"']*[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/,
+    );
+    if (reactMatch && cardMatch) {
       const reactNs = reactMatch[1];
-      const jsxNs = jsxMatch[1];
+      const jsxNs = cardMatch[11];
+      const poolV = cardMatch[5];
+      const nowV = cardMatch[7];
       out = out.replace(
-        /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.c\)\(\d+\),\{pool:([A-Za-z0-9_$]+),color:([A-Za-z0-9_$]+),now:([A-Za-z0-9_$]+),label:([A-Za-z0-9_$]+),description:([A-Za-z0-9_$]+)\}=\2([\s\S]{0,1600}?)\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']flex flex-col gap-1[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/,
-        (_, fnName, arg, memo, cNs, poolV, colorV, nowV, lblV, descV, mid, jNs, c1, c2, c3) =>
-          `function ${fnName}(${arg}){let ${memo}=(0,${cNs}.c)(32),{pool:${poolV},color:${colorV},now:${nowV},label:${lblV},description:${descV}}=${arg}${mid}(0,${jNs}.jsxs)("div",{className:"flex flex-col gap-1",children:[${c1},${c2},${c3},(0,${jNs}.jsx)(__T3BurnBadge,{pool:${poolV},now:${nowV}})]})`,
+        cardMatch[0],
+        cardMatch[0].replace(
+          `children:[${cardMatch[12]},${cardMatch[13]},${cardMatch[14]}]`,
+          `children:[${cardMatch[12]},${cardMatch[13]},${cardMatch[14]},(0,${jsxNs}.jsx)(__T3BurnBadge,{pool:${poolV},now:${nowV}})]`,
+        ),
       );
-      out += `\nfunction __T3BurnBadge({pool,now}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const fc=globalThis.__t3QuotaUi?.computeBurnForecast?.(pool,now);if(!fc||!fc.text)return null;return(0,${jsxNs}.jsx)("span",{className:"t3-burn-badge t3-burn-"+fc.tone,title:fc.title||fc.text,children:fc.text})}\n`;
+      const burnComp = `function __T3BurnBadge({pool,now}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const fc=globalThis.__t3QuotaUi?.computeBurnForecast?.(pool,now);if(!fc||!fc.text)return null;return(0,${jsxNs}.jsx)("div",{className:"t3-burn-row",children:(0,${jsxNs}.jsx)("span",{className:"t3-burn-badge t3-burn-"+fc.tone,title:fc.title||fc.text,children:fc.text})})}`;
+      if (out.includes("function __T3BurnBadge(")) {
+        out = out.replace(/function __T3BurnBadge\([\s\S]*?\}\n/, `${burnComp}\n`);
+      } else {
+        out += `\n${burnComp}\n`;
+      }
     }
   }
 
@@ -1601,30 +1762,42 @@ var ${expVar}=__T3UsageRootWrapper;export{${expVar} as component};`,
 }
 
 function patchModelPickerBundle(src) {
-  if (src.includes("__T3MpQuotaBadge")) return src;
   let out = src;
+
+  const entriesMatch = out.match(/\{searchInputRef:[A-Za-z0-9_$]+,keybindings:[A-Za-z0-9_$]+,modelOptionsByInstance:[A-Za-z0-9_$]+,instanceEntries:([A-Za-z0-9_$]+),/);
+  const entriesVar = entriesMatch ? entriesMatch[1] : null;
+
+  // Auto-heal v1.2.0 shadowed `e.instanceEntries` inside renderItem(e => ...)
+  if (entriesVar && out.includes("quotaEntry:e.instanceEntries?.find(")) {
+    out = out.replace(
+      /quotaEntry:e\.instanceEntries\?\.find\(/g,
+      `quotaEntry:${entriesVar}?.find(`,
+    );
+  }
+
+  if (out.includes("__T3MpQuotaBadge")) return out;
 
   const reactMatch = out.match(/\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.useState\s*\)\([`"'][`"']\)/);
   const jsxMatch = out.match(/\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']flex shrink-0 items-center gap-1\.5[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/);
-  if (!reactMatch || !jsxMatch) return src;
+  if (!reactMatch || !jsxMatch || !entriesVar) return out;
 
   const reactNs = reactMatch[1];
   const jsxNs = jsxMatch[1];
 
-  // 1. Pass quotaEntry into Be (model row) inside Tt's renderItem
+  // 1. Pass quotaEntry into Be (model row) inside Tt's renderItem (using outer `entriesVar`, not shadowed `e`)
   out = out.replace(
     /(\(0,[A-Za-z0-9_$]+\.jsx\)\([A-Za-z0-9_$]+,\{index:[A-Za-z0-9_$]+,slug:([A-Za-z0-9_$]+)\.slug,name:\2\.name,subProvider:\2\.subProvider,instanceId:\2\.instanceId,)/,
-    "$1quotaEntry:e.instanceEntries?.find(__x=>__x.instanceId===$2.instanceId)??null,",
+    `$1quotaEntry:${entriesVar}?.find(__x=>__x.instanceId===$2.instanceId)??null,`,
   );
 
-  // 2. Render compact color-coded remaining % badge right next to the favorite star in Be
+  // 2. Render vivid color-coded remaining % badge right next to the favorite star in Be
   out = out.replace(
     /let ([A-Za-z0-9_$]+);([A-Za-z0-9_$]+)\[(\d+)\]!==([A-Za-z0-9_$]+)\|\|\2\[(\d+)\]!==([A-Za-z0-9_$]+)\?\(\1=\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']div[`"'],\{className:[`"']flex shrink-0 items-center gap-1\.5[`"'],children:\[\4,\6\]\}\),\2\[\3\]=\4,\2\[\5\]=\6,\2\[(\d+)\]=\1\):\1=\2\[\8\];/,
-    (_, teV, tM, s1, rV, s2, zV, jNs, s3) =>
+    (_, teV, tM, s1, rV, s2, zV, jNs) =>
       `let ${teV};${teV}=(0,${jNs}.jsxs)("div",{className:"flex shrink-0 items-center gap-1.5",children:[(0,${jNs}.jsx)(__T3MpQuotaBadge,{entry:e.quotaEntry,modelSlug:e.slug}),${rV},${zV}]});`,
   );
 
-  // 3. Add compact quota badge overlay + enriched tooltip on provider sidebar icons (qe)
+  // 3. Add compact quota badge overlay on provider sidebar icons (qe)
   out = out.replace(
     /(let ([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\?([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\):([A-Za-z0-9_$]+)\?e\.getDisabledInstanceTooltip\?\.\(\5\)\?\?\5\.displayName:\5\.displayName,([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{[\s\S]{0,900}?children:\(0,\8\.jsx\)\(([A-Za-z0-9_$]+),\{driverKind:\5\.driverKind,[\s\S]{0,360}?\}\)\}\))/,
     (full, _all, pVar, _nVar, _weFn, tVar, _iVar, _mVar, jNs) =>
@@ -1639,28 +1812,58 @@ function patchModelPickerBundle(src) {
 }
 
 function patchChatTopbarBundle(src) {
-  if (src.includes("__T3TopbarQuotaPills")) return src;
   let out = src;
 
-  // Match the exact topbar header where iV (breadcrumb/title bar) is rendered and capture local vars for providers & onOpenUsageLimits
   const providersMatch = out.match(/providers:([A-Za-z0-9_$]+),sources:[A-Za-z0-9_$]+,isWorking:[A-Za-z0-9_$]+,[\s\S]{0,320}?onOpenUsageLimits:([A-Za-z0-9_$]+)\?([A-Za-z0-9_$]+):void 0/);
   const reactMatch = out.match(/var [A-Za-z0-9_$]+=\(0,([A-Za-z0-9_$]+)\.memo\)\(function\([A-Za-z0-9_$]+\)\{let [A-Za-z0-9_$]+=\(0,[A-Za-z0-9_$]+\.c\)\(80\),\{activeThreadEnvironmentId:/);
-  const topbarCallMatch = out.match(/(\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{activeThreadEnvironmentId:[A-Za-z0-9_$]+\.environmentId,activeThreadId:[A-Za-z0-9_$]+\.id,[\s\S]{0,420}?\}\)\s*)\]\}\)/);
+  const rightPanelMatch = out.match(/rightPanelOpen:([A-Za-z0-9_$]+),onNewThreadInProject:/);
 
-  if (!providersMatch || !reactMatch || !topbarCallMatch) return src;
+  if (!providersMatch || !reactMatch) return out;
 
   const providersVar = providersMatch[1];
   const canOpenVar = providersMatch[2];
   const openUsageVar = providersMatch[3];
   const reactNs = reactMatch[1];
-  const jsxNs = topbarCallMatch[2];
+  const rightPanelVar = rightPanelMatch ? rightPanelMatch[1] : "!1";
 
-  out = out.replace(
-    topbarCallMatch[0],
-    `${topbarCallMatch[1]},(0,${jsxNs}.jsx)(__T3TopbarQuotaPills,{providers:${providersVar},onOpenUsageLimits:${canOpenVar}?${openUsageVar}:void 0})]})`,
-  );
+  // 1. Topbar Quota Pills with guaranteed safe right inset (never overlaps top-right 3 icons)
+  const topbarCallMatch = out.match(/(\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{activeThreadEnvironmentId:[A-Za-z0-9_$]+\.environmentId,activeThreadId:[A-Za-z0-9_$]+\.id,[\s\S]{0,420}?\}\)\s*)\]\}\)/);
+  const jsxNsMatch = out.match(/\(0,([A-Za-z0-9_$]+)\.jsx\)\(__T3TopbarQuotaPills,/);
+  const jsxNs = topbarCallMatch ? topbarCallMatch[2] : (jsxNsMatch ? jsxNsMatch[1] : null);
 
-  out += `\nfunction __T3TopbarQuotaPills({providers,onOpenUsageLimits}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const unsub=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof unsub==="function")unsub()}},[]);const pills=globalThis.__t3QuotaUi?.buildTopbarPills?.(providers,now)||[];if(pills.length===0)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("div",{className:"t3-topbar-quota-strip","data-quota-ui-managed":"true","aria-label":zh?"模型额度状态":"Model quota status",children:pills.map(p=>(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-topbar-pill",title:p.tooltip+(onOpenUsageLimits?(zh?"\\n点击查看完整配额面板":"\\nClick to open Usage -> Limits"):""),onClick:()=>{if(typeof onOpenUsageLimits==="function")onOpenUsageLimits()},children:[(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-dot t3-q-dot-"+p.tone}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-name",children:p.shortLabel}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-pct t3-q-"+p.tone,children:p.remaining+"%"}),p.resetShort?(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-reset",children:"· "+p.resetShort}):null]},p.id))})}\n`;
+  if (jsxNs) {
+    const newTopbarComp = `function __T3TopbarQuotaPills({providers,onOpenUsageLimits,rightPanelOpen}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const unsub=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof unsub==="function")unsub()}},[]);const pills=globalThis.__t3QuotaUi?.buildTopbarPills?.(providers,now)||[];if(pills.length===0)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("div",{className:"t3-topbar-quota-strip",style:{marginRight:rightPanelOpen?"52px":"128px"},"data-quota-ui-managed":"true","aria-label":zh?"模型额度状态":"Model quota status",children:pills.map(p=>(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-topbar-pill",title:p.tooltip+(onOpenUsageLimits?(zh?"\\n点击查看完整配额面板":"\\nClick to open Usage -> Limits"):""),onClick:()=>{if(typeof onOpenUsageLimits==="function")onOpenUsageLimits()},children:[(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-dot t3-q-dot-"+p.tone}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-name",children:p.shortLabel}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-pct t3-q-"+p.tone,children:p.remaining+"%"}),p.resetShort?(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-reset",children:"· "+p.resetShort}):null]},p.id))})}`;
+
+    if (out.includes("__T3TopbarQuotaPills")) {
+      // Auto-heal v1.2.0 call & component to pass rightPanelOpen and safe right margin
+      out = out.replace(
+        /\(__T3TopbarQuotaPills,\{providers:([A-Za-z0-9_$]+),onOpenUsageLimits:([^}]+?)\}\)/,
+        `(__T3TopbarQuotaPills,{providers:$1,onOpenUsageLimits:$2,rightPanelOpen:${rightPanelVar}})`,
+      );
+      out = out.replace(/function __T3TopbarQuotaPills\([\s\S]*?\}\n/, `${newTopbarComp}\n`);
+    } else if (topbarCallMatch) {
+      out = out.replace(
+        topbarCallMatch[0],
+        `${topbarCallMatch[1]},(0,${jsxNs}.jsx)(__T3TopbarQuotaPills,{providers:${providersVar},onOpenUsageLimits:${canOpenVar}?${openUsageVar}:void 0,rightPanelOpen:${rightPanelVar}})]})`,
+      );
+      out += `\n${newTopbarComp}\n`;
+    }
+  }
+
+  // 2. v1.2.1 Draggable Starship / Thruster Reasoning Effort Slider inside XR (inspired by T3 Stardust)
+  if (!out.includes("__T3EffortSlider") && jsxNs) {
+    const xrRegex = /([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\.map\(\(([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\)=>\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{label:\3\.label,selected:\3\.id===([A-Za-z0-9_$]+),tabStop:[A-Za-z0-9_$]+\?\3\.id===\7:\4===0,description:\3\.description,isDefault:\3\.isDefault,disabled:([A-Za-z0-9_$]+),onPick:\(\)=>([A-Za-z0-9_$]+)\.changeSelect\(([A-Za-z0-9_$]+)\.descriptor,\3\.id\)\},\3\.id\)\)/;
+    if (xrRegex.test(out)) {
+      out = out.replace(
+        xrRegex,
+        (full, fV, eOpts, _opt, _idx, jNs, _qR, selId, disV, traitsV, ctrlV) =>
+          `${fV}=${eOpts}.length>=2?(0,${jNs}.jsx)(__T3EffortSlider,{options:${eOpts},selectedId:${selId},disabled:${disV},onPick:__id=>${traitsV}.changeSelect(${ctrlV}.descriptor,__id)}):${full.slice(fV.length + 1)}`,
+      );
+
+      out += `\nfunction __T3EffortSlider({options,selectedId,disabled,onPick}){const[dragIdx,setDragIdx]=(0,${reactNs}.useState)(null);const[,setLangTick]=(0,${reactNs}.useState)(0);const trackRef=(0,${reactNs}.useRef)(null);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setLangTick(x=>x+1))},[]);const count=options.length;if(count<2)return null;const curIdx=Math.max(0,options.findIndex(o=>o.id===selectedId));const activeIdx=dragIdx!==null?dragIdx:curIdx;const activeOpt=options[activeIdx]||options[0];const ratio=count>1?activeIdx/(count-1):0;const tierColor=ratio<=0.05?"#38bdf8":ratio<=0.45?"#10b981":ratio<=0.78?"#f59e0b":"#f43f5e";const tierStart=ratio<=0.05?"#0284c7":ratio<=0.45?"#38bdf8":ratio<=0.78?"#10b981":"#f59e0b";const pct=(ratio*100).toFixed(2)+"%";const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const idxFromX=clientX=>{const el=trackRef.current;if(!el)return curIdx;const rect=el.getBoundingClientRect();const r=Math.max(0,Math.min(1,(clientX-rect.left)/Math.max(1,rect.width)));return Math.round(r*(count-1))};const commit=idx=>{const opt=options[idx];if(opt&&!disabled&&opt.id!==selectedId)onPick(opt.id)};const onPointerDown=ev=>{if(disabled)return;ev.preventDefault();try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch{}const idx=idxFromX(ev.clientX);setDragIdx(idx);commit(idx)};const onPointerMove=ev=>{if(dragIdx===null||disabled)return;const idx=idxFromX(ev.clientX);if(idx!==dragIdx){setDragIdx(idx);commit(idx)}};const onPointerUp=ev=>{if(dragIdx===null)return;const idx=idxFromX(ev.clientX);setDragIdx(null);commit(idx);try{ev.currentTarget.releasePointerCapture(ev.pointerId)}catch{}};const shortLbl=o=>{const id=String(o.id||o.label||"").toLowerCase();if(!zh)return o.label;if(id==="none"||id==="off")return"关";if(id==="minimal")return"极低";if(id==="low")return"低";if(id==="medium")return"中";if(id==="high")return"高";if(id==="xhigh"||id==="max"||id==="ultra")return"超高";return o.label};return(0,${jsxNs}.jsxs)("div",{className:"t3-effort-slider-wrap",style:{"--t3-ef-c":tierColor,"--t3-ef-c0":tierStart},"data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsxs)("div",{className:"t3-effort-slider-head",children:[(0,${jsxNs}.jsx)("span",{className:"t3-effort-slider-title",children:zh?"推理强度":"Reasoning"}),(0,${jsxNs}.jsx)("span",{className:"t3-effort-slider-pill",children:shortLbl(activeOpt)})]}),(0,${jsxNs}.jsx)("div",{ref:trackRef,className:"t3-effort-track"+(dragIdx!==null?" t3-effort-track-dragging":""),onPointerDown,onPointerMove,onPointerUp,onPointerCancel:()=>setDragIdx(null),children:(0,${jsxNs}.jsxs)("div",{className:"t3-effort-track-rail",children:[(0,${jsxNs}.jsx)("div",{className:"t3-effort-track-fill",style:{width:pct}}),(0,${jsxNs}.jsx)("div",{className:"t3-effort-thumb",style:{left:pct}})]})}),(0,${jsxNs}.jsx)("div",{className:"t3-effort-stops",style:{gridTemplateColumns:"repeat("+count+", minmax(0, 1fr))"},children:options.map((o,idx)=>(0,${jsxNs}.jsx)("button",{type:"button",role:"radio","aria-checked":idx===activeIdx,disabled,"data-effort-row":!0,"data-effort-level":!0,tabIndex:idx===activeIdx?0:-1,className:"t3-effort-stop",title:o.description||o.label,onClick:()=>commit(idx),children:shortLbl(o)},o.id))}),activeOpt?.description?(0,${jsxNs}.jsx)("div",{className:"t3-effort-desc",children:activeOpt.description}):null]})}\n`;
+    }
+  }
+
   return out;
 }
 
