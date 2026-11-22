@@ -1,0 +1,234 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="960" y2="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0B0D10"/>
+      <stop offset="100%" stop-color="#11141A"/>
+    </linearGradient>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Inter", sans-serif; }
+      .mono { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    </style>
+  </defs>
+
+  <!-- Window Frame -->
+  <rect x="8" y="8" width="944" height="544" rx="14" fill="url(#bgGrad)" stroke="#232832" stroke-width="1.5"/>
+  <!-- Titlebar -->
+  <rect x="8" y="8" width="944" height="42" rx="14" fill="#13171E"/>
+  <rect x="8" y="36" width="944" height="14" fill="#13171E"/>
+  <line x1="8" y1="50" x2="952" y2="50" stroke="#222730" stroke-width="1"/>
+  <circle cx="28" cy="29" r="5.5" fill="#FF5F57"/>
+  <circle cx="46" cy="29" r="5.5" fill="#FEBC2E"/>
+  <circle cx="64" cy="29" r="5.5" fill="#28C840"/>
+  <text x="86" y="34" class="sans" font-size="13" font-weight="600" fill="#E6EAF2">用量与配额 · 配额限制 (Limits)</text>
+
+  <!-- Tabs & Header Pill -->
+  <rect x="650" y="18" width="218" height="24" rx="6" fill="#1A1F29" stroke="#2A3140"/>
+  <text x="666" y="34" class="sans" font-size="11" fill="#7F8A9E">概览</text>
+  <text x="710" y="34" class="sans" font-size="11" fill="#7F8A9E">费用</text>
+  <rect x="750" y="20" width="62" height="20" rx="4" fill="#283040"/>
+  <text x="760" y="34" class="sans" font-size="11" font-weight="600" fill="#F4F7FC">配额限制</text>
+  <text x="824" y="34" class="sans" font-size="11" fill="#7F8A9E">模型</text>
+  <rect x="878" y="18" width="58" height="24" rx="6" fill="#1A2436" stroke="#2F466B"/>
+  <text x="891" y="34" class="sans" font-size="11" font-weight="600" fill="#7BB2FF">↻ 刷新</text>
+
+  <!-- ================= SECTION 1: ANTIGRAVITY (2x2 GRID, DUAL ACCOUNTS) ================= -->
+  <g transform="translate(28, 66)">
+    <circle cx="9" cy="9" r="8" fill="#1E293B" stroke="#38BDF8" stroke-width="1.2"/>
+    <text x="6" y="13" class="mono" font-size="10" font-weight="700" fill="#38BDF8">A</text>
+    <text x="24" y="13" class="sans" font-size="13" font-weight="600" fill="#F1F5F9">Antigravity</text>
+    <rect x="104" y="2" width="114" height="16" rx="8" fill="#13263A" stroke="#1E3F5E"/>
+    <text x="113" y="13" class="sans" font-size="10" font-weight="600" fill="#60A5FA">双 20x 账号分栏 · 2</text>
+
+    <!-- Row 1 Left: Gemini 5-hour -->
+    <g transform="translate(0, 24)">
+      <rect width="444" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">Gemini · 5-hour</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">82%</text>
+      <text x="62" y="44" class="sans" font-size="11" fill="#8B96A9">剩余 ↘</text>
+      <!-- Split Bar: Account 1 -->
+      <rect x="142" y="13" width="142" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="108" height="32" rx="6" fill="#38BDF8" fill-opacity="0.34"/>
+      <line x1="240" y1="15" x2="240" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="150" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">AG #1 · 76%</text>
+      <rect x="234" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="240" y="32" class="mono" font-size="10" fill="#CBD5E1">3h 40m</text>
+      <!-- Split Bar: Account 2 -->
+      <rect x="290" y="13" width="142" height="32" rx="6" fill="#1B212C"/>
+      <rect x="290" y="13" width="125" height="32" rx="6" fill="#38BDF8" fill-opacity="0.34"/>
+      <line x1="398" y1="15" x2="398" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="298" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">AG #2 · 88%</text>
+      <rect x="382" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="388" y="32" class="mono" font-size="10" fill="#CBD5E1">4h 12m</text>
+    </g>
+
+    <!-- Row 1 Right: Gemini Weekly -->
+    <g transform="translate(456, 24)">
+      <rect width="448" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">Gemini · Weekly</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">91%</text>
+      <text x="62" y="44" class="sans" font-size="11" fill="#8B96A9">剩余 ↘</text>
+      <!-- Split Bar: Account 1 -->
+      <rect x="142" y="13" width="144" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="127" height="32" rx="6" fill="#38BDF8" fill-opacity="0.34"/>
+      <line x1="252" y1="15" x2="252" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="150" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">AG #1 · 88%</text>
+      <rect x="236" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="242" y="32" class="mono" font-size="10" fill="#CBD5E1">5d 14h</text>
+      <!-- Split Bar: Account 2 -->
+      <rect x="292" y="13" width="144" height="32" rx="6" fill="#1B212C"/>
+      <rect x="292" y="13" width="135" height="32" rx="6" fill="#38BDF8" fill-opacity="0.34"/>
+      <line x1="412" y1="15" x2="412" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="300" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">AG #2 · 94%</text>
+      <rect x="386" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="392" y="32" class="mono" font-size="10" fill="#CBD5E1">6d 02h</text>
+    </g>
+
+    <!-- Row 2 Left: Claude & GPT 5-hour -->
+    <g transform="translate(0, 90)">
+      <rect width="444" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">Claude &amp; GPT · 5h</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">95%</text>
+      <text x="62" y="44" class="sans" font-size="11" fill="#8B96A9">剩余 ↘</text>
+      <rect x="142" y="13" width="142" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="142" height="32" rx="6" fill="#38BDF8" fill-opacity="0.34"/>
+      <text x="150" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">AG #1 · 100%</text>
+      <rect x="290" y="13" width="142" height="32" rx="6" fill="#1B212C"/>
+      <rect x="290" y="13" width="128" height="32" rx="6" fill="#38BDF8" fill-opacity="0.34"/>
+      <line x1="402" y1="15" x2="402" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="298" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">AG #2 · 90%</text>
+      <rect x="382" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="388" y="32" class="mono" font-size="10" fill="#CBD5E1">3h 55m</text>
+    </g>
+
+    <!-- Row 2 Right: Claude & GPT Weekly -->
+    <g transform="translate(456, 90)">
+      <rect width="448" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">Claude &amp; GPT · Weekly</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">89%</text>
+      <text x="62" y="44" class="sans" font-size="11" fill="#8B96A9">剩余 ↘</text>
+      <rect x="142" y="13" width="144" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="127" height="32" rx="6" fill="#38BDF8" fill-opacity="0.34"/>
+      <line x1="252" y1="15" x2="252" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="150" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">AG #1 · 88%</text>
+      <rect x="236" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="242" y="32" class="mono" font-size="10" fill="#CBD5E1">5d 14h</text>
+      <rect x="292" y="13" width="144" height="32" rx="6" fill="#1B212C"/>
+      <rect x="292" y="13" width="130" height="32" rx="6" fill="#38BDF8" fill-opacity="0.34"/>
+      <line x1="406" y1="15" x2="406" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="300" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">AG #2 · 90%</text>
+      <rect x="386" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="392" y="32" class="mono" font-size="10" fill="#CBD5E1">6d 02h</text>
+    </g>
+  </g>
+
+  <!-- ================= SECTION 2: CODEX (1x2 GRID, DUAL ACCOUNTS) ================= -->
+  <g transform="translate(28, 232)">
+    <circle cx="9" cy="9" r="8" fill="#162B23" stroke="#34D399" stroke-width="1.2"/>
+    <text x="6" y="13" class="mono" font-size="10" font-weight="700" fill="#34D399">C</text>
+    <text x="24" y="13" class="sans" font-size="13" font-weight="600" fill="#F1F5F9">Codex</text>
+    <rect x="74" y="2" width="106" height="16" rx="8" fill="#122921" stroke="#1E4B3A"/>
+    <text x="84" y="13" class="sans" font-size="10" font-weight="600" fill="#34D399">多账号聚合 · 2</text>
+
+    <!-- Session -->
+    <g transform="translate(0, 24)">
+      <rect width="444" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">Session (5h)</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">74%</text>
+      <text x="62" y="44" class="sans" font-size="11" fill="#8B96A9">剩余</text>
+      <rect x="142" y="13" width="142" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="97" height="32" rx="6" fill="#34D399" fill-opacity="0.32"/>
+      <line x1="215" y1="15" x2="215" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="150" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">Pro #1 · 68%</text>
+      <rect x="234" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="240" y="32" class="mono" font-size="10" fill="#CBD5E1">2h 15m</text>
+      <rect x="290" y="13" width="142" height="32" rx="6" fill="#1B212C"/>
+      <rect x="290" y="13" width="114" height="32" rx="6" fill="#34D399" fill-opacity="0.32"/>
+      <line x1="392" y1="15" x2="392" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="298" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">Pro #2 · 80%</text>
+      <rect x="382" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="388" y="32" class="mono" font-size="10" fill="#CBD5E1">4h 05m</text>
+    </g>
+
+    <!-- Weekly -->
+    <g transform="translate(456, 24)">
+      <rect width="448" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">Weekly</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">85%</text>
+      <text x="62" y="44" class="sans" font-size="11" fill="#8B96A9">剩余 ↘</text>
+      <rect x="142" y="13" width="144" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="118" height="32" rx="6" fill="#34D399" fill-opacity="0.32"/>
+      <line x1="244" y1="15" x2="244" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="150" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">Pro #1 · 82%</text>
+      <rect x="236" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="242" y="32" class="mono" font-size="10" fill="#CBD5E1">4d 18h</text>
+      <rect x="292" y="13" width="144" height="32" rx="6" fill="#1B212C"/>
+      <rect x="292" y="13" width="127" height="32" rx="6" fill="#34D399" fill-opacity="0.32"/>
+      <line x1="408" y1="15" x2="408" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="300" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">Pro #2 · 88%</text>
+      <rect x="386" y="21" width="44" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="392" y="32" class="mono" font-size="10" fill="#CBD5E1">5d 20h</text>
+    </g>
+  </g>
+
+  <!-- ================= SECTION 3: CLAUDE & GROK (1x2 COMPACT ROW) ================= -->
+  <g transform="translate(28, 332)">
+    <circle cx="9" cy="9" r="8" fill="#2E1F18" stroke="#FB923C" stroke-width="1.2"/>
+    <text x="5.5" y="13" class="mono" font-size="10" font-weight="700" fill="#FB923C">✦</text>
+    <text x="24" y="13" class="sans" font-size="13" font-weight="600" fill="#F1F5F9">Claude</text>
+    <rect x="76" y="2" width="142" height="16" rx="8" fill="#2B1E17" stroke="#523424"/>
+    <text x="86" y="13" class="sans" font-size="10" font-weight="600" fill="#FDBA74">支持官方订阅 + 自定义 API</text>
+
+    <g transform="translate(0, 24)">
+      <rect width="444" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">Session (Max 20x)</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">64%</text>
+      <text x="62" y="44" class="sans" font-size="11" fill="#8B96A9">剩余</text>
+      <rect x="142" y="13" width="290" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="186" height="32" rx="6" fill="#FB923C" fill-opacity="0.34"/>
+      <line x1="312" y1="15" x2="312" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="152" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">Claude Max · 64%</text>
+      <rect x="376" y="21" width="48" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="383" y="32" class="mono" font-size="10" fill="#CBD5E1">1h 52m</text>
+    </g>
+
+    <g transform="translate(456, 24)">
+      <rect width="448" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">API · custom-endpoint</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">100%</text>
+      <text x="72" y="44" class="sans" font-size="11" fill="#8B96A9">在线</text>
+      <rect x="142" y="13" width="294" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="294" height="32" rx="6" fill="#FB923C" fill-opacity="0.28"/>
+      <text x="152" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">Custom API Gateway · 已连接</text>
+    </g>
+  </g>
+
+  <!-- ================= SECTION 4: GROK / CURSOR COMPACT FOOTER ROW ================= -->
+  <g transform="translate(28, 432)">
+    <circle cx="9" cy="9" r="8" fill="#232038" stroke="#A78BFA" stroke-width="1.2"/>
+    <text x="6" y="13" class="mono" font-size="10" font-weight="700" fill="#A78BFA">G</text>
+    <text x="24" y="13" class="sans" font-size="13" font-weight="600" fill="#F1F5F9">Grok &amp; Cursor</text>
+
+    <g transform="translate(0, 24)">
+      <rect width="444" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">Grok · Window</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">92%</text>
+      <text x="62" y="44" class="sans" font-size="11" fill="#8B96A9">剩余 ↘</text>
+      <rect x="142" y="13" width="290" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="267" height="32" rx="6" fill="#A78BFA" fill-opacity="0.34"/>
+      <text x="152" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">SuperGrok · 92%</text>
+    </g>
+
+    <g transform="translate(456, 24)">
+      <rect width="448" height="58" rx="8" fill="#131720" stroke="#232A36"/>
+      <text x="12" y="22" class="sans" font-size="12" font-weight="500" fill="#CBD5E1">Cursor · Monthly Pool</text>
+      <text x="12" y="45" class="mono" font-size="20" font-weight="700" fill="#F8FAFC">79%</text>
+      <text x="62" y="44" class="sans" font-size="11" fill="#8B96A9">剩余 ↘</text>
+      <rect x="142" y="13" width="294" height="32" rx="6" fill="#1B212C"/>
+      <rect x="142" y="13" width="232" height="32" rx="6" fill="#60A5FA" fill-opacity="0.32"/>
+      <line x1="382" y1="15" x2="382" y2="43" stroke="#F8FAFC" stroke-width="2"/>
+      <text x="152" y="33" class="sans" font-size="11" font-weight="600" fill="#F1F5F9">Pro · 79%</text>
+      <rect x="378" y="21" width="48" height="16" rx="4" fill="#0E1218" fill-opacity="0.85"/>
+      <text x="385" y="32" class="mono" font-size="10" fill="#CBD5E1">18d 6h</text>
+    </g>
+  </g>
+</svg>
