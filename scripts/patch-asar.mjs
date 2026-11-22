@@ -1214,22 +1214,79 @@ function patchServerBundle(src) {
     );
   }
 
-  // 2. Force per-instance file credential storage (SSH_CONNECTION) whenever >1 Antigravity profile exists OR antigravity-oauth-token is present,
-  //    so signing in a 2nd Antigravity account writes to its own isolated antigravity-oauth-token instead of shared macOS Keychain.
-  const isolationExpr = `...(auth.authMethod === "oauth-personal" && (() => { try { const __fs = process.getBuiltinModule("node:fs"), __p = process.getBuiltinModule("node:path"); return __fs.existsSync(profile.acpDirectory + "/antigravity-oauth-token") || __fs.readdirSync(__p.dirname(profile.geminiHome)).filter((d) => !d.startsWith(".")).length > 1; } catch { return false; } })() ? { SSH_CONNECTION: "127.0.0.1 0 127.0.0.1 0" } : {}),`;
+  // 2. Per-instance Antigravity OAuth file isolation on macOS:
+  //    - Only pass SSH_CONNECTION when this profile ALREADY has antigravity-oauth-token (so browser OAuth sign-in still works when signing in).
+  //    - Auto-heal v1.1.2's overly aggressive readdirSync SSH_CONNECTION patch if present.
+  //    - Before starting a new sign-in on a profile without antigravity-oauth-token, if another profile already has its own file, clear shared macOS Keychain so Google browser OAuth opens cleanly for a second account.
+  //    - Right after onAuthenticated succeeds, snapshot the newly authorized macOS Keychain token into this profile's own antigravity-oauth-token file (0600) and drop stale acp_token.json so quota probe syncs immediately.
+  const safeSshExpr = `...(auth.authMethod === "oauth-personal" && (() => { try { return process.getBuiltinModule("node:fs").existsSync(profile.acpDirectory + "/antigravity-oauth-token"); } catch { return false; } })() ? { SSH_CONNECTION: "127.0.0.1 0 127.0.0.1 0" } : {}),`;
+  if (out.includes("readdirSync(__p.dirname(profile.geminiHome))")) {
+    out = out.replace(
+      /\.\.\.\(auth\.authMethod === "oauth-personal" && \(\(\) => \{[\s\S]*?readdirSync\(__p\.dirname\(profile\.geminiHome\)\)[\s\S]*?\}\)\(\) \? \{ SSH_CONNECTION: "127\.0\.0\.1 0 127\.0\.0\.1 0" \} : \{\}\),/,
+      safeSshExpr,
+    );
+  } else if (out.includes("AGY_ACP_FORCE_FILE_STORAGE") && !out.includes('"/antigravity-oauth-token"')) {
+    out = out.replace(
+      /(GEMINI_HOME:\s*profile\.geminiHome,\s*AGY_ACP_FORCE_FILE_STORAGE:\s*"1",)/,
+      `$1 ${safeSshExpr}`,
+    );
+  }
 
-  if (out.includes("AGY_ACP_FORCE_FILE_STORAGE") && !out.includes("readdirSync(__p.dirname(profile.geminiHome))")) {
-    if (out.includes('"/antigravity-oauth-token"')) {
-      out = out.replace(
-        /\.\.\.\(auth\.authMethod === "oauth-personal" && [A-Za-z0-9_$.()]+\.existsSync\(profile\.acpDirectory \+ "\/antigravity-oauth-token"\) \? \{ SSH_CONNECTION: "127\.0\.0\.1 0 127\.0\.0\.1 0" \} : \{\}\),/,
-        isolationExpr,
-      );
-    } else {
-      out = out.replace(
-        /(GEMINI_HOME:\s*profile\.geminiHome,\s*AGY_ACP_FORCE_FILE_STORAGE:\s*"1",)/,
-        `$1 ${isolationExpr}`,
-      );
-    }
+  if (out.includes("onAuthenticated: (started, runtime) =>") && !out.includes("__t3SnapshotAgyOAuth")) {
+    out = out.replace(
+      `const authFlow = yield* makeAntigravityAuth({\n\t\t\tinstanceId,\n\t\t\tmakeRuntime: makeDisposableRuntime,\n\t\t\tonAuthenticated: (started, runtime) => suspend(() => provider.onSignedIn).pipe(andThen(publishCatalog(started, runtime))),\n\t\t\tonSignedOut: suspend(() => provider.onSignedOut),`,
+      `const __t3SnapshotAgyOAuth = () => {
+			try {
+				if (process.platform !== "darwin") return;
+				const __fs = process.getBuiltinModule("node:fs");
+				const __p = process.getBuiltinModule("node:path");
+				const __cp = process.getBuiltinModule("node:child_process");
+				const __oauthPath = __p.join(profileDirectory, "antigravity-acp", "antigravity-oauth-token");
+				const __acpPath = __p.join(profileDirectory, "antigravity-acp", "acp_token.json");
+				if (!__fs.existsSync(__oauthPath)) {
+					const __kc = __cp.execFileSync("security", ["find-generic-password", "-s", "gemini", "-a", "antigravity", "-w"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+					const __json = __kc.startsWith("go-keyring-base64:") ? Buffer.from(__kc.slice(18), "base64").toString("utf8") : __kc;
+					if (__json.startsWith("{") && __json.includes("refresh_token")) {
+						__fs.mkdirSync(__p.dirname(__oauthPath), { recursive: true });
+						__fs.writeFileSync(__oauthPath, __json, { mode: 384 });
+						try { if (__fs.existsSync(__acpPath)) __fs.unlinkSync(__acpPath); } catch {}
+					}
+				}
+			} catch {}
+		};
+		const __t3ClearAgyOAuth = () => {
+			try {
+				const __fs = process.getBuiltinModule("node:fs");
+				const __p = process.getBuiltinModule("node:path");
+				for (const __f of ["antigravity-oauth-token", "acp_token.json"]) {
+					const __fp = __p.join(profileDirectory, "antigravity-acp", __f);
+					if (__fs.existsSync(__fp)) __fs.unlinkSync(__fp);
+				}
+			} catch {}
+		};
+		const __t3PrepareAgySignIn = () => {
+			try {
+				if (process.platform !== "darwin") return;
+				const __fs = process.getBuiltinModule("node:fs");
+				const __p = process.getBuiltinModule("node:path");
+				const __cp = process.getBuiltinModule("node:child_process");
+				const __oauthPath = __p.join(profileDirectory, "antigravity-acp", "antigravity-oauth-token");
+				if (__fs.existsSync(__oauthPath)) __fs.unlinkSync(__oauthPath);
+				const __acpPath = __p.join(profileDirectory, "antigravity-acp", "acp_token.json");
+				if (__fs.existsSync(__acpPath)) __fs.unlinkSync(__acpPath);
+				const __parent = __p.dirname(profileDirectory);
+				const __siblings = __fs.readdirSync(__parent).filter((d) => !d.startsWith(".") && __p.join(__parent, d) !== profileDirectory);
+				if (__siblings.some((d) => __fs.existsSync(__p.join(__parent, d, "antigravity-acp", "antigravity-oauth-token")))) {
+					try { __cp.execFileSync("security", ["delete-generic-password", "-s", "gemini", "-a", "antigravity"], { stdio: "ignore" }); } catch {}
+				}
+			} catch {}
+		};
+		const authFlow = yield* makeAntigravityAuth({
+			instanceId,
+			makeRuntime: (runtimeOpts) => { __t3PrepareAgySignIn(); return makeDisposableRuntime(runtimeOpts); },
+			onAuthenticated: (started, runtime) => sync(__t3SnapshotAgyOAuth).pipe(andThen(suspend(() => provider.onSignedIn)), andThen(publishCatalog(started, runtime))),
+			onSignedOut: sync(__t3ClearAgyOAuth).pipe(andThen(suspend(() => provider.onSignedOut))),`,
+    );
   }
 
   return out;
