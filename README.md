@@ -2,13 +2,13 @@
 
 <img src="assets/icon.svg" width="68" height="68" alt="T3 Code Quota UI" />
 
-# T3 Code Quota UI · 界面与多账号配额增强版 `v1.2.1`
+# T3 Code Quota UI · 界面与多账号配额增强版 `v1.3.0`
 
-**一行命令，为 macOS 版 [T3 Code](https://github.com/pingdotgg/t3code) 注入「可拖拽发光星舰推理强度滑块 + 顶栏常驻额度胶囊 + 模型选择器剩余额度徽章 + 额度燃尽预测 + 双列紧凑配额大盘 + `¥ CNY / $ USD` 一键换算 + `中 / EN` 免重启双语切换」**
+**一行命令，为 macOS 版 [T3 Code](https://github.com/pingdotgg/t3code) 注入「星舰曲速 Canvas 推理滑块（2秒自动休眠零GPU）+ 底部悬浮会话统计胶囊 + 橙色发送与输入台药丸美化 + 顶栏常驻额度胶囊 + 模型选择器余量 + 燃尽预测 + `¥ CNY / $ USD` 与 `中 / EN` 实时切换」**
 
-*One-command macOS UI & multi-account quota enhancement pack for T3 Code — featuring a Draggable Starship Reasoning Effort Slider, Topbar Quota Pills, Model Picker Quota Badges, Burn-rate Forecast, side-by-side multi-account columns, instant `¥ CNY / $ USD` currency conversion, and live `中 / EN` bilingual switching.*
+*One-command macOS UI & multi-account quota enhancement pack for T3 Code — featuring a Cosmic Warp-Drive Canvas Reasoning Slider (2s auto-idle sleep), Floating Session Telemetry Pill, Stardust Composer Polish, Topbar Quota Pills, Model Picker Quota Badges, Burn-rate Forecast, `¥ CNY / $ USD`, and live `中 / EN` switching.*
 
-[![Release: v1.2.1](https://img.shields.io/badge/Release-v1.2.1-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.2.1)
+[![Release: v1.3.0](https://img.shields.io/badge/Release-v1.3.0-f43f5e.svg)](https://github.com/Leobai03/t3code-quota-ui/releases/tag/v1.3.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon%20%26%20Intel)-38bdf8.svg)](#一键安装--quick-install)
 [![Upstream: pingdotgg/t3code](https://img.shields.io/badge/Upstream-pingdotgg%2Ft3code-8b5cf6.svg)](https://github.com/pingdotgg/t3code)
@@ -20,20 +20,19 @@
 
 ---
 
-## `v1.2.1` 重磅升级
+## `v1.3.0` 重磅升级（T3 Stardust 星尘视觉全套融合）
 
-吸收社区 MIT 开源项目 **[T3 Stardust (`zds-xiaoxin/xiaoxin-t3code`)](https://github.com/zds-xiaoxin/xiaoxin-t3code)** 中最受欢迎的四大高频交互灵感，以零依赖轻量热补丁方式原生融入 T3 Code（完整保留 `v1.1.3` 全部多号物理隔离、浏览器登录修复与双语货币切换）：
+深度参考并致谢 MIT 开源项目 **[T3 Stardust (`zds-xiaoxin/xiaoxin-t3code`)](https://github.com/zds-xiaoxin/xiaoxin-t3code)** 的四大核心视觉与高频交互模块，以零依赖轻量热补丁方式原生融合进 T3 Code（完整保留 `v1.1.3` 双账号物理隔离与 `v1.2.x` 全部配额增强）：
 
-1. **可拖拽星舰/推进器推理强度滑块（Draggable Reasoning Effort Slider，`v1.2.1` 新增）**：
-   - 将模型选择器右侧的推理强度（低 / 中 / 高 / 超高）升级为丝滑可拖拽的发光星舰推进器滑块，支持鼠标 Pointer Capture 实时拖拽 + 点击档位 + 键盘方向键切换；
-   - 按档位动态变色发光（低冷蓝 → 中翠绿 → 高琥珀 → 超高熔岩紫红），静置 **0% CPU 占用**。
-2. **顶栏常驻额度胶囊（Topbar Quota Pills，`v1.2.1` 安全留白修复）**：
-   - 在聊天界面顶栏常驻极简紧凑的多池额度胶囊，实时展示当前在线主力池（如 `AG1 81% · 3h`、`AG2 96% · 4h`、`Claude`、`Codex`、`Cursor`、`Grok`）的剩余百分比与最近重置倒计时；
-   - 自适应右侧操作区安全留白（与右上角按钮始终保持 ≥16px 清晰间距，绝不重叠），点击任意胶囊一键跳转「用量与配额 → 限额」，悬停查看完整 5h / 7d 窗口与燃尽预测详情。
-3. **模型选择器内嵌剩余额度（Model Picker Quota Badges，`v1.2.1` 高对比度增强）**：
-   - 打开模型选择器时，在每个模型行右侧及左侧提供方图标角标直接展示对应账号与模型池的实时剩余额度百分比药丸（`≥50%` 翠绿、`20%~49%` 琥珀、`<20%` 红色提醒），切模型时一眼拉平双号水位。
-4. **额度燃尽预测（Burn-rate Forecast，`v1.2.1` 全宽底部外显）**：
-   - 在「用量与配额 → 限额（Limits）」每张窗口卡片底部独立整行醒目外显燃尽预测标签（如 **`✅ 节奏平稳 · 重置前够用 (余~72%)`**、**`⚡ 消耗偏快 · 约 1小时20分 后触顶`**、**`✨ 满血可用`**），中英文双语自动切换。
+1. **星舰曲速 Canvas 推理强度滑块（Cosmic Warp-Drive Slider，2秒自动休眠 0% 静置 GPU）**：
+   - 将模型选择器右侧的推理强度升级为 **HTML5 Canvas 深空星轨 + 发光能量核心 + 动态曲速光束 + 金属胶囊滑块**；
+   - 标题实时联动档位与状态副标题（如 **`● 推理强度 · Max` / `深空曲速巡航 · 满载任务` / `5 档`**），支持鼠标拖拽、点击轨道、点击底部档位按钮与键盘方向键；交互停止 **2 秒后自动休眠**，静置零 GPU/CPU 占用。
+2. **底部居中悬浮会话统计胶囊（Floating Session Telemetry Pill）**：
+   - 在输入台正下方新增极简深色玻璃胶囊，实时汇总 **`● 3 轮 12 步 · 94 tok/s | 42.8K 令牌 · 缓存 86%`**，一眼掌握当前会话轮次、工具步数、生成速率、总令牌与缓存命中率。
+3. **输入台右下角药丸栏 + 活力橙发送按钮（Stardust Composer Polish）**：
+   - 权限切换与模型选择器触发按钮统一为圆润药丸质感，搭配高辨识度渐变橙色圆形发送按钮（`↑`）；右侧栏 `产物 / 终端` 标签与卡片同步圆角质感抛光。
+4. **模型选择器 `剩 XX%` 徽章 + 顶栏零重叠额度胶囊 + 限额卡片全宽燃尽预测**：
+   - 模型选择器右侧统一以 **`剩 72%`** 分色药丸呈现；顶栏胶囊自带右侧按钮区安全留白（永不重叠）；`用量与配额 → 限额` 每张卡片底部全宽外显燃尽预测（`✅ 节奏平稳 · 重置前够用` / `⚡ 消耗偏快 · 约 X 后触顶` / `✨ 满血可用`）。
 
 ### `v1.1.x` 既有特性（完整保留）
 

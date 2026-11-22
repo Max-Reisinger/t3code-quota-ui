@@ -325,131 +325,179 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
   background: color-mix(in oklab, var(--muted) 65%, transparent);
   border-color: color-mix(in oklab, var(--border) 70%, transparent);
 }
-/* v1.2.1 Starship / Thruster Draggable Reasoning Effort Slider (inspired by T3 Stardust, 0% idle CPU) */
-.t3-effort-slider-wrap {
+/* v1.3.0 Stardust Cosmic Effort Slider (HTML5 Canvas + 2s auto-idle sleep, 0% idle GPU/CPU) */
+.t3-cosmic-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.45rem 0.5rem 0.55rem;
-  border-radius: 0.6rem;
-  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
-  background: color-mix(in oklab, var(--background) 68%, var(--muted));
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem 0.6rem;
+  border-radius: 0.72rem;
+  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+  background: color-mix(in oklab, var(--background) 72%, var(--muted));
   user-select: none;
 }
-.t3-effort-slider-head {
+.t3-cosmic-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
-.t3-effort-slider-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted-foreground);
-  letter-spacing: 0.02em;
-}
-.t3-effort-slider-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.1rem 0.45rem;
-  border-radius: 9999px;
-  font-size: 10.5px;
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--t3-ef-c, #10b981);
-  background: color-mix(in oklab, var(--t3-ef-c, #10b981) 18%, transparent);
-  border: 1px solid color-mix(in oklab, var(--t3-ef-c, #10b981) 45%, transparent);
-  box-shadow: 0 0 10px color-mix(in oklab, var(--t3-ef-c, #10b981) 28%, transparent);
-  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.t3-effort-track {
-  position: relative;
-  height: 22px;
+.t3-cosmic-title-row {
   display: flex;
   align-items: center;
-  cursor: pointer;
-  touch-action: none;
+  gap: 0.35rem;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1.2;
 }
-.t3-effort-track-rail {
-  position: relative;
-  width: 100%;
+.t3-cosmic-dot {
+  width: 7px;
   height: 7px;
   border-radius: 9999px;
-  background: color-mix(in oklab, var(--foreground) 12%, var(--muted));
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
-  overflow: visible;
+  background: var(--t3-ef-c, #38bdf8);
+  box-shadow: 0 0 8px var(--t3-ef-c, #38bdf8);
+  flex-shrink: 0;
 }
-.t3-effort-track-fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+.t3-cosmic-sub {
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  line-height: 1.25;
+}
+.t3-cosmic-tiers {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  padding: 0.1rem 0.35rem;
   border-radius: 9999px;
-  background: linear-gradient(90deg, var(--t3-ef-c0, #38bdf8), var(--t3-ef-c, #10b981));
-  box-shadow: 0 0 12px color-mix(in oklab, var(--t3-ef-c, #10b981) 65%, transparent);
-  transition: width 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
 }
-.t3-effort-track-dragging .t3-effort-track-fill,
-.t3-effort-track-dragging .t3-effort-thumb {
-  transition: none !important;
-}
-.t3-effort-thumb {
-  position: absolute;
-  top: 50%;
-  width: 16px;
-  height: 16px;
+.t3-cosmic-canvas-box {
+  position: relative;
+  height: 38px;
+  width: 100%;
   border-radius: 9999px;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle at 35% 35%, #ffffff 0%, var(--t3-ef-c, #10b981) 70%);
-  border: 2px solid var(--background);
-  box-shadow: 0 0 0 1.5px var(--t3-ef-c, #10b981), 0 0 14px color-mix(in oklab, var(--t3-ef-c, #10b981) 80%, transparent);
-  transition: left 160ms cubic-bezier(0.22, 1, 0.36, 1), transform 140ms ease, box-shadow 180ms ease;
-  pointer-events: none;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
+  background: #070913;
+  border: 1px solid color-mix(in oklab, var(--t3-ef-c, #38bdf8) 38%, rgba(255, 255, 255, 0.12));
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.72), 0 0 14px color-mix(in oklab, var(--t3-ef-c, #38bdf8) 22%, transparent);
 }
-.t3-effort-track:hover .t3-effort-thumb,
-.t3-effort-track-dragging .t3-effort-thumb {
-  transform: translate(-50%, -50%) scale(1.14);
+.t3-cosmic-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
-.t3-effort-stops {
+.t3-cosmic-stops {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.18rem;
 }
-.t3-effort-stop {
+.t3-cosmic-stop {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0.24rem 0.15rem;
-  border-radius: 0.38rem;
+  height: 1.45rem;
+  padding: 0 0.2rem;
+  border-radius: 0.42rem;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 500;
-  line-height: 1.15;
+  line-height: 1;
   cursor: pointer;
   transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
   min-width: 0;
+  white-space: nowrap;
 }
-.t3-effort-stop:hover:not(:disabled) {
+.t3-cosmic-stop:hover:not(:disabled) {
   color: var(--foreground);
   background: color-mix(in oklab, var(--foreground) 7%, transparent);
 }
-.t3-effort-stop[aria-checked="true"] {
-  color: var(--t3-ef-c, #10b981);
+.t3-cosmic-stop[aria-checked="true"] {
+  color: var(--foreground);
   font-weight: 700;
-  background: color-mix(in oklab, var(--t3-ef-c, #10b981) 13%, transparent);
-  border-color: color-mix(in oklab, var(--t3-ef-c, #10b981) 35%, transparent);
+  background: color-mix(in oklab, var(--foreground) 14%, transparent);
+  border-color: color-mix(in oklab, var(--t3-ef-c, #38bdf8) 45%, var(--border));
+  box-shadow: 0 0 8px color-mix(in oklab, var(--t3-ef-c, #38bdf8) 22%, transparent);
 }
-.t3-effort-stop:disabled {
+.t3-cosmic-stop:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
-.t3-effort-desc {
-  font-size: 10.5px;
-  line-height: 1.35;
+/* v1.3.0 Red Box #2: Stardust Composer Bottom-Right Pill & Cosmic Orange Send Button */
+button[data-chat-composer-transition-actions="true"]:not(:disabled) {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 12px rgba(249, 115, 22, 0.42) !important;
+  transition: transform 120ms ease, box-shadow 140ms ease, filter 140ms ease !important;
+}
+button[data-chat-composer-transition-actions="true"]:not(:disabled):hover {
+  filter: brightness(1.08);
+  box-shadow: 0 3px 16px rgba(249, 115, 22, 0.58) !important;
+  transform: translateY(-0.5px);
+}
+[data-composer-model-trigger],
+[data-composer-permissions-trigger] {
+  border-radius: 9999px !important;
+  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent) !important;
+  background: color-mix(in oklab, var(--muted) 48%, transparent) !important;
+}
+[data-composer-model-trigger]:hover,
+[data-composer-permissions-trigger]:hover {
+  background: color-mix(in oklab, var(--muted) 82%, transparent) !important;
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border)) !important;
+}
+/* v1.3.0 Red Box #3: Floating Bottom-Center Telemetry Pill */
+.t3-telemetry-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  height: 1.5rem;
+  padding: 0 0.65rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+  background: color-mix(in oklab, var(--muted) 52%, var(--background));
   color: var(--muted-foreground);
-  padding: 0 0.1rem;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+}
+.t3-telemetry-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+  flex-shrink: 0;
+}
+.t3-telemetry-strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.t3-telemetry-sep {
+  width: 1px;
+  height: 10px;
+  background: color-mix(in oklab, var(--border) 90%, transparent);
+}
+/* v1.3.0 Red Box #4: Right-hand Inspector / Artifact Card & Tab Polish */
+[data-slot="right-panel"] [role="tablist"],
+[data-right-panel] [role="tablist"] {
+  border-radius: 0.55rem;
+  padding: 2px;
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 72%, transparent);
+}
+[data-slot="right-panel"] [data-slot="card"],
+[data-right-panel] [data-slot="card"] {
+  border-radius: 0.65rem !important;
+  border-color: color-mix(in oklab, var(--border) 82%, transparent) !important;
+  background: color-mix(in oklab, var(--card, var(--muted)) 72%, var(--background)) !important;
 }
 @media (max-width: 960px) {
   .t3-topbar-pill-reset {
@@ -1775,6 +1823,14 @@ function patchModelPickerBundle(src) {
     );
   }
 
+  // Auto-heal v1.2.1 Model Picker badge label to show `剩 72%` in zh (matching Stardust Red Box #1)
+  if (out.includes('children:q.remaining+"%"')) {
+    out = out.replace(
+      'children:q.remaining+"%"',
+      'children:(globalThis.__t3QuotaUi?.isZh?.()?"剩 ":"")+q.remaining+"%"',
+    );
+  }
+
   if (out.includes("__T3MpQuotaBadge")) return out;
 
   const reactMatch = out.match(/\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.useState\s*\)\([`"'][`"']\)/);
@@ -1807,7 +1863,7 @@ function patchModelPickerBundle(src) {
       ),
   );
 
-  out += `\nfunction __T3MpQuotaBadge({entry,modelSlug}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const q=globalThis.__t3QuotaUi?.getProviderQuota?.(entry,modelSlug,Date.now());if(!q)return null;return(0,${jsxNs}.jsx)("span",{className:"t3-mp-quota-badge t3-mp-quota-"+q.tone,title:q.tooltip,children:q.remaining+"%"})}\nfunction __T3MpProviderMini({entry}){const q=globalThis.__t3QuotaUi?.getProviderQuota?.(entry,null,Date.now());if(!q)return null;return(0,${jsxNs}.jsx)("span",{className:"t3-mp-provider-pill t3-q-"+q.tone,title:q.tooltip,children:q.remaining})}\n`;
+  out += `\nfunction __T3MpQuotaBadge({entry,modelSlug}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const q=globalThis.__t3QuotaUi?.getProviderQuota?.(entry,modelSlug,Date.now());if(!q)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("span",{className:"t3-mp-quota-badge t3-mp-quota-"+q.tone,title:q.tooltip,children:(zh?"剩 ":"")+q.remaining+"%"})}\nfunction __T3MpProviderMini({entry}){const q=globalThis.__t3QuotaUi?.getProviderQuota?.(entry,null,Date.now());if(!q)return null;return(0,${jsxNs}.jsx)("span",{className:"t3-mp-provider-pill t3-q-"+q.tone,title:q.tooltip,children:q.remaining})}\n`;
   return out;
 }
 
@@ -1850,17 +1906,40 @@ function patchChatTopbarBundle(src) {
     }
   }
 
-  // 2. v1.2.1 Draggable Starship / Thruster Reasoning Effort Slider inside XR (inspired by T3 Stardust)
-  if (!out.includes("__T3EffortSlider") && jsxNs) {
-    const xrRegex = /([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\.map\(\(([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\)=>\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{label:\3\.label,selected:\3\.id===([A-Za-z0-9_$]+),tabStop:[A-Za-z0-9_$]+\?\3\.id===\7:\4===0,description:\3\.description,isDefault:\3\.isDefault,disabled:([A-Za-z0-9_$]+),onPick:\(\)=>([A-Za-z0-9_$]+)\.changeSelect\(([A-Za-z0-9_$]+)\.descriptor,\3\.id\)\},\3\.id\)\)/;
-    if (xrRegex.test(out)) {
-      out = out.replace(
-        xrRegex,
-        (full, fV, eOpts, _opt, _idx, jNs, _qR, selId, disV, traitsV, ctrlV) =>
-          `${fV}=${eOpts}.length>=2?(0,${jNs}.jsx)(__T3EffortSlider,{options:${eOpts},selectedId:${selId},disabled:${disV},onPick:__id=>${traitsV}.changeSelect(${ctrlV}.descriptor,__id)}):${full.slice(fV.length + 1)}`,
-      );
+  // 2. v1.3.0 Stardust Cosmic Warp-Drive Canvas Reasoning Effort Slider inside XR (with 2s auto-idle sleep, 0% idle GPU/CPU)
+  if (jsxNs) {
+    const cosmicSliderFn = `function __T3EffortSlider({options,selectedId,disabled,onPick}){const[dragIdx,setDragIdx]=(0,${reactNs}.useState)(null);const[,setLangTick]=(0,${reactNs}.useState)(0);const boxRef=(0,${reactNs}.useRef)(null);const canvasRef=(0,${reactNs}.useRef)(null);const wakeUntilRef=(0,${reactNs}.useRef)(Date.now()+2200);const rafRef=(0,${reactNs}.useRef)(0);const starsRef=(0,${reactNs}.useRef)(null);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setLangTick(x=>x+1))},[]);const count=options.length;if(count<2)return null;const curIdx=Math.max(0,options.findIndex(o=>o.id===selectedId));const activeIdx=dragIdx!==null?dragIdx:curIdx;const activeOpt=options[activeIdx]||options[0];const ratio=count>1?activeIdx/(count-1):0;const tierColor=ratio<=0.05?"#38bdf8":ratio<=0.42?"#34d399":ratio<=0.74?"#fbbf24":"#a855f7";const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const shortLbl=o=>{const id=String(o.id||o.label||"").toLowerCase();if(!zh)return o.label;if(id==="none"||id==="off")return"关";if(id==="minimal")return"极低";if(id==="low")return"低";if(id==="medium")return"中";if(id==="high")return"高";if(id==="xhigh")return"超高";if(id==="max"||id==="ultra")return"Max";return o.label};const subTitle=()=>{if(zh){if(ratio<=0.05)return"轻载快响 · 极速响应";if(ratio<=0.42)return"均衡巡航 · 日常开发";if(ratio<=0.74)return"高能推进 · 深度推理";return"深空曲速巡航 · 满载任务"}if(ratio<=0.05)return"Light cruise · fast response";if(ratio<=0.42)return"Balanced cruise · daily coding";if(ratio<=0.74)return"High thrust · deep reasoning";return"Deep-space warp · full power"};const wake=(ms=2000)=>{wakeUntilRef.current=Math.max(wakeUntilRef.current,Date.now()+ms)};(0,${reactNs}.useEffect)(()=>{wake(2000);const cvs=canvasRef.current;if(!cvs)return;const ctx=cvs.getContext("2d");if(!ctx)return;if(!starsRef.current){const arr=[];for(let i=0;i<26;i++)arr.push({x:Math.random(),y:Math.random(),r:0.5+Math.random()*1.1,s:0.12+Math.random()*0.45,a:0.25+Math.random()*0.65});starsRef.current=arr}let alive=!0;const draw=ts=>{if(!alive)return;const dpr=Math.min(2,window.devicePixelRatio||1);const w=cvs.clientWidth||180,h=cvs.clientHeight||38;if(cvs.width!==Math.round(w*dpr)||cvs.height!==Math.round(h*dpr)){cvs.width=Math.round(w*dpr);cvs.height=Math.round(h*dpr)}ctx.save();ctx.scale(dpr,dpr);const bg=ctx.createLinearGradient(0,0,w,0);bg.addColorStop(0,"#050814");bg.addColorStop(0.55,"#0b1026");bg.addColorStop(1,"#130d24");ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);const cy=h/2,padL=18,padR=20,span=Math.max(20,w-padL-padR),tx=padL+span*ratio;const t=ts*0.001;const speed=0.4+ratio*2.2;for(const st of starsRef.current){const sx=((st.x-t*st.s*speed*0.18)%1+1)%1*w;const sy=st.y*h;ctx.fillStyle="rgba(220,235,255,"+st.a.toFixed(2)+")";ctx.beginPath();ctx.arc(sx,sy,st.r,0,Math.PI*2);ctx.fill()}const orbG=ctx.createRadialGradient(padL-2,cy,1,padL-2,cy,12);orbG.addColorStop(0,"#e0f2fe");orbG.addColorStop(0.35,"#38bdf8");orbG.addColorStop(1,"rgba(56,189,248,0)");ctx.fillStyle=orbG;ctx.beginPath();ctx.arc(padL-2,cy,12,0,Math.PI*2);ctx.fill();const beamW=Math.max(10,tx-padL+4);const outer=ctx.createLinearGradient(padL,cy,tx,cy);outer.addColorStop(0,"rgba(56,189,248,0.18)");outer.addColorStop(0.45,ratio>0.7?"rgba(168,85,247,0.58)":ratio>0.4?"rgba(245,158,11,0.52)":"rgba(52,211,153,0.48)");outer.addColorStop(1,ratio>0.7?"rgba(236,72,153,0.85)":"rgba(56,189,248,0.8)");ctx.fillStyle=outer;ctx.beginPath();ctx.roundRect(padL-2,cy-7.5,beamW,15,8);ctx.fill();const core=ctx.createLinearGradient(padL,cy,tx,cy);core.addColorStop(0,"rgba(186,230,253,0.55)");core.addColorStop(0.6,"rgba(255,255,255,0.88)");core.addColorStop(1,"#ffffff");ctx.fillStyle=core;ctx.beginPath();ctx.roundRect(padL,cy-2.4,beamW,4.8,3);ctx.fill();const streakCount=3+Math.round(ratio*4);ctx.lineWidth=1.1;for(let i=0;i<streakCount;i++){const phase=((t*speed*0.9+i/streakCount)%1);const lx=padL+phase*beamW;const len=10+ratio*16;const ly=cy+Math.sin(i*2.3+t*3)*5.2;ctx.strokeStyle="rgba(255,255,255,"+(0.28+0.45*(1-phase)).toFixed(2)+")";ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(Math.min(tx,lx+len),ly);ctx.stroke()}const cw=22,ch=15,cx=Math.max(padL,Math.min(w-padR,tx));const capG=ctx.createLinearGradient(cx,cy-ch/2,cx,cy+ch/2);capG.addColorStop(0,"#f8fafc");capG.addColorStop(0.45,"#94a3b8");capG.addColorStop(0.7,"#334155");capG.addColorStop(1,"#cbd5e1");ctx.fillStyle=capG;ctx.beginPath();ctx.roundRect(cx-cw/2,cy-ch/2,cw,ch,ch/2);ctx.fill();ctx.strokeStyle="rgba(255,255,255,0.8)";ctx.lineWidth=1;ctx.stroke();ctx.fillStyle="rgba(255,255,255,0.65)";ctx.beginPath();ctx.roundRect(cx-cw/2+3,cy-ch/2+2,cw-6,3.2,2);ctx.fill();ctx.restore();if(Date.now()<wakeUntilRef.current){rafRef.current=requestAnimationFrame(draw)}else{rafRef.current=0}};rafRef.current=requestAnimationFrame(draw);return()=>{alive=!1;if(rafRef.current)cancelAnimationFrame(rafRef.current)}},[ratio,dragIdx,selectedId]);const idxFromX=clientX=>{const el=boxRef.current;if(!el)return curIdx;const rect=el.getBoundingClientRect();const r=Math.max(0,Math.min(1,(clientX-rect.left-14)/Math.max(1,rect.width-28)));return Math.round(r*(count-1))};const commit=idx=>{wake(2000);const opt=options[idx];if(opt&&!disabled&&opt.id!==selectedId)onPick(opt.id)};const onPointerDown=ev=>{if(disabled)return;ev.preventDefault();wake(2500);try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch{}const idx=idxFromX(ev.clientX);setDragIdx(idx);commit(idx)};const onPointerMove=ev=>{if(dragIdx===null||disabled)return;wake(2000);const idx=idxFromX(ev.clientX);if(idx!==dragIdx){setDragIdx(idx);commit(idx)}};const onPointerUp=ev=>{if(dragIdx===null)return;const idx=idxFromX(ev.clientX);setDragIdx(null);commit(idx);try{ev.currentTarget.releasePointerCapture(ev.pointerId)}catch{}};return(0,${jsxNs}.jsxs)("div",{className:"t3-cosmic-wrap",style:{"--t3-ef-c":tierColor},"data-quota-ui-managed":"true",onMouseEnter:()=>wake(2000),children:[(0,${jsxNs}.jsxs)("div",{className:"t3-cosmic-head",children:[(0,${jsxNs}.jsxs)("div",{children:[(0,${jsxNs}.jsxs)("div",{className:"t3-cosmic-title-row",children:[(0,${jsxNs}.jsx)("span",{className:"t3-cosmic-dot"}),(0,${jsxNs}.jsx)("span",{children:(zh?"推理强度 · ":"Reasoning · ")+shortLbl(activeOpt)})]}),(0,${jsxNs}.jsx)("div",{className:"t3-cosmic-sub",children:subTitle()})]}),(0,${jsxNs}.jsx)("span",{className:"t3-cosmic-tiers",children:zh?count+" 档":count+" tiers"})]}),(0,${jsxNs}.jsx)("div",{ref:boxRef,className:"t3-cosmic-canvas-box",onPointerDown,onPointerMove,onPointerUp,onPointerCancel:()=>setDragIdx(null),children:(0,${jsxNs}.jsx)("canvas",{ref:canvasRef,className:"t3-cosmic-canvas"})}),(0,${jsxNs}.jsx)("div",{className:"t3-cosmic-stops",style:{gridTemplateColumns:"repeat("+count+", minmax(0, 1fr))"},children:options.map((o,idx)=>(0,${jsxNs}.jsx)("button",{type:"button",role:"radio","aria-checked":idx===activeIdx,disabled,"data-effort-row":!0,"data-effort-level":!0,tabIndex:idx===activeIdx?0:-1,className:"t3-cosmic-stop",title:o.description||o.label,onClick:()=>commit(idx),children:shortLbl(o)},o.id))})]})}`;
 
-      out += `\nfunction __T3EffortSlider({options,selectedId,disabled,onPick}){const[dragIdx,setDragIdx]=(0,${reactNs}.useState)(null);const[,setLangTick]=(0,${reactNs}.useState)(0);const trackRef=(0,${reactNs}.useRef)(null);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setLangTick(x=>x+1))},[]);const count=options.length;if(count<2)return null;const curIdx=Math.max(0,options.findIndex(o=>o.id===selectedId));const activeIdx=dragIdx!==null?dragIdx:curIdx;const activeOpt=options[activeIdx]||options[0];const ratio=count>1?activeIdx/(count-1):0;const tierColor=ratio<=0.05?"#38bdf8":ratio<=0.45?"#10b981":ratio<=0.78?"#f59e0b":"#f43f5e";const tierStart=ratio<=0.05?"#0284c7":ratio<=0.45?"#38bdf8":ratio<=0.78?"#10b981":"#f59e0b";const pct=(ratio*100).toFixed(2)+"%";const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const idxFromX=clientX=>{const el=trackRef.current;if(!el)return curIdx;const rect=el.getBoundingClientRect();const r=Math.max(0,Math.min(1,(clientX-rect.left)/Math.max(1,rect.width)));return Math.round(r*(count-1))};const commit=idx=>{const opt=options[idx];if(opt&&!disabled&&opt.id!==selectedId)onPick(opt.id)};const onPointerDown=ev=>{if(disabled)return;ev.preventDefault();try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch{}const idx=idxFromX(ev.clientX);setDragIdx(idx);commit(idx)};const onPointerMove=ev=>{if(dragIdx===null||disabled)return;const idx=idxFromX(ev.clientX);if(idx!==dragIdx){setDragIdx(idx);commit(idx)}};const onPointerUp=ev=>{if(dragIdx===null)return;const idx=idxFromX(ev.clientX);setDragIdx(null);commit(idx);try{ev.currentTarget.releasePointerCapture(ev.pointerId)}catch{}};const shortLbl=o=>{const id=String(o.id||o.label||"").toLowerCase();if(!zh)return o.label;if(id==="none"||id==="off")return"关";if(id==="minimal")return"极低";if(id==="low")return"低";if(id==="medium")return"中";if(id==="high")return"高";if(id==="xhigh"||id==="max"||id==="ultra")return"超高";return o.label};return(0,${jsxNs}.jsxs)("div",{className:"t3-effort-slider-wrap",style:{"--t3-ef-c":tierColor,"--t3-ef-c0":tierStart},"data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsxs)("div",{className:"t3-effort-slider-head",children:[(0,${jsxNs}.jsx)("span",{className:"t3-effort-slider-title",children:zh?"推理强度":"Reasoning"}),(0,${jsxNs}.jsx)("span",{className:"t3-effort-slider-pill",children:shortLbl(activeOpt)})]}),(0,${jsxNs}.jsx)("div",{ref:trackRef,className:"t3-effort-track"+(dragIdx!==null?" t3-effort-track-dragging":""),onPointerDown,onPointerMove,onPointerUp,onPointerCancel:()=>setDragIdx(null),children:(0,${jsxNs}.jsxs)("div",{className:"t3-effort-track-rail",children:[(0,${jsxNs}.jsx)("div",{className:"t3-effort-track-fill",style:{width:pct}}),(0,${jsxNs}.jsx)("div",{className:"t3-effort-thumb",style:{left:pct}})]})}),(0,${jsxNs}.jsx)("div",{className:"t3-effort-stops",style:{gridTemplateColumns:"repeat("+count+", minmax(0, 1fr))"},children:options.map((o,idx)=>(0,${jsxNs}.jsx)("button",{type:"button",role:"radio","aria-checked":idx===activeIdx,disabled,"data-effort-row":!0,"data-effort-level":!0,tabIndex:idx===activeIdx?0:-1,className:"t3-effort-stop",title:o.description||o.label,onClick:()=>commit(idx),children:shortLbl(o)},o.id))}),activeOpt?.description?(0,${jsxNs}.jsx)("div",{className:"t3-effort-desc",children:activeOpt.description}):null]})}\n`;
+    if (out.includes("function __T3EffortSlider(")) {
+      out = out.replace(/function __T3EffortSlider\([\s\S]*?\}\n/, `${cosmicSliderFn}\n`);
+    } else {
+      const xrRegex = /([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\.map\(\(([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\)=>\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{label:\3\.label,selected:\3\.id===([A-Za-z0-9_$]+),tabStop:[A-Za-z0-9_$]+\?\3\.id===\7:\4===0,description:\3\.description,isDefault:\3\.isDefault,disabled:([A-Za-z0-9_$]+),onPick:\(\)=>([A-Za-z0-9_$]+)\.changeSelect\(([A-Za-z0-9_$]+)\.descriptor,\3\.id\)\},\3\.id\)\)/;
+      if (xrRegex.test(out)) {
+        out = out.replace(
+          xrRegex,
+          (full, fV, eOpts, _opt, _idx, jNs, _qR, selId, disV, traitsV, ctrlV) =>
+            `${fV}=${eOpts}.length>=2?(0,${jNs}.jsx)(__T3EffortSlider,{options:${eOpts},selectedId:${selId},disabled:${disV},onPick:__id=>${traitsV}.changeSelect(${ctrlV}.descriptor,__id)}):${full.slice(fV.length + 1)}`,
+        );
+        out += `\n${cosmicSliderFn}\n`;
+      }
+    }
+  }
+
+  // 3. v1.3.0 Red Box #3: Bottom-Center Floating Telemetry Pill inside jU (composer-telemetry-strip)
+  if (!out.includes("__T3TelemetryPill") && jsxNs) {
+    const juMatch = out.match(
+      /function ([A-Za-z0-9_$]+)\(e\)\{let t=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),\{contextWindow:([A-Za-z0-9_$]+),providerInstanceId:[A-Za-z0-9_$]+,activeModel:[A-Za-z0-9_$]+,providers:[A-Za-z0-9_$]+,sources:[A-Za-z0-9_$]+,isWorking:([A-Za-z0-9_$]+),liveTurn:([A-Za-z0-9_$]+),latestCacheTurn:([A-Za-z0-9_$]+),sessionCacheHitPercent:([A-Za-z0-9_$]+),sessionCacheTurnCount:[A-Za-z0-9_$]+,turnCount:([A-Za-z0-9_$]+),toolCallCount:([A-Za-z0-9_$]+),[\s\S]{0,3600}?"data-slot":[`"']composer-telemetry-strip[`"'],className:[`"']justify-between gap-2 pt-1\.5 pb-0\.5[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}/,
+    );
+    if (juMatch) {
+      const [, , ctxV, workV, liveV, cacheTurnV, cachePctV, turnV, toolV, leftV, rightV] = juMatch;
+      out = out.replace(
+        juMatch[0],
+        juMatch[0].replace(
+          `children:[${leftV},${rightV}]}`,
+          `children:[${leftV},(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:${ctxV},liveTurn:${liveV},latestTurn:${cacheTurnV},turnCount:${turnV},toolCallCount:${toolV},cacheHitPercent:${cachePctV},isWorking:${workV}}),${rightV}]}`,
+        ),
+      );
+      out += `\nfunction __T3TelemetryPill({usage,liveTurn,latestTurn,turnCount,toolCallCount,cacheHitPercent,isWorking}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const turns=Number.isFinite(turnCount)?turnCount:0;const steps=Number.isFinite(toolCallCount)?toolCallCount:0;const tObj=liveTurn||latestTurn||null;let tps=tObj?.outputTokensPerSecond??tObj?.tokensPerSecond??tObj?.genTokensPerSecond??null;if((!Number.isFinite(tps)||tps<=0)&&tObj&&Number.isFinite(tObj.outputTokens)&&Number.isFinite(tObj.durationMs)&&tObj.durationMs>200){tps=tObj.outputTokens/(tObj.durationMs/1000)}const tokRaw=usage?.usedTokens??usage?.totalTokens??usage?.contextTokens??tObj?.totalTokens??null;const fmtTok=n=>{if(!Number.isFinite(n)||n<=0)return null;if(n>=1e6)return(n/1e6).toFixed(1)+"M";if(n>=1e3)return(n/1e3).toFixed(1)+"K";return String(Math.round(n))};const tokStr=fmtTok(tokRaw);const cacheStr=Number.isFinite(cacheHitPercent)?Math.round(cacheHitPercent)+"%":null;if(turns<=0&&steps<=0&&!tokStr)return null;const leftTxt=zh?(turns+" 轮"+(steps>0?" "+steps+" 步":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":"")):(turns+"t"+(steps>0?" · "+steps+"s":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":""));const rightParts=[];if(tokStr)rightParts.push(tokStr+(zh?" 令牌":" tok"));if(cacheStr)rightParts.push((zh?"缓存 ":"cache ")+cacheStr);return(0,${jsxNs}.jsxs)("div",{className:"t3-telemetry-pill","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsx)("span",{className:"t3-telemetry-dot",style:isWorking?{opacity:1}:{opacity:0.75}}),(0,${jsxNs}.jsx)("span",{children:leftTxt}),rightParts.length>0?(0,${jsxNs}.jsx)("span",{className:"t3-telemetry-sep"}):null,rightParts.length>0?(0,${jsxNs}.jsx)("span",{className:"t3-telemetry-strong",children:rightParts.join(" · ")}):null]})}\n`;
     }
   }
 
