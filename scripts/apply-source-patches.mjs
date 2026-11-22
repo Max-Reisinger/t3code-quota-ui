@@ -52,10 +52,16 @@ function walkTsFiles(dir, out = []) {
 
 const HEAD_INJECTION = `<!-- T3_QUOTA_UI_START -->
 <style id="t3-quota-ui-styles">
-.t3-quota-sections { display: flex !important; flex-direction: column !important; gap: 0.875rem !important; }
-.t3-quota-section { display: flex !important; flex-direction: column !important; gap: 0.375rem !important; }
+.t3-quota-sections { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; column-gap: 0.75rem !important; row-gap: 0.875rem !important; align-items: start !important; }
+@media (min-width: 768px) {
+  .t3-quota-sections { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; grid-auto-flow: row dense !important; }
+  .t3-quota-sections > :not(.t3-quota-col-1) { grid-column: 1 / -1 !important; }
+  .t3-quota-sections > .t3-quota-col-1 { grid-column: span 1 / span 1 !important; }
+}
+.t3-quota-section { display: flex !important; flex-direction: column !important; gap: 0.375rem !important; min-width: 0 !important; }
 .t3-quota-grid { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 0.5rem !important; }
 @media (min-width: 768px) { .t3-quota-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+.t3-quota-grid-1 { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 0.5rem !important; }
 .t3-quota-card { display: grid !important; align-items: center !important; column-gap: 0.75rem !important; row-gap: 0.375rem !important; padding: 0.5rem 0.75rem !important; grid-template-columns: 8.5rem minmax(0, 1fr) !important; }
 .t3-usage-yaxis { width: 4.25rem !important; }
 .t3-usage-xaxis { padding-left: 4.75rem !important; }

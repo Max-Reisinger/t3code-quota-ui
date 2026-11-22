@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
- * T3 Code Quota & Compact UI Patcher v1.1.0 (macOS app.asar in-place enhancer)
+ * T3 Code Quota & Compact UI Patcher v1.1.1 (macOS app.asar in-place enhancer)
  *
  * Upstream projects & credits:
  * - Official T3 Code: https://github.com/pingdotgg/t3code (MIT License, Copyright (c) 2026 T3 Tools Inc.)
  * - Restrained Telemetry UI fork: https://github.com/nanami-0713/t3code (MIT License)
  *
  * Features applied by this patcher:
- * 1. Compact 2-Column Limits Grid: fits all providers & quota windows on a single desktop screen (~65% less vertical height).
- * 2. Multi-Account Side-by-Side Quota Segments: prevents multiple instances of the same provider from collapsing into one bar.
- * 3. Dynamic Multi-Account Credential Isolation & Sync: per-instance OAuth file isolation + macOS Keychain fallback without hardcoded credentials.
+ * 1. Compact 2-Column Limits Grid + Dense Single-Card Pairing (e.g. Cursor + Grok side-by-side on one row).
+ * 2. Multi-Account Side-by-Side Columns (e.g. Antigravity 1 on left, Antigravity 2 on right for instant 20x comparison).
+ * 3. Verified Dynamic Multi-Account Credential Isolation & Sync: exact 35-char OAuth client secret boundary + OAuth verification + per-instance file isolation.
  * 4. Custom API Endpoint Visibility: surfaces custom Claude API endpoints cleanly in the Usage -> Limits panel.
- * 5. Instant Currency Switcher (¥ CNY / $ USD): one-click toolbar toggle with localStorage persistence & real-time FX conversion across totals, providers, chart Y-axis & hover tooltips, cache savings, category/speed bars, and breakdown tables.
- * 6. Instant Language Switcher (中 / EN) + Full Usage (Cost / Tokens / Limits) Localization: complete runtime bilingual switching without app restart.
+ * 5. Instant Currency Switcher (¥ CNY / $ USD) with localStorage persistence & clean rounded RMB chart axes.
+ * 6. Instant Language Switcher (中 / EN) + Full Usage (Cost / Tokens / Limits) Localization without app restart.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -97,16 +97,31 @@ function listFilesRecursive(node, prefix = "", out = []) {
 export function buildInjectedHeadBlock(defaultLang = "zh") {
   const safeDefaultLang = defaultLang === "en" ? "en" : "zh";
   const styleBlock = `<style id="t3-quota-ui-styles">
-/* T3 Code Quota UI v1.1.0 — Compact 2-Column Limits Grid & Usage Toolbar */
+/* T3 Code Quota UI v1.1.1 — Side-by-Side Accounts, Paired Single-Card Providers & Usage Toolbar */
 .t3-quota-sections {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0.875rem !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0.75rem !important;
+  row-gap: 0.875rem !important;
+  align-items: start !important;
+}
+@media (min-width: 768px) {
+  .t3-quota-sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-flow: row dense !important;
+  }
+  .t3-quota-sections > :not(.t3-quota-col-1) {
+    grid-column: 1 / -1 !important;
+  }
+  .t3-quota-sections > .t3-quota-col-1 {
+    grid-column: span 1 / span 1 !important;
+  }
 }
 .t3-quota-section {
   display: flex !important;
   flex-direction: column !important;
   gap: 0.375rem !important;
+  min-width: 0 !important;
 }
 .t3-quota-grid {
   display: grid !important;
@@ -117,6 +132,11 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
   .t3-quota-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
+}
+.t3-quota-grid-1 {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0.5rem !important;
 }
 .t3-quota-card {
   display: grid !important;
@@ -274,12 +294,16 @@ export function buildInjectedHeadBlock(defaultLang = "zh") {
     if (!label || typeof label !== "string" || getLang() !== "zh") return label;
     if (label in WINDOW_LABELS_ZH) return WINDOW_LABELS_ZH[label];
     let out = label;
+    out = out.replace(/Claude\\s*&\\s*GPT\\s*\\(shared\\)/gi, "Claude / GPT 共享");
     out = out.replace(/^Weekly\\s*·\\s*/, "每周额度 · ");
     out = out.replace(/^Session\\s*·\\s*/, "当前会话 · ");
+    out = out.replace(/\\s*·\\s*5-hour$/i, " · 5小时");
     out = out.replace(/\\s*·\\s*5h$/i, " · 5小时");
+    out = out.replace(/\\s*·\\s*7-day$/i, " · 7天");
     out = out.replace(/\\s*·\\s*7d$/i, " · 7天");
     out = out.replace(/\\s*·\\s*Weekly$/i, " · 每周");
     out = out.replace(/\\s*·\\s*Monthly$/i, " · 每月");
+    out = out.replace(/\\s*·\\s*Quota$/i, " · 配额");
     return out;
   }
 
@@ -481,17 +505,24 @@ function patchUsageShortcutsBundle(src) {
 function patchUsageLimitsShared(src) {
   let out = src;
 
-  // 1. Keep each enabled provider instance in its own bar segment (e.g. dual Antigravity / Codex accounts)
+  // 1. Keep each enabled provider instance distinct (e.g. dual Antigravity / Claude / Codex accounts)
   out = out.replace(
     /[A-Za-z0-9_$]+\([A-Za-z0-9_$]+\(([A-Za-z0-9_$]+)\)\)\?\?(`?\$\{[A-Za-z0-9_$]+\}:\$\{\1\.instanceId\}`?,\{key:`?\$\{[A-Za-z0-9_$]+\}:\$\{\1\.instanceId\}`?)/g,
     "$2",
   );
-
-  // 2. Keep per-provider instance keying distinct in single-provider limit views
   out = out.replace(
     /([A-Za-z0-9_$]+)=[A-Za-z0-9_$]+\([A-Za-z0-9_$]+\(([A-Za-z0-9_$]+)\)\)\?\?(`instance:\$\{\2\.instanceId\}`)/g,
     "$1=$3",
   );
+
+  // 2. Emit side-by-side per-account pools when a provider has multiple accounts (Account 1 Left, Account 2 Right)
+  if (!out.includes("splitAccount:")) {
+    out = out.replace(
+      /return\[\.\.\.([A-Za-z0-9_$]+)\]\.map\(\(\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\)(\s*=>\s*\{[\s\S]*?)return\{driver:\2,accounts:([A-Za-z0-9_$]+),windows:([A-Za-z0-9_$]+)\(\5,([A-Za-z0-9_$]+)\)\}\}\)/,
+      (_, mapVar, drvVar, listVar, bodyPrefix, accsVar, zFn, nowArg) =>
+        `return[...${mapVar}].flatMap(([${drvVar},${listVar}])${bodyPrefix}const __ordered=[...${accsVar}].sort((x,y)=>{const xp=x.key.endsWith(":"+${drvVar})&&!x.displayName?0:1,yp=y.key.endsWith(":"+${drvVar})&&!y.displayName?0:1;return xp-yp||(x.displayName??x.key).localeCompare(y.displayName??y.key,void 0,{numeric:!0})});if(__ordered.length>1)return __ordered.map((__acc,__idx)=>({poolKey:\`\${${drvVar}}:\${__acc.key}\`,driver:${drvVar},splitAccount:__acc,splitIndex:__idx+1,splitTotal:__ordered.length,accounts:[__acc],windows:${zFn}([__acc],${nowArg})}));return[{poolKey:${drvVar},driver:${drvVar},accounts:__ordered,windows:${zFn}(__ordered,${nowArg})}]})`,
+    );
+  }
 
   if (out.includes("__t3LimSharedZh")) return out;
 
@@ -569,24 +600,48 @@ function patchUsageLimitsView(src) {
       `${q}t3-quota-card grid items-center gap-x-3 gap-y-1.5 rounded-lg border border-border/60 px-3 py-2 grid-cols-[8.5rem_minmax(0,1fr)]${q}`,
   );
 
-  // 3. Wrap PoolSection window cards into a 2-column grid
-  out = out.replace(
-    /\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.jsxs\s*\)\(\s*([`"'])section\2\s*,\s*\{\s*className:\s*([`"'])flex flex-col gap-3\3\s*,\s*children:\s*\[\s*([^,\]]+)\s*,\s*([^\]]+)\s*\]\s*\}\s*\)/g,
-    (_, jsxNs, q1, q2, headingExpr, cardsExpr) =>
-      `(0,${jsxNs}.jsxs)(${q1}section${q1},{className:${q2}t3-quota-section flex flex-col gap-1.5${q2},children:[${headingExpr},(0,${jsxNs}.jsx)(${q1}div${q1},{className:${q2}t3-quota-grid grid grid-cols-1 gap-2 md:grid-cols-2${q2},children:${cardsExpr}})]})`,
-  );
+  // 3. Upgrade PoolSection (Ee) & PooledLimits (De) for:
+  //    - Side-by-side per-account columns (Left: Antigravity 1, Right: Antigravity 2)
+  //    - Dense side-by-side single-card providers (Left: Cursor, Right: Grok)
+  if (!out.includes("t3-quota-col-1")) {
+    // Support splitAccount title, accentColor & 1-col vs 2-col section sizing in Ee
+    out = out.replace(
+      /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.c\)\(\d+\),\{pool:([A-Za-z0-9_$]+),now:([A-Za-z0-9_$]+)\}=\2,([A-Za-z0-9_$]+);\3\[0\]===\5\.driver\?\7=\3\[1\]:\(\7=([A-Za-z0-9_$]+)\(\5\.driver\),\3\[0\]=\5\.driver,\3\[1\]=\7\);let ([A-Za-z0-9_$]+)=\7,([A-Za-z0-9_$]+);\3\[2\]===\5\.driver\?\10=\3\[3\]:\(\10=([A-Za-z0-9_$]+)\.get\(\5\.driver\)\?\.label\?\?String\(\5\.driver\),\3\[2\]=\5\.driver,\3\[3\]=\10\);let ([A-Za-z0-9_$]+)=\10,([A-Za-z0-9_$]+);if\(\3\[4\]!==\9\|\|\3\[5\]!==\12\|\|\3\[6\]!==\6\|\|\3\[7\]!==\5\)\{let ([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\(\5\),([A-Za-z0-9_$]+);\3\[9\]!==\12\|\|\3\[10\]!==\5\.driver\?\(\16=\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{driverKind:\5\.driver,displayName:\12,indicatorBackground:[`"']var\(--background\)[`"'],className:[`"']size-5[`"'],iconClassName:[`"']size-4 text-foreground\/80[`"']\}\),([\s\S]*?),\13=\(0,\17\.jsxs\)\([`"']section[`"'],\{className:[`"'][^`"']*[`"'],children:\[([A-Za-z0-9_$]+),(?:\(0,\17\.jsx\)\([`"']div[`"'],\{className:[`"'][^`"']*[`"'],children:)?([^\]]+?)(?:\}\))?\]\}\)/,
+      (
+        _,
+        eeFn,
+        eArg,
+        tMemo,
+        uNs,
+        nPool,
+        rNow,
+        iVar,
+        feFn,
+        aColor,
+        oVar,
+        hMap,
+        sLbl,
+        cOut,
+        eWins,
+        zFn,
+        iconEl,
+        jsxNs,
+        hIconComp,
+        midBlock,
+        h2El,
+        cardsMapExpr,
+      ) =>
+        `function ${eeFn}(${eArg}){let ${tMemo}=(0,${uNs}.c)(19),{pool:${nPool},now:${rNow}}=${eArg},${iVar};${tMemo}[0]===${nPool}?${iVar}=${tMemo}[1]:(${iVar}=${nPool}.splitAccount?.accentColor||${feFn}(${nPool}.driver),${tMemo}[0]=${nPool},${tMemo}[1]=${iVar});let ${aColor}=${iVar},${oVar};${tMemo}[2]===${nPool}?${oVar}=${tMemo}[3]:(${oVar}=(()=>{const __b=${hMap}.get(${nPool}.driver)?.label??String(${nPool}.driver);return ${nPool}.splitAccount?(${nPool}.splitAccount.displayName||(${nPool}.splitTotal>1?\`\${__b} \${${nPool}.splitIndex}\`:__b)):__b})(),${tMemo}[2]=${nPool},${tMemo}[3]=${oVar});let ${sLbl}=${oVar},${cOut};if(${tMemo}[4]!==${aColor}||${tMemo}[5]!==${sLbl}||${tMemo}[6]!==${rNow}||${tMemo}[7]!==${nPool}){let ${eWins}=${zFn}(${nPool}),${iconEl};const __col1=Boolean(${nPool}.splitAccount)||${eWins}.length<=1;${tMemo}[9]!==${sLbl}||${tMemo}[10]!==${nPool}?(${iconEl}=(0,${jsxNs}.jsx)(${hIconComp},{driverKind:${nPool}.driver,displayName:${sLbl},accentColor:${nPool}.splitAccount?.accentColor,showBadge:Boolean(${nPool}.splitAccount?.accentColor),indicatorBackground:"var(--background)",className:"size-5",iconClassName:"size-4 text-foreground/80"}),${midBlock},${cOut}=(0,${jsxNs}.jsxs)("section",{className:__col1?"t3-quota-section t3-quota-col-1 flex flex-col gap-1.5":"t3-quota-section t3-quota-col-2 flex flex-col gap-1.5",children:[${h2El},(0,${jsxNs}.jsx)("div",{className:__col1?"t3-quota-grid-1 grid grid-cols-1 gap-2":"t3-quota-grid grid grid-cols-1 gap-2 md:grid-cols-2",children:${cardsMapExpr}})]})`,
+    );
 
-  // Upgrade previously patched PoolSection if missing t3-quota-grid helper classes
-  out = out.replace(
-    /([`"'])flex flex-col gap-1\.5\1/g,
-    (_, q) => `${q}t3-quota-section flex flex-col gap-1.5${q}`,
-  );
-  out = out.replace(
-    /([`"'])grid grid-cols-1 gap-2 md:grid-cols-2\1/g,
-    (_, q) => `${q}t3-quota-grid grid grid-cols-1 gap-2 md:grid-cols-2${q}`,
-  );
+    // Key pool fragments by poolKey ?? driver in De
+    out = out.replace(
+      /children:\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{pool:([A-Za-z0-9_$]+),now:([A-Za-z0-9_$]+)\}\)\},\3\.driver\)/g,
+      "children:(0,$1.jsx)($2,{pool:$3,now:$4})},$3.poolKey??$3.driver)",
+    );
+  }
 
-  // 4. Reduce outer provider stack gap from gap-8 to gap-3.5
+  // 4. Outer container class .t3-quota-sections
   out = out.replace(
     /([`"'])(?:t3-quota-sections\s+)?flex flex-col gap-(?:8|3\.5)\1/g,
     (_, q) => `${q}t3-quota-sections flex flex-col gap-3.5${q}`,
@@ -595,7 +650,6 @@ function patchUsageLimitsView(src) {
   if (out.includes("__t3LimViewZh")) return out;
 
   // 5. Full Limits tab localization (dynamic zh/en + CNY/USD $0 cap)
-  // Window labels
   out = out.replace(
     /className:[`"']text-sm font-medium text-foreground[`"'],children:([A-Za-z0-9_$]+\?\?[A-Za-z0-9_$]+\.label)/g,
     'className:"text-sm font-medium text-foreground",children:__t3WinLbl($1)',
@@ -604,26 +658,18 @@ function patchUsageLimitsView(src) {
     /className:[`"']truncate text-muted-foreground[`"'],children:([A-Za-z0-9_$]+\.label)/g,
     'className:"truncate text-muted-foreground",children:__t3WinLbl($1)',
   );
-
-  // "left" label under percentage in PoolWindowCard
   out = out.replace(
     /\(([`"'])span\1,\{children:\1left\1\}\)/g,
     '("span",{children:__t3LimViewZh()?"剩余":"left"})',
   );
-
-  // Compact bar reset badge ("resets in X" / "X后重置" -> "↻ X")
   out = out.replace(
     /([A-Za-z0-9_$]+)\?\.replace\([`"']resets in [`"'],[`"']↻ [`"']\)/g,
     '(__t3LimViewZh()?($1?.replace(/^(.+)后重置$/,"↻ $1")):($1?.replace("resets in ","↻ ")))',
   );
-
-  // Zero spend cap
   out = out.replace(
     /([`"'])\$0 cap\1/g,
     '(__t3LimViewZh()?(__t3LimViewCny()?"¥0 限额":"$0 限额"):"$0 cap")',
   );
-
-  // Account hover popover fields
   out = out.replace(
     /label:[`"']Plan[`"'],children:([A-Za-z0-9_$]+\.plan)/g,
     'label:__t3LimViewZh()?"套餐":"Plan",children:$1',
@@ -652,8 +698,6 @@ function patchUsageLimitsView(src) {
     /ariaLabel:[`"']Toggle account email visibility[`"'],revealTooltip:[`"']Click to reveal email[`"'],hideTooltip:[`"']Click to hide email[`"']/g,
     'ariaLabel:__t3LimViewZh()?"切换账号邮箱显示":"Toggle account email visibility",revealTooltip:__t3LimViewZh()?"点击显示邮箱":"Click to reveal email",hideTooltip:__t3LimViewZh()?"点击隐藏邮箱":"Click to hide email"',
   );
-
-  // Pace indicator tooltips
   out = out.replace(
     /label:[`"']Ahead of pace: spending faster than the window elapses[`"']/g,
     'get label(){return __t3LimViewZh()?"消耗偏快：当前消耗速度高于时间窗口流逝速度":"Ahead of pace: spending faster than the window elapses"}',
@@ -666,8 +710,6 @@ function patchUsageLimitsView(src) {
     /label:[`"']Under pace: headroom left for the rest of the window[`"']/g,
     'get label(){return __t3LimViewZh()?"余量充裕：消耗速度低于时间流逝，剩余额度充足":"Under pace: headroom left for the rest of the window"}',
   );
-
-  // Compact window rows & tooltips
   out = out.replace(
     /children:\[([A-Za-z0-9_$]+\([A-Za-z0-9_$]+\)),[`"']% left[`"']\]/g,
     'children:__t3LimViewZh()?["剩余 ",$1,"%"]:[$1,"% left"]',
@@ -688,8 +730,6 @@ function patchUsageLimitsView(src) {
     /children:\[[`"']Resets [`"'],/g,
     'children:[__t3LimViewZh()?"重置于 ":"Resets ",',
   );
-
-  // Empty, external & credit confirmation dialogs
   out = out.replace(
     /([`"'])No provider on the selected environments reports subscription limits\.\1/g,
     '(__t3LimViewZh()?"当前所选环境中暂无上报订阅配额的模型厂商。":"No provider on the selected environments reports subscription limits.")',
@@ -731,7 +771,6 @@ function patchChatUsageBundle(src) {
   if (src.includes("__T3UsageRootWrapper")) return src;
   let out = src;
 
-  // Dynamically discover minified identifiers in _chat.usage-*.js
   const reactNsMatch = out.match(/\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.useState\s*\)\([`"']model[`"']\)/);
   const segMatch = out.match(
     /\.map\([A-Za-z0-9_$]+=>\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{value:[A-Za-z0-9_$]+\.value,title:[A-Za-z0-9_$]+\([A-Za-z0-9_$]+\),children:[A-Za-z0-9_$]+\.label\}[\s\S]{0,160}?\(0,\1\.jsx\)\(([A-Za-z0-9_$]+),\{"aria-label":[`"']Usage metric[`"']/,
@@ -782,7 +821,7 @@ function patchChatUsageBundle(src) {
       `className:"ms-auto flex shrink-0 items-center justify-end gap-1 @4xl/usage-header:hidden",children:[${periodEl},${metricEl},__t3RenderToolbarToggles(!0),${refreshEl}]`,
   );
 
-  // 3. Chart Y-axis clean RMB tick scaling (computes round RMB ticks then maps back to USD scale so nothing double-multiplies)
+  // 3. Chart Y-axis clean RMB tick scaling
   out = out.replace(
     /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\2\.reduce\(\(([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\)=>\6\.bands\.reduce\(\(([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\)=>Math\.max\(\7,\8\.value\),\5\),0\);return \4===0&&\3\.size>0\?\{max:([A-Za-z0-9_$]+),ticks:([A-Za-z0-9_$]+),labeled:!1\}:\{\.\.\.([A-Za-z0-9_$]+)\(\4,\9\),labeled:!0\}\}/,
     (_, fnName, colsArg, loadArg, maxVar, a1, b1, a2, b2, wnIdent, pnIdent, nnIdent) =>
@@ -794,7 +833,6 @@ function patchChatUsageBundle(src) {
       `function ${lnName}(${pArg},${mArg},${metricArg},${provArg},${loadArg}){let ${aVar}=${onFn}(${pArg},${mArg},${metricArg}),${oVar}=${fnFn}(${aVar},${loadArg},${metricArg})`,
   );
 
-  // Widen Y-axis label column slightly so ¥1,234.50 fits cleanly
   out = out.replace(
     /className:[`"']relative h-56 w-14 shrink-0[`"']/g,
     'className:"t3-usage-yaxis relative h-56 w-14 shrink-0"',
@@ -830,20 +868,15 @@ function patchChatUsageBundle(src) {
       }.c)(26),{tooltipRef:${refVar},label:${lblVar},column:${colVar},providers:${provVar},loadingProviders:${loadVar},format:${fmtVar}}=${eArg}${mid1}className:"text-muted-foreground",children:__t3UsageZh()?"合计":"Total"${mid2}className:"surface-glass pointer-events-none absolute z-10 min-w-36 max-w-full rounded-xl border border-border/50 px-2.5 py-2 text-xs shadow-lg",style:${styleVar},children:[${uChild},${dChild},${totChild},${fmtVar}===${fmtUsdIdent}&&__t3UsageCny()?(0,${jsxNs}.jsx)("div",{className:"mt-1 text-3xs text-muted-foreground/80 tabular-nums",children:__t3UsageZh()?"参考汇率 $1 = ¥"+__t3UsageRate():"Ref: $1 = ¥"+__t3UsageRate()}):null]`,
   );
 
-  // 5. Complete Localization of Cost / Tokens / Breakdown / Filter / Modals in _chat.usage-*.js
-  // Breadcrumb h1 "Usage"
+  // 5. Complete Localization of Cost / Tokens / Breakdown / Filter / Modals
   out = out.replace(
     /\(([`"'])h1\1,\{children:\1Usage\1\}\)/g,
     '("h1",{children:__t3UsageZh()?"用量与配额":"Usage"})',
   );
-
-  // Header date range "X to Y" -> "X 至 Y"
   out = out.replace(
     /`\$\{([A-Za-z0-9_$]+\([^)]+\))\} to \$\{([A-Za-z0-9_$]+\([^)]+\))\}`/g,
     '(__t3UsageZh()?`${$1} 至 ${$2}`:`${$1} to ${$2}`)',
   );
-
-  // All environments & N environments
   out = out.replace(
     /\?[`"']All environments[`"']:/g,
     '?(__t3UsageZh()?"全部环境":"All environments"):',
@@ -856,8 +889,6 @@ function patchChatUsageBundle(src) {
     /`\$\{([A-Za-z0-9_$]+\.length)\} environments`/g,
     '(__t3UsageZh()?`${$1} 个环境`:`${$1} environments`)',
   );
-
-  // All providers / No providers / N providers
   out = out.replace(
     /\?[`"']All providers[`"']:/g,
     '?(__t3UsageZh()?"全部厂商":"All providers"):',
@@ -874,14 +905,10 @@ function patchChatUsageBundle(src) {
     /`\$\{([A-Za-z0-9_$]+\.length)\} providers`/g,
     '(__t3UsageZh()?`${$1} 个厂商`:`${$1} providers`)',
   );
-
-  // Refresh aria-labels
   out = out.replace(
     /\?[`"']Refresh limits[`"']:[`"']Refresh usage[`"']/g,
     '?(__t3UsageZh()?"刷新限额":"Refresh limits"):(__t3UsageZh()?"刷新用量":"Refresh usage")',
   );
-
-  // Environment scan status badges
   out = out.replace(
     /`Updating \$\{([A-Za-z0-9_$]+\([A-Za-z0-9_$]+\[0\]\))\}…`:`Updating \$\{([A-Za-z0-9_$]+\.length)\} providers…`/g,
     '(__t3UsageZh()?`正在更新 ${$1}…`:`Updating ${$1}…`):(__t3UsageZh()?`正在更新 ${$2} 个厂商…`:`Updating ${$2} providers…`)',
@@ -930,8 +957,6 @@ function patchChatUsageBundle(src) {
     /`Connect an environment to see \$\{([A-Za-z0-9_$]+)\?[`"']limits[`"']:[`"']usage[`"']\}\.`:`Select an environment to see \$\{\1\?[`"']limits[`"']:[`"']usage[`"']\}\.`/g,
     '(__t3UsageZh()?`请先连接运行环境以查看${$1?"限额":"用量"}。`:`Connect an environment to see ${$1?"limits":"usage"}.`):(__t3UsageZh()?`请至少选择一个运行环境以查看${$1?"限额":"用量"}。`:`Select an environment to see ${$1?"limits":"usage"}.`)',
   );
-
-  // Sessions & API estimate & Provider breakdown rows
   out = out.replace(
     /children:\[([A-Za-z0-9_$]+),[`"'] sessions[`"']\]/g,
     'children:[$1,__t3UsageZh()?" 次会话":" sessions"]',
@@ -956,15 +981,11 @@ function patchChatUsageBundle(src) {
     /([A-Za-z0-9_$]+)===[`"']cost[`"']\?`\$\{([A-Za-z0-9_$]+\([A-Za-z0-9_$]+\))\} of cost · \$\{([A-Za-z0-9_$]+\([^)]+\))\} tokens`:`\$\{\2\} of tokens · \$\{([A-Za-z0-9_$]+\([^)]+\))\}`/g,
     '($1==="cost"?(__t3UsageZh()?`${$2} 费用占比 · ${$3} Token`:`${$2} of cost · ${$3} tokens`):(__t3UsageZh()?`${$2} Token 占比 · ${$4}`:`${$2} of tokens · ${$4}`))',
   );
-
-  // Daily / Hourly cost & processed tokens heading
   out = out.replace(
     /let ([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\?[`"']Hourly[`"']:[`"']Daily[`"'],([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)===[`"']tokens[`"']\?[`"']processed tokens[`"']:[`"']cost[`"'],([A-Za-z0-9_$]+);([A-Za-z0-9_$]+\[\d+\])!==\1\|\|([A-Za-z0-9_$]+\[\d+\])!==\3\?\(\5=\(0,([A-Za-z0-9_$]+)\.jsxs\)\([`"']h2[`"'],\{className:[`"']text-sm font-medium text-foreground[`"'],children:\[\1,[`"'] [`"'],\3\]\}\)/g,
     (_, peVar, isHrVar, meVar, metricVar, qVar, m1, m2, jNs) =>
       `let ${peVar}=${isHrVar}?"Hourly":"Daily",${meVar}=${metricVar}==="tokens"?"processed tokens":"cost",${qVar};${m1}!==${peVar}||${m2}!==${meVar}?(${qVar}=(0,${jNs}.jsxs)("h2",{className:"text-sm font-medium text-foreground",children:__t3UsageZh()?[${metricVar}==="tokens"?(${isHrVar}?"每小时处理 Token":"每日处理 Token"):(${isHrVar}?"每小时估算费用":"每日估算费用")]:[${peVar}," ",${meVar}]})`,
   );
-
-  // Totals section & skeleton labels
   out = out.replace(
     /children:[`"']Totals[`"']/g,
     'children:__t3UsageZh()?"总计":"Totals"',
@@ -989,8 +1010,6 @@ function patchChatUsageBundle(src) {
     /labels:\[[`"']Processed tokens[`"'],[`"']Cached input[`"'],[`"']Uncached input[`"'],[`"']Output[`"'],[`"']Cache savings[`"']\]/g,
     'labels:__t3UsageZh()?["总处理 Token","缓存命中输入","未命中输入","输出","缓存节省"]:["Processed tokens","Cached input","Uncached input","Output","Cache savings"]',
   );
-
-  // Cost by type / Cost by speed / Tokens by type & segment labels
   out = out.replace(
     /label:[`"']Cost by type[`"']/g,
     'label:__t3UsageZh()?"按类型费用":"Cost by type"',
@@ -1007,48 +1026,16 @@ function patchChatUsageBundle(src) {
     /\{key:[`"']inputCostPerMillionTokens[`"'],label:[`"']Input[`"'],optional:!1\},\{key:[`"']outputCostPerMillionTokens[`"'],label:[`"']Output[`"'],optional:!1\},\{key:[`"']cacheReadCostPerMillionTokens[`"'],label:[`"']Cache read[`"'],optional:!0\},\{key:[`"']cacheWriteCostPerMillionTokens[`"'],label:[`"']Cache write[`"'],optional:!0\}/g,
     '{key:"inputCostPerMillionTokens",get label(){return __t3UsageZh()?"输入":"Input"},optional:!1},{key:"outputCostPerMillionTokens",get label(){return __t3UsageZh()?"输出":"Output"},optional:!1},{key:"cacheReadCostPerMillionTokens",get label(){return __t3UsageZh()?"缓存读取":"Cache read"},optional:!0},{key:"cacheWriteCostPerMillionTokens",get label(){return __t3UsageZh()?"缓存写入":"Cache write"},optional:!0}',
   );
-  out = out.replace(
-    /label:[`"']Input[`"'],value:/g,
-    'label:__t3UsageZh()?"输入":"Input",value:',
-  );
-  out = out.replace(
-    /label:[`"']Cache read[`"'],value:/g,
-    'label:__t3UsageZh()?"缓存读取":"Cache read",value:',
-  );
-  out = out.replace(
-    /label:[`"']Cache write[`"'],value:/g,
-    'label:__t3UsageZh()?"缓存写入":"Cache write",value:',
-  );
-  out = out.replace(
-    /label:[`"']Output[`"'],value:/g,
-    'label:__t3UsageZh()?"输出":"Output",value:',
-  );
-  out = out.replace(
-    /label:[`"']Other[`"'],value:/g,
-    'label:__t3UsageZh()?"其他":"Other",value:',
-  );
-  out = out.replace(
-    /label:[`"']Standard[`"'],value:/g,
-    'label:__t3UsageZh()?"标准":"Standard",value:',
-  );
-  out = out.replace(
-    /label:[`"']Fast[`"'],value:/g,
-    'label:__t3UsageZh()?"极速":"Fast",value:',
-  );
-  out = out.replace(
-    /label:[`"']Ultrafast[`"'],value:/g,
-    'label:__t3UsageZh()?"超极速":"Ultrafast",value:',
-  );
-  out = out.replace(
-    /children:\[[`"']Premium [`"'],/g,
-    'children:[__t3UsageZh()?"溢价 ":"Premium ",',
-  );
-
-  // Breakdown section, segmented switch (Model / Day / Hour) & table columns
-  out = out.replace(
-    /children:[`"']Breakdown[`"']/g,
-    'children:__t3UsageZh()?"消耗明细":"Breakdown"',
-  );
+  out = out.replace(/label:[`"']Input[`"'],value:/g, 'label:__t3UsageZh()?"输入":"Input",value:');
+  out = out.replace(/label:[`"']Cache read[`"'],value:/g, 'label:__t3UsageZh()?"缓存读取":"Cache read",value:');
+  out = out.replace(/label:[`"']Cache write[`"'],value:/g, 'label:__t3UsageZh()?"缓存写入":"Cache write",value:');
+  out = out.replace(/label:[`"']Output[`"'],value:/g, 'label:__t3UsageZh()?"输出":"Output",value:');
+  out = out.replace(/label:[`"']Other[`"'],value:/g, 'label:__t3UsageZh()?"其他":"Other",value:');
+  out = out.replace(/label:[`"']Standard[`"'],value:/g, 'label:__t3UsageZh()?"标准":"Standard",value:');
+  out = out.replace(/label:[`"']Fast[`"'],value:/g, 'label:__t3UsageZh()?"极速":"Fast",value:');
+  out = out.replace(/label:[`"']Ultrafast[`"'],value:/g, 'label:__t3UsageZh()?"超极速":"Ultrafast",value:');
+  out = out.replace(/children:\[[`"']Premium [`"'],/g, 'children:[__t3UsageZh()?"溢价 ":"Premium ",');
+  out = out.replace(/children:[`"']Breakdown[`"']/g, 'children:__t3UsageZh()?"消耗明细":"Breakdown"');
   out = out.replace(
     /\{value:[`"']model[`"'],label:[`"']Model[`"']\}/g,
     '{value:"model",get label(){return __t3UsageZh()?"按模型":"Model"}}',
@@ -1090,32 +1077,12 @@ function patchChatUsageBundle(src) {
     /children:[`"']No activity in this window\.[`"']/g,
     'children:__t3UsageZh()?"当前时间范围内暂无消耗记录。":"No activity in this window."',
   );
-  out = out.replace(
-    /children:[`"']Unpriced[`"']/g,
-    'children:__t3UsageZh()?"未定价":"Unpriced"',
-  );
-  out = out.replace(
-    /\?[`"']Unpriced[`"']:/g,
-    '?(__t3UsageZh()?"未定价":"Unpriced"):',
-  );
-
-  // Model detail modal & custom model prices modal
-  out = out.replace(
-    /label:[`"']Cost[`"'],value:([A-Za-z0-9_$]+)/g,
-    'label:__t3UsageZh()?"费用":"Cost",value:$1',
-  );
-  out = out.replace(
-    /label:[`"']Tokens[`"'],value:([A-Za-z0-9_$]+)/g,
-    'label:__t3UsageZh()?"Token":"Tokens",value:$1',
-  );
-  out = out.replace(
-    /label:[`"']Per 1M tokens[`"'],value:/g,
-    'label:__t3UsageZh()?"每百万 Token 均价":"Per 1M tokens",value:',
-  );
-  out = out.replace(
-    /label:[`"']Cache hit[`"'],value:/g,
-    'label:__t3UsageZh()?"缓存命中率":"Cache hit",value:',
-  );
+  out = out.replace(/children:[`"']Unpriced[`"']/g, 'children:__t3UsageZh()?"未定价":"Unpriced"');
+  out = out.replace(/\?[`"']Unpriced[`"']:/g, '?(__t3UsageZh()?"未定价":"Unpriced"):');
+  out = out.replace(/label:[`"']Cost[`"'],value:([A-Za-z0-9_$]+)/g, 'label:__t3UsageZh()?"费用":"Cost",value:$1');
+  out = out.replace(/label:[`"']Tokens[`"'],value:([A-Za-z0-9_$]+)/g, 'label:__t3UsageZh()?"Token":"Tokens",value:$1');
+  out = out.replace(/label:[`"']Per 1M tokens[`"'],value:/g, 'label:__t3UsageZh()?"每百万 Token 均价":"Per 1M tokens",value:');
+  out = out.replace(/label:[`"']Cache hit[`"'],value:/g, 'label:__t3UsageZh()?"缓存命中率":"Cache hit",value:');
   out = out.replace(
     /[`"']{2}:` · \$\{([A-Za-z0-9_$]+\([A-Za-z0-9_$.]+\))\} of cost`/g,
     '"":(__t3UsageZh()?` · ${$1} 费用占比`:` · ${$1} of cost`)',
@@ -1124,34 +1091,19 @@ function patchChatUsageBundle(src) {
     /\[([A-Za-z0-9_$]+\([A-Za-z0-9_$.]+\)),[`"'] tokens have no known price[`"']\]/g,
     '[$1,__t3UsageZh()?" Token 暂无已知单价":" tokens have no known price"]',
   );
-  out = out.replace(
-    /children:[`"']Set price[`"']/g,
-    'children:__t3UsageZh()?"设置单价":"Set price"',
-  );
-  out = out.replace(
-    /children:[`"']Custom model prices[`"']/g,
-    'children:__t3UsageZh()?"自定义模型单价":"Custom model prices"',
-  );
+  out = out.replace(/children:[`"']Set price[`"']/g, 'children:__t3UsageZh()?"设置单价":"Set price"');
+  out = out.replace(/children:[`"']Custom model prices[`"']/g, 'children:__t3UsageZh()?"自定义模型单价":"Custom model prices"');
   out = out.replace(
     /children:[`"']Prices and mappings apply to all past and future usage on the environments you select\.[`"']/g,
     'children:__t3UsageZh()?"自定义单价与模型映射将应用于所选环境的全部历史与未来用量估算。":"Prices and mappings apply to all past and future usage on the environments you select."',
   );
-  out = out.replace(
-    /children:[`"']Apply to[`"']/g,
-    'children:__t3UsageZh()?"应用于":"Apply to"',
-  );
+  out = out.replace(/children:[`"']Apply to[`"']/g, 'children:__t3UsageZh()?"应用于":"Apply to"');
   out = out.replace(
     /children:[`"']USD \/ million tokens[`"']/g,
     'children:__t3UsageZh()?"USD / 百万 Token（按美元配置）":"USD / million tokens"',
   );
-  out = out.replace(
-    /children:[`"']Model ID[`"']/g,
-    'children:__t3UsageZh()?"模型 ID":"Model ID"',
-  );
-  out = out.replace(
-    /children:[`"']Map to[`"']/g,
-    'children:__t3UsageZh()?"映射至":"Map to"',
-  );
+  out = out.replace(/children:[`"']Model ID[`"']/g, 'children:__t3UsageZh()?"模型 ID":"Model ID"');
+  out = out.replace(/children:[`"']Map to[`"']/g, 'children:__t3UsageZh()?"映射至":"Map to"');
   out = out.replace(
     /\?[`"']Saving…[`"']:([A-Za-z0-9_$.]+)>0\?[`"']Retry failed saves[`"']:[`"']Save changes[`"']/g,
     '?(__t3UsageZh()?"保存中…":"Saving…"):$1>0?(__t3UsageZh()?"重试失败项":"Retry failed saves"):(__t3UsageZh()?"保存修改":"Save changes")',
@@ -1279,17 +1231,28 @@ function patchServerBundle(src) {
 function patchRuntimeLayerBundle(src) {
   let out = src;
   const anchor = `const tokenPath = path.join(input.profileDirectory, "antigravity-acp", "acp_token.json");`;
-  if (!out.includes(anchor) || out.includes("__t3SyncAgyQuotaAuth")) {
+  if (!out.includes(anchor) || out.includes("__t3SyncAgyQuotaAuthV2")) {
     return out;
   }
 
-  // Dynamically discovers OAuth client metadata from the locally installed antigravity binary at runtime
+  // Strip any legacy syncAntigravityTokenFile block if present so there is a single clean source of truth
+  out = out.replace(
+    /const oauthTokenPath = path\.join\(input\.profileDirectory, "antigravity-acp", "antigravity-oauth-token"\);\s*const syncAntigravityTokenFile = \(\) => \{[\s\S]*?\};\s*syncAntigravityTokenFile\(\);/,
+    "",
+  );
+  out = out.replace(/\bsyncAntigravityTokenFile\(\);\s*/g, "");
+
+  // Dynamically discovers & OAuth-verifies the exact 35-char GOCSPX client secret from local antigravity binary
   const helperBlock = `${anchor}
 	let __agyClientMetaCache = null;
-	const __resolveLocalAgyClientMeta = (nodeFs, nodePath) => {
+	const __isValidAgyClientSecret = (s) => typeof s === "string" && s.length === 35 && /^GOCS[P]X-[A-Za-z0-9_-]{28}$/.test(s);
+	const __isValidAgyClientId = (id) => typeof id === "string" && id.endsWith(".apps.googleusercontent.com") && !id.startsWith("8843549");
+	const __resolveLocalAgyClientMeta = (nodeFs, nodePath, nodeCp, refreshToken) => {
 		if (__agyClientMetaCache) return __agyClientMetaCache;
 		const toolsRoot = nodePath.resolve(input.profileDirectory, "../../../..", "tools", "antigravity-acp");
 		const stack = [toolsRoot];
+		let cids = [];
+		let csecs = [];
 		while (stack.length > 0) {
 			const curDir = stack.pop();
 			let entries;
@@ -1301,55 +1264,91 @@ function patchRuntimeLayerBundle(src) {
 				} else if (entry.name === "antigravity") {
 					try {
 						const bin = nodeFs.readFileSync(full, "latin1");
-						const cid = bin.match(/\\d{10,}-[a-z0-9]{20,}\\.apps\\.googleusercontent\\.com/);
-						const csec = bin.match(/GOCS[P]X-[A-Za-z0-9_-]{24,36}/);
-						if (cid && csec) {
-							__agyClientMetaCache = { id: cid[0], s: csec[0] };
-							return __agyClientMetaCache;
-						}
+						cids = [...new Set(bin.match(/\\d{10,}-[a-z0-9]{20,}\\.apps\\.googleusercontent\\.com/g) || [])];
+						csecs = [...new Set(bin.match(/GOCS[P]X-[A-Za-z0-9_-]{28}/g) || [])];
+						if (cids.length > 0 && csecs.length > 0) break;
 					} catch {}
 				}
 			}
+			if (cids.length > 0 && csecs.length > 0) break;
 		}
-		return null;
+		if (cids.length === 0 || csecs.length === 0) return null;
+		const candidates = [];
+		if (cids[1] && csecs[1]) candidates.push({ id: cids[1], s: csecs[1] });
+		for (const id of cids) {
+			if (!__isValidAgyClientId(id)) continue;
+			for (const s of csecs) {
+				if (!candidates.some((c) => c.id === id && c.s === s)) candidates.push({ id, s });
+			}
+		}
+		if (refreshToken && nodeCp) {
+			for (const cand of candidates) {
+				try {
+					const body = "client_id=" + encodeURIComponent(cand.id) + "&client_secret=" + encodeURIComponent(cand.s) + "&refresh_token=" + encodeURIComponent(refreshToken) + "&grant_type=refresh_token";
+					const resp = nodeCp.execFileSync("curl", ["-fsS", "--max-time", "5", "-X", "POST", "https://oauth2.googleapis.com/token", "-H", "Content-Type: application/x-www-form-urlencoded", "-d", body], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+					if (resp && resp.includes('"access_token"')) {
+						__agyClientMetaCache = cand;
+						return __agyClientMetaCache;
+					}
+				} catch {}
+			}
+		}
+		__agyClientMetaCache = candidates[0] || { id: cids[0], s: csecs[0] };
+		return __agyClientMetaCache;
 	};
-	const __t3SyncAgyQuotaAuth = () => {
+	const __t3SyncAgyQuotaAuthV2 = () => {
 		try {
 			const nodeFs = process.getBuiltinModule("node:fs");
 			const nodePath = process.getBuiltinModule("node:path");
 			const nodeCp = process.getBuiltinModule("node:child_process");
 			const oauthFile = nodePath.join(input.profileDirectory, "antigravity-acp", "antigravity-oauth-token");
-			let raw = null;
+			let existing = null;
+			try {
+				if (nodeFs.existsSync(tokenPath)) {
+					existing = JSON.parse(nodeFs.readFileSync(tokenPath, "utf8"));
+				}
+			} catch {}
+			let refresh = null;
+			let explicitMeta = null;
 			if (nodeFs.existsSync(oauthFile)) {
-				raw = nodeFs.readFileSync(oauthFile, "utf8");
+				const parsed = JSON.parse(nodeFs.readFileSync(oauthFile, "utf8"));
+				refresh = parsed?.token?.refresh_token || parsed?.refresh_token || null;
+				if (__isValidAgyClientId(parsed?.client_id) && __isValidAgyClientSecret(parsed?.client_secret)) {
+					explicitMeta = { id: parsed.client_id, s: parsed.client_secret };
+				}
+			} else if (typeof existing?.refresh_token === "string" && existing.refresh_token.length > 0) {
+				refresh = existing.refresh_token;
 			} else if (process.platform === "darwin") {
 				try {
 					const kc = nodeCp.execFileSync("security", ["find-generic-password", "-s", "gemini", "-a", "antigravity", "-w"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-					raw = kc.startsWith("go-keyring-base64:") ? Buffer.from(kc.slice(18), "base64").toString("utf8") : kc;
+					const jsonStr = kc.startsWith("go-keyring-base64:") ? Buffer.from(kc.slice(18), "base64").toString("utf8") : kc;
+					const parsed = JSON.parse(jsonStr);
+					refresh = parsed?.token?.refresh_token || parsed?.refresh_token || null;
 				} catch {}
 			}
-			if (!raw) return;
-			const parsed = JSON.parse(raw);
-			const refresh = parsed?.token?.refresh_token || parsed?.refresh_token;
 			if (typeof refresh !== "string" || refresh.length === 0) return;
-			const meta = (parsed.client_id && parsed.client_secret)
-				? { id: parsed.client_id, s: parsed.client_secret }
-				: __resolveLocalAgyClientMeta(nodeFs, nodePath);
-			if (!meta) return;
-			const nextJson = JSON.stringify({ client_id: meta.id, client_secret: meta.s, refresh_token: refresh });
-			let cur = null;
-			try { cur = nodeFs.readFileSync(tokenPath, "utf8"); } catch {}
-			if (cur !== nextJson) {
-				nodeFs.writeFileSync(tokenPath, nextJson, { mode: 384 });
+			if (existing && existing.refresh_token === refresh && __isValidAgyClientId(existing.client_id) && __isValidAgyClientSecret(existing.client_secret)) {
+				return;
 			}
+			const meta = explicitMeta
+				|| (__isValidAgyClientId(existing?.client_id) && __isValidAgyClientSecret(existing?.client_secret) ? { id: existing.client_id, s: existing.client_secret } : null)
+				|| __resolveLocalAgyClientMeta(nodeFs, nodePath, nodeCp, refresh);
+			if (!meta) return;
+			const payload = {
+				client_id: meta.id,
+				client_secret: meta.s,
+				refresh_token: refresh,
+				...(existing?.project_id ? { project_id: existing.project_id } : {})
+			};
+			nodeFs.writeFileSync(tokenPath, JSON.stringify(payload), { mode: 384 });
 		} catch {}
 	};
-	__t3SyncAgyQuotaAuth();`;
+	__t3SyncAgyQuotaAuthV2();`;
 
   out = out.replace(anchor, helperBlock);
   out = out.replace(
     "const startedGeneration = generation;",
-    "__t3SyncAgyQuotaAuth();\n\t\t\tconst startedGeneration = generation;",
+    "__t3SyncAgyQuotaAuthV2();\n\t\t\tconst startedGeneration = generation;",
   );
   return out;
 }
