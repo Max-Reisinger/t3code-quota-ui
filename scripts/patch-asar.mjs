@@ -754,16 +754,175 @@ ${__STARDUST_V9_CSS}
       const shortLabel = total > 1 ? base + idx : base;
       const q = getProviderQuota(p, null, now);
       if (!q) continue;
+      const rawWins = extractWindows(p);
+      const winList = rawWins.map((w) => {
+        const r = Math.max(0, Math.min(100, Math.round(100 - w.usedPercent)));
+        const wRemMs = w.resetsAt ? Date.parse(w.resetsAt) - now : NaN;
+        const fc = computeBurnForecast(w, now);
+        return {
+          id: w.id || w.label || w.kind || "",
+          label: translateWindowLabel(w.label || w.kind || w.id || ""),
+          remaining: r,
+          tone: toneForRemaining(r),
+          resetText: Number.isFinite(wRemMs) && wRemMs > 0 ? fmtDurLong(wRemMs) : "",
+          forecast: fc ? fc.text : "",
+          forecastTone: fc ? fc.tone : "muted"
+        };
+      });
       pills.push({
         id: p.instanceId || p.id || (dk + ":" + idx),
         shortLabel,
+        displayName: p.displayName || shortLabel,
+        driverKind: dk,
         remaining: q.remaining,
         tone: q.tone,
         resetShort: q.resetShort,
-        tooltip: q.tooltip
+        tooltip: q.tooltip,
+        windows: winList
       });
     }
     return pills;
+  }
+
+  let __activeTopbarPop = { id: null, el: null, cleanup: null };
+  function closeTopbarQuotaPopover() {
+    if (__activeTopbarPop.cleanup) { try { __activeTopbarPop.cleanup(); } catch {} }
+    if (__activeTopbarPop.el) { try { __activeTopbarPop.el.remove(); } catch {} }
+    __activeTopbarPop = { id: null, el: null, cleanup: null };
+  }
+  function showTopbarQuotaPopover(pill, anchorEl) {
+    if (!pill) return;
+    if (__activeTopbarPop.id === pill.id && __activeTopbarPop.el && document.body.contains(__activeTopbarPop.el)) {
+      closeTopbarQuotaPopover();
+      return;
+    }
+    closeTopbarQuotaPopover();
+    const zh = getLang() === "zh";
+    const pop = document.createElement("div");
+    pop.className = "t3-topbar-pop";
+    pop.setAttribute("data-quota-ui-managed", "true");
+
+    const head = document.createElement("div");
+    head.className = "t3-topbar-pop-head";
+    const titleWrap = document.createElement("div");
+    titleWrap.style.cssText = "display:flex;align-items:center;gap:6px;min-width:0;";
+    const dot = document.createElement("span");
+    dot.className = "t3-topbar-pill-dot t3-q-dot-" + pill.tone;
+    const title = document.createElement("span");
+    title.className = "t3-topbar-pop-title";
+    title.textContent = pill.displayName || pill.shortLabel;
+    const badge = document.createElement("span");
+    badge.className = "t3-topbar-pop-tag";
+    badge.textContent = pill.shortLabel;
+    titleWrap.appendChild(dot);
+    titleWrap.appendChild(title);
+    if (pill.displayName && pill.displayName !== pill.shortLabel) titleWrap.appendChild(badge);
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "t3-topbar-pop-close";
+    closeBtn.textContent = "×";
+    closeBtn.onclick = () => closeTopbarQuotaPopover();
+    head.appendChild(titleWrap);
+    head.appendChild(closeBtn);
+    pop.appendChild(head);
+
+    const body = document.createElement("div");
+    body.className = "t3-topbar-pop-body";
+    const wins = Array.isArray(pill.windows) ? pill.windows : [];
+    if (wins.length === 0) {
+      const empty = document.createElement("div");
+      empty.style.cssText = "font-size:11.5px;color:var(--v9-fg-3);padding:6px 0;";
+      empty.textContent = zh ? "该厂商暂无明细配额窗口" : "No detailed quota windows reported";
+      body.appendChild(empty);
+    } else {
+      for (const w of wins) {
+        const card = document.createElement("div");
+        card.className = "t3-topbar-pop-win";
+        const top = document.createElement("div");
+        top.className = "t3-topbar-pop-win-top";
+        const lbl = document.createElement("span");
+        lbl.className = "t3-topbar-pop-win-lbl";
+        lbl.textContent = w.label;
+        const pct = document.createElement("span");
+        pct.className = "t3-topbar-pop-win-pct t3-q-" + w.tone;
+        pct.textContent = (zh ? "剩余 " : "") + w.remaining + "%" + (zh ? "" : " left");
+        top.appendChild(lbl);
+        top.appendChild(pct);
+        card.appendChild(top);
+
+        const bar = document.createElement("div");
+        bar.className = "t3-topbar-pop-bar";
+        const fill = document.createElement("div");
+        fill.className = "t3-topbar-pop-bar-fill t3-q-dot-" + w.tone;
+        fill.style.width = Math.max(0, Math.min(100, w.remaining)) + "%";
+        bar.appendChild(fill);
+        card.appendChild(bar);
+
+        const meta = document.createElement("div");
+        meta.className = "t3-topbar-pop-win-meta";
+        const resetEl = document.createElement("span");
+        resetEl.textContent = w.resetText ? (zh ? "↻ " + w.resetText + "后重置" : "↻ resets in " + w.resetText) : (zh ? "无重置倒计时" : "No reset timer");
+        meta.appendChild(resetEl);
+        if (w.forecast) {
+          const fcEl = document.createElement("span");
+          fcEl.className = "t3-q-" + (w.forecastTone === "danger" ? "danger" : w.forecastTone === "warn" ? "warn" : "ok");
+          fcEl.textContent = w.forecast;
+          meta.appendChild(fcEl);
+        }
+        card.appendChild(meta);
+        body.appendChild(card);
+      }
+    }
+    pop.appendChild(body);
+
+    const foot = document.createElement("div");
+    foot.className = "t3-topbar-pop-foot";
+    const openAll = document.createElement("button");
+    openAll.type = "button";
+    openAll.className = "t3-topbar-pop-link";
+    openAll.textContent = zh ? "查看全部配额大盘 →" : "Open full Limits dashboard →";
+    openAll.onclick = () => {
+      closeTopbarQuotaPopover();
+      try {
+        const raw = window.localStorage.getItem("usage-page-preferences:v1");
+        const pref = raw ? JSON.parse(raw) : {};
+        pref.tab = "limits";
+        window.localStorage.setItem("usage-page-preferences:v1", JSON.stringify(pref));
+      } catch {}
+      const link = document.querySelector('a[href="/usage"], a[href*="/usage"]');
+      if (link) { link.click(); }
+      else {
+        try { window.history.pushState(null, "", "/usage"); window.dispatchEvent(new PopStateEvent("popstate")); } catch {}
+      }
+    };
+    foot.appendChild(openAll);
+    pop.appendChild(foot);
+
+    document.body.appendChild(pop);
+    const rect = anchorEl?.getBoundingClientRect?.();
+    const popW = 304;
+    let left = rect ? rect.left + rect.width / 2 - popW / 2 : window.innerWidth - popW - 24;
+    left = Math.max(12, Math.min(window.innerWidth - popW - 12, left));
+    const topPos = rect ? Math.min(window.innerHeight - 120, rect.bottom + 8) : 44;
+    pop.style.left = Math.round(left) + "px";
+    pop.style.top = Math.round(topPos) + "px";
+
+    const onDown = (ev) => {
+      if (!pop.contains(ev.target) && !(anchorEl && anchorEl.contains(ev.target))) closeTopbarQuotaPopover();
+    };
+    const onKey = (ev) => { if (ev.key === "Escape") closeTopbarQuotaPopover(); };
+    setTimeout(() => {
+      document.addEventListener("pointerdown", onDown, true);
+      document.addEventListener("keydown", onKey, true);
+    }, 0);
+    __activeTopbarPop = {
+      id: pill.id,
+      el: pop,
+      cleanup: () => {
+        document.removeEventListener("pointerdown", onDown, true);
+        document.removeEventListener("keydown", onKey, true);
+      }
+    };
   }
 
   const STARSHIP_STORY_ZH = {
@@ -1068,6 +1227,8 @@ ${__STARDUST_V9_CSS}
     computeBurnForecast,
     getProviderQuota,
     buildTopbarPills,
+    showTopbarQuotaPopover,
+    closeTopbarQuotaPopover,
     openCacheCleaner,
     togglePreviewPins,
     sendPreviewPins,
@@ -2067,7 +2228,7 @@ function patchChatTopbarBundle(src) {
   const jsxNs = topbarCallMatch ? topbarCallMatch[2] : (jsxNsMatch ? jsxNsMatch[1] : null);
 
   if (jsxNs) {
-    const newTopbarComp = `function __T3TopbarQuotaPills({providers,onOpenUsageLimits,rightPanelOpen}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const unsub=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof unsub==="function")unsub()}},[]);const pills=globalThis.__t3QuotaUi?.buildTopbarPills?.(providers,now)||[];if(pills.length===0)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("div",{className:"t3-topbar-quota-strip",style:{marginRight:rightPanelOpen?"52px":"128px"},"data-quota-ui-managed":"true","aria-label":zh?"模型额度状态":"Model quota status",children:pills.map(p=>(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-topbar-pill",title:p.tooltip+(onOpenUsageLimits?(zh?"\\n点击查看完整配额面板":"\\nClick to open Usage -> Limits"):""),onClick:()=>{if(typeof onOpenUsageLimits==="function")onOpenUsageLimits()},children:[(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-dot t3-q-dot-"+p.tone}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-name",children:p.shortLabel}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-pct t3-q-"+p.tone,children:p.remaining+"%"}),p.resetShort?(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-reset",children:"· "+p.resetShort}):null]},p.id))})}`;
+    const newTopbarComp = `function __T3TopbarQuotaPills({providers,onOpenUsageLimits,rightPanelOpen}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const unsub=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof unsub==="function")unsub()}},[]);const pills=globalThis.__t3QuotaUi?.buildTopbarPills?.(providers,now)||[];if(pills.length===0)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("div",{className:"t3-topbar-quota-strip",style:{marginRight:rightPanelOpen?"52px":"128px"},"data-quota-ui-managed":"true","aria-label":zh?"模型额度状态":"Model quota status",children:pills.map(p=>(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-topbar-pill",title:p.tooltip+(zh?"\\n点击查看该厂商详细配额":"\\nClick for this provider's quota details"),onClick:ev=>{ev.stopPropagation();if(globalThis.__t3QuotaUi?.showTopbarQuotaPopover){globalThis.__t3QuotaUi.showTopbarQuotaPopover(p,ev.currentTarget)}else if(typeof onOpenUsageLimits==="function"){onOpenUsageLimits()}},children:[(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-dot t3-q-dot-"+p.tone}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-name",children:p.shortLabel}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-pct t3-q-"+p.tone,children:p.remaining+"%"}),p.resetShort?(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-reset",children:"· "+p.resetShort}):null]},p.id))})}`;
 
     if (out.includes("__T3TopbarQuotaPills")) {
       // Auto-heal v1.2.0 call & component to pass rightPanelOpen and safe right margin
