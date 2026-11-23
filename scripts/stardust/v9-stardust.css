@@ -58,10 +58,10 @@ html.dark,
   --v9-shadow-float: 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 20px 50px rgba(0, 0, 0, 0.65);
 }
 
-/* ==================== V18 Starship Fluid Cosmic Effort Slider (1:1 composerV9.css) ==================== */
+/* ==================== V18 Starship Fluid Cosmic Effort Slider — Compact 1/2 Height Edition ==================== */
 [data-cosmic-effort-slider] {
-  padding: 10px 11px 9px;
-  border-radius: 14px;
+  padding: 5px 8px 5px;
+  border-radius: 10px;
   background: var(--v9-surface-2);
   border: 0.5px solid var(--v9-hair);
   user-select: none;
@@ -71,22 +71,23 @@ html.dark,
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  font-size: 11.8px;
-  line-height: 1.4;
-  margin-bottom: 5px;
-  flex-wrap: wrap;
+  font-size: 10.8px;
+  line-height: 1.25;
+  margin-bottom: 2px;
+  flex-wrap: nowrap;
 }
 [data-cosmic-embed-head] > b {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  min-width: 0;
   white-space: nowrap;
   font-weight: 700;
   color: var(--v9-fg);
 }
 [data-cosmic-state-dot] {
-  width: 8px;
-  height: 8px;
+  width: 6.5px;
+  height: 6.5px;
   border-radius: 50%;
   flex-shrink: 0;
   display: inline-block;
@@ -95,17 +96,10 @@ html.dark,
   from { opacity: 0.35; }
   to { opacity: 1; }
 }
-[data-cosmic-sub-row] {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--v9-fg-2);
-  margin-bottom: 4px;
-}
 [data-cosmic-story] {
+  font-size: 10px;
+  font-weight: 450;
+  color: var(--v9-fg-3);
   animation: v16-story-fade 200ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -113,8 +107,8 @@ html.dark,
 }
 [data-cosmic-stage-well] {
   position: relative;
-  margin: 6px 0 5px;
-  padding: 3px;
+  margin: 3px 0 2px;
+  padding: 2px;
   border-radius: 999px;
   will-change: transform;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.02));
@@ -122,33 +116,33 @@ html.dark,
 }
 .dark [data-cosmic-stage-well] {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.38));
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.58), 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 2.5px rgba(0, 0, 0, 0.58), 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 [data-cosmic-track] {
   position: relative;
   width: 100%;
-  height: 50px;
+  height: 26px;
   border-radius: 999px;
   overflow: hidden;
   touch-action: none;
   user-select: none;
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5), inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1.5px 6px rgba(0, 0, 0, 0.5), inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
 }
 [data-cosmic-tier-scale] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 2px;
-  margin-top: 4px;
-  font-size: 11px;
+  margin-top: 2px;
+  font-size: 10px;
   color: var(--v9-fg-3);
   gap: 2px;
 }
 [data-cosmic-tier-scale] button {
-  padding: 2px 5px;
-  border-radius: 6px;
-  font-size: 10.6px;
-  line-height: 1.35;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1.3;
   color: var(--v9-fg-3);
   background: transparent;
   border: 0;
@@ -170,17 +164,17 @@ html.dark,
   cursor: not-allowed;
 }
 
-/* ==================== V9 Model Picker Popover — 1:1 Unified Vertical Stack (386px, matching Red Box 1) ==================== */
+/* ==================== V9 Model Picker Popover — Compact 2/3 Scale Unified Vertical Stack (296px) ==================== */
 [data-slot="popover-popup"]:has([data-model-picker-content]) {
-  width: 386px !important;
+  width: 296px !important;
   max-width: calc(100vw - 16px) !important;
   background: var(--v9-glass-strong) !important;
   backdrop-filter: blur(14px) saturate(1.4) !important;
   -webkit-backdrop-filter: blur(14px) saturate(1.4) !important;
-  border-radius: 20px !important;
+  border-radius: 14px !important;
   box-shadow: var(--v9-shadow-float) !important;
   border: 0.5px solid var(--v9-line) !important;
-  padding: 12px !important;
+  padding: 8px !important;
   color: var(--v9-fg) !important;
   overflow: visible !important;
 }
@@ -195,7 +189,7 @@ div:has(> [data-model-picker-effort]) {
   height: auto !important;
   min-height: 0 !important;
   width: 100% !important;
-  gap: 8px !important;
+  gap: 5px !important;
 }
 /* Hide redundant Thinking Level header above V18 Starship slider */
 [data-model-picker-effort] > div:not(:has([data-cosmic-effort-slider])):not([data-cosmic-effort-slider]),
@@ -217,8 +211,8 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   display: flex !important;
   flex-direction: column !important;
   width: 100% !important;
-  height: 230px !important;
-  min-height: 230px !important;
+  height: 158px !important;
+  min-height: 158px !important;
   flex-shrink: 0 !important;
   background: transparent !important;
   border: 0 !important;
@@ -230,23 +224,25 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 0% !important;
-  min-height: 226px !important;
+  min-height: 154px !important;
   background: transparent !important;
   border: 0 !important;
-  gap: 6px !important;
+  gap: 4px !important;
 }
 [data-model-picker-sidebar] {
   width: 100% !important;
-  height: 32px !important;
-  min-height: 32px !important;
+  height: 25px !important;
+  min-height: 25px !important;
   flex-shrink: 0 !important;
   background: transparent !important;
   border: 0 !important;
   border-bottom: 0.5px solid var(--v9-hair) !important;
-  padding: 0 0 6px 0 !important;
+  padding: 0 0 4px 0 !important;
   overflow-x: auto !important;
   overflow-y: hidden !important;
   scrollbar-width: none !important;
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 14px), transparent 100%);
 }
 [data-model-picker-sidebar]::-webkit-scrollbar {
   display: none !important;
@@ -259,8 +255,8 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   flex-direction: row !important;
   align-items: center !important;
   min-height: 0 !important;
-  gap: 4px !important;
-  padding: 0 !important;
+  gap: 3px !important;
+  padding: 0 14px 0 0 !important;
 }
 [data-model-picker-selected-indicator] {
   display: none !important;
@@ -274,16 +270,16 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
 }
 [data-model-picker-sidebar] button[type="button"] {
   width: auto !important;
-  height: 26px !important;
+  height: 20px !important;
   aspect-ratio: auto !important;
-  padding: 0 10px !important;
+  padding: 0 7px !important;
   border-radius: 999px !important;
-  font-size: 11.5px !important;
+  font-size: 10.5px !important;
   font-weight: 550 !important;
   color: var(--v9-fg-2) !important;
   background: transparent !important;
   white-space: nowrap !important;
-  gap: 4px !important;
+  gap: 3px !important;
 }
 [data-model-picker-sidebar] button[type="button"]:hover:not(:disabled) {
   background: var(--v9-fill) !important;
@@ -296,28 +292,34 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
 }
 [data-model-picker-content] [data-slot="combobox-input"],
 [data-model-picker-content] input[placeholder] {
-  height: 34px !important;
-  border-radius: 10px !important;
+  height: 27px !important;
+  min-height: 27px !important;
+  border-radius: 8px !important;
   background: var(--v9-fill) !important;
   border: 0.5px solid var(--v9-hair) !important;
-  font-size: 12.5px !important;
+  font-size: 11.5px !important;
   color: var(--v9-fg) !important;
 }
 [data-model-picker-content] [data-slot="combobox-list"] {
-  max-height: 148px !important;
-  padding: 2px 0 !important;
+  max-height: 102px !important;
+  padding: 1px 0 !important;
 }
 [data-model-picker-content] [role="option"] {
-  min-height: 34px !important;
-  border-radius: 10px !important;
-  padding: 6px 9px !important;
-  margin-bottom: 2px !important;
+  min-height: 25px !important;
+  border-radius: 7px !important;
+  padding: 3px 7px !important;
+  margin-bottom: 1px !important;
+  font-size: 11.5px !important;
+}
+[data-model-picker-content] [role="option"] .text-sm {
+  font-size: 11.5px !important;
+  line-height: 1.25 !important;
 }
 [data-model-picker-content] [role="option"][aria-selected="true"] {
   background: var(--v9-sel-surface) !important;
   font-weight: 600 !important;
 }
-/* Clean muted quota text on model rows (matching Red Box 1 `剩 72%` — no loud colored pill!) */
+/* Clean muted quota text on model rows */
 .t3-mp-quota-badge {
   display: inline-flex;
   align-items: center;
@@ -326,8 +328,8 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   border-radius: 0 !important;
   border: 0 !important;
   background: transparent !important;
-  font-size: 11px !important;
-  line-height: 1.25 !important;
+  font-size: 10.2px !important;
+  line-height: 1.2 !important;
   font-weight: 500 !important;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -351,36 +353,36 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   padding: 0 !important;
   background: transparent !important;
 }
-/* V9 Permission Row inside Popover (Red Box 1 bottom) */
+/* Compact Permission Row inside Popover */
 [data-v9-perm-row] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  padding-top: 9px;
-  margin-top: 8px;
+  padding-top: 4px;
+  margin-top: 4px;
   border-top: 0.5px solid var(--v9-hair);
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 10px;
+  line-height: 1.3;
   color: var(--v9-fg-3);
 }
 [data-v9-perm-seg] {
   display: inline-flex;
   align-items: center;
   background: var(--v9-fill);
-  border-radius: 10px;
-  padding: 2px;
+  border-radius: 8px;
+  padding: 1.5px;
   gap: 1px;
   flex-shrink: 0;
 }
 [data-v9-perm-opt] {
-  padding: 3px 8px;
-  font-size: 11px;
-  line-height: 1.35;
+  padding: 1.5px 6px;
+  font-size: 10px;
+  line-height: 1.3;
   font-weight: 500;
   color: var(--v9-fg-2);
-  border-radius: 7.5px;
+  border-radius: 6px;
   white-space: nowrap;
   background: transparent;
   border: 0;
@@ -394,7 +396,7 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   background: var(--v9-surface);
   color: var(--v9-fg);
   font-weight: 650;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 /* Blue frosted glass permission pill on composer bar (Red Box 2) */
 [data-composer-permissions-trigger] {
