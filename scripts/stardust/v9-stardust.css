@@ -121,7 +121,7 @@ html.dark,
 [data-cosmic-track] {
   position: relative;
   width: 100%;
-  height: 26px;
+  height: 24px;
   border-radius: 999px;
   overflow: hidden;
   touch-action: none;
@@ -164,17 +164,17 @@ html.dark,
   cursor: not-allowed;
 }
 
-/* ==================== V9 Model Picker Popover — Compact 2/3 Scale Unified Vertical Stack (296px) ==================== */
+/* ==================== V9 Model Picker Popover — Ultra-Compact 2/3 Scale Unified Vertical Stack (280px) ==================== */
 [data-slot="popover-popup"]:has([data-model-picker-content]) {
-  width: 296px !important;
+  width: 280px !important;
   max-width: calc(100vw - 16px) !important;
   background: var(--v9-glass-strong) !important;
   backdrop-filter: blur(14px) saturate(1.4) !important;
   -webkit-backdrop-filter: blur(14px) saturate(1.4) !important;
-  border-radius: 14px !important;
+  border-radius: 13px !important;
   box-shadow: var(--v9-shadow-float) !important;
   border: 0.5px solid var(--v9-line) !important;
-  padding: 8px !important;
+  padding: 7px !important;
   color: var(--v9-fg) !important;
   overflow: visible !important;
 }
@@ -211,8 +211,8 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   display: flex !important;
   flex-direction: column !important;
   width: 100% !important;
-  height: 158px !important;
-  min-height: 158px !important;
+  height: 148px !important;
+  min-height: 148px !important;
   flex-shrink: 0 !important;
   background: transparent !important;
   border: 0 !important;
@@ -224,10 +224,10 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 0% !important;
-  min-height: 154px !important;
+  min-height: 144px !important;
   background: transparent !important;
   border: 0 !important;
-  gap: 4px !important;
+  gap: 3px !important;
 }
 [data-model-picker-sidebar] {
   width: 100% !important;
