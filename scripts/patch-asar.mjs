@@ -1598,8 +1598,8 @@ ${__STARDUST_V9_CSS}
   }
   function fmtCompactTok(n, lower) {
     if (!Number.isFinite(n) || n < 0) return null;
-    if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 1 : 2).replace(/\.0+$/, "") + (lower ? "m" : "M");
-    if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0+$/, "") + (lower ? "k" : "K");
+    if (n >= 1e6) return Number((n / 1e6).toFixed(n >= 1e7 ? 1 : 2)) + (lower ? "m" : "M");
+    if (n >= 1e3) return Number((n / 1e3).toFixed(n >= 1e5 ? 0 : 1)) + (lower ? "k" : "K");
     return String(Math.round(n));
   }
   function splitProviderWindows(prov, activeModel, maxInline = 2) {
