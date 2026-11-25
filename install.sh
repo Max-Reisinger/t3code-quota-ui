@@ -8,7 +8,7 @@
 #   - Repository: https://github.com/Leobai03/t3code-quota-ui (MIT License)
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/Leobai03/t3code-quota-ui/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Max-Reisinger/t3code-quota-ui/main/install.sh | bash
 #
 # Options:
 #   --lang zh|en     UI language mode (default: zh)
@@ -20,7 +20,7 @@
 set -euo pipefail
 
 REPO_REF="${T3_QUOTA_UI_REF:-main}"
-REPO_RAW_BASE="https://raw.githubusercontent.com/Leobai03/t3code-quota-ui/${REPO_REF}"
+REPO_RAW_BASE="https://raw.githubusercontent.com/Max-Reisinger/t3code-quota-ui/${REPO_REF}"
 BACKUP_ROOT="${HOME}/.t3/quota-ui-backups"
 
 LANG_MODE="zh"

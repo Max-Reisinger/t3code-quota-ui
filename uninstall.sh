@@ -3,7 +3,7 @@
 # T3 Code Quota UI — One-Command Safe Rollback / Uninstaller
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/Leobai03/t3code-quota-ui/main/uninstall.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Max-Reisinger/t3code-quota-ui/main/uninstall.sh | bash
 # ==============================================================================
 
 set -euo pipefail
