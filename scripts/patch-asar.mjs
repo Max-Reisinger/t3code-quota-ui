@@ -108,10 +108,9 @@ function listFilesRecursive(node, prefix = "", out = []) {
   return out;
 }
 
-export function buildInjectedHeadBlock(defaultLang = "zh") {
+export function buildInjectedAssets(defaultLang = "zh") {
   const safeDefaultLang = defaultLang === "en" ? "en" : "zh";
-  const styleBlock = `<style id="t3-quota-ui-styles">
-/* T3 Code Quota UI v1.1.1 — Side-by-Side Accounts, Paired Single-Card Providers & Usage Toolbar */
+  const cssText = `/* T3 Code Quota UI v1.4.8 — Side-by-Side Accounts, Paired Single-Card Providers & Usage Toolbar */
 .t3-quota-sections {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) !important;
@@ -345,14 +344,14 @@ ${__STARDUST_V9_CSS}
     display: none;
   }
 }
-</style>`;
+`;
 
-  const runtimeScript = `<script id="t3-quota-ui-i18n">
-(function(){
+  const runtimeJsText = `(function(){
   const LANG_KEY = "t3code:quota-ui-lang";
   const CURR_KEY = "t3code:quota-ui-currency";
   const RATE_KEY = "t3code:quota-ui-fx-rate";
-  const DEFAULT_LANG = "${safeDefaultLang}";
+  const __scriptDefaultLang = (typeof document !== "undefined" && document.currentScript && document.currentScript.getAttribute("data-default-lang")) || "${safeDefaultLang}";
+  const DEFAULT_LANG = __scriptDefaultLang === "en" ? "en" : "zh";
   const DEFAULT_RATE = 7.25;
 
   const EN_TO_ZH = {
@@ -1013,10 +1012,17 @@ ${__STARDUST_V9_CSS}
     let state = { loading: true, cleaning: false, error: "", data: null, selected: new Set(), result: null };
 
     function render() {
-      modal.innerHTML = "";
-      const head = document.createElement("div");
-      head.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;";
-      head.innerHTML = '<div><div style="font-size:15px;font-weight:700;">' + (zh ? "🧹 macOS 磁盘缓存清理中心" : "🧹 macOS Disk Cache Cleaner") + '</div><div style="font-size:11.5px;color:var(--v9-fg-2);margin-top:2px;">' + (zh ? "先预览各目录占用再确认清理 · 绝不触碰会话数据库、项目与账号凭证" : "Preview exact sizes before cleaning · never touches databases, threads, or auth tokens") + '</div></div>';
+      modal.replaceChildren();
+      const head = __el(
+        "div",
+        { style: "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;" },
+        __el(
+          "div",
+          null,
+          __el("div", { style: "font-size:15px;font-weight:700;", text: zh ? "🧹 macOS 磁盘缓存清理中心" : "🧹 macOS Disk Cache Cleaner" }),
+          __el("div", { style: "font-size:11.5px;color:var(--v9-fg-2);margin-top:2px;", text: zh ? "先预览各目录占用再确认清理 · 绝不触碰会话数据库、项目与账号凭证" : "Preview exact sizes before cleaning · never touches databases, threads, or auth tokens" })
+        )
+      );
       const closeBtn = document.createElement("button");
       closeBtn.type = "button";
       closeBtn.className = "t3-pin-bar-btn";
@@ -1067,14 +1073,21 @@ ${__STARDUST_V9_CSS}
           else state.selected.delete(item.id);
           render();
         };
-        const info = document.createElement("div");
-        info.style.minWidth = "0";
-        info.innerHTML = '<div style="font-size:12.5px;font-weight:600;">' + (zh ? item.labelZh : item.labelEn) + '</div><div style="font-size:11px;color:var(--v9-fg-2);margin-top:1px;">' + (zh ? item.descZh : item.descEn) + '</div><div style="font-size:10.5px;color:var(--v9-fg-3);margin-top:2px;word-break:break-all;">' + item.displayPath + '</div>';
+        const info = __el(
+          "div",
+          { style: "min-width:0;" },
+          __el("div", { style: "font-size:12.5px;font-weight:600;", text: zh ? item.labelZh : item.labelEn }),
+          __el("div", { style: "font-size:11px;color:var(--v9-fg-2);margin-top:1px;", text: zh ? item.descZh : item.descEn }),
+          __el("div", { style: "font-size:10.5px;color:var(--v9-fg-3);margin-top:2px;word-break:break-all;", text: item.displayPath || "" })
+        );
         left.appendChild(cb);
         left.appendChild(info);
-        const right = document.createElement("div");
-        right.style.cssText = "text-align:right;flex-shrink:0;";
-        right.innerHTML = '<div style="font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;">' + fmtBytes(item.bytes) + '</div><div style="font-size:10.5px;color:var(--v9-fg-3);">' + item.files + (zh ? " 个文件" : " files") + '</div>';
+        const right = __el(
+          "div",
+          { style: "text-align:right;flex-shrink:0;" },
+          __el("div", { style: "font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;", text: fmtBytes(item.bytes) }),
+          __el("div", { style: "font-size:10.5px;color:var(--v9-fg-3);", text: String(item.files || 0) + (zh ? " 个文件" : " files") })
+        );
         row.appendChild(left);
         row.appendChild(right);
         list.appendChild(row);
@@ -1085,9 +1098,12 @@ ${__STARDUST_V9_CSS}
       for (const it of items) { if (state.selected.has(it.id)) selBytes += it.bytes; }
       const foot = document.createElement("div");
       foot.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px;border-top:0.5px solid var(--v9-hair);";
-      const summary = document.createElement("div");
-      summary.style.cssText = "font-size:12px;color:var(--v9-fg-2);";
-      summary.innerHTML = (zh ? "已选可释放：" : "Selected to free: ") + '<b style="color:var(--v9-fg);">' + fmtBytes(selBytes) + '</b>';
+      const summary = __el(
+        "div",
+        { style: "font-size:12px;color:var(--v9-fg-2);" },
+        zh ? "已选可释放：" : "Selected to free: ",
+        __el("b", { style: "color:var(--v9-fg);", text: fmtBytes(selBytes) })
+      );
       const actions = document.createElement("div");
       actions.style.cssText = "display:flex;gap:8px;";
       const rescanBtn = document.createElement("button");
@@ -1107,7 +1123,10 @@ ${__STARDUST_V9_CSS}
         render();
         try {
           const ids = Array.from(state.selected).join(",");
-          const resp = await fetch("/api/assets/__t3_cache_clean?confirm=1&ids=" + encodeURIComponent(ids));
+          const resp = await fetch("/api/assets/__t3_cache_clean?confirm=1&ids=" + encodeURIComponent(ids), {
+            method: "POST",
+            headers: { "x-t3-quota-ui": "1" }
+          });
           const json = await resp.json();
           if (!resp.ok) throw new Error(json.error || "Clean failed");
           state.result = json;
@@ -1132,7 +1151,9 @@ ${__STARDUST_V9_CSS}
       state.error = "";
       render();
       try {
-        const resp = await fetch("/api/assets/__t3_cache_scan");
+        const resp = await fetch("/api/assets/__t3_cache_scan", {
+          headers: { "x-t3-quota-ui": "1" }
+        });
         const json = await resp.json();
         if (!resp.ok) throw new Error(json.error || "Scan failed");
         state.data = json;
@@ -1160,7 +1181,7 @@ ${__STARDUST_V9_CSS}
   function renderPinOverlay() {
     const ov = __pinState.overlay;
     if (!ov) return;
-    ov.innerHTML = "";
+    ov.replaceChildren();
     const zh = getLang() === "zh";
     __pinState.pins.forEach((pin, idx) => {
       const m = document.createElement("button");
@@ -1233,10 +1254,42 @@ ${__STARDUST_V9_CSS}
     const header = zh ? "[内置预览图钉批注]" : "[Preview Pin Annotations]";
     const payload = header + "\\n" + lines.join("\\n");
     if (typeof onCapture === "function") { try { onCapture(false); } catch {} }
-    const ed = document.querySelector('.composer-tiptap [contenteditable="true"], [data-slot="composer"] [contenteditable="true"]');
+    const ed = document.querySelector('.composer-tiptap [contenteditable="true"], [data-slot="composer"] [contenteditable="true"], [data-slot="composer"] textarea');
     if (ed) {
       ed.focus();
-      try { document.execCommand("insertText", false, (ed.textContent?.trim() ? "\\n\\n" : "") + payload); } catch {}
+      const textToInsert = ((ed.value ?? ed.textContent)?.trim() ? "\\n\\n" : "") + payload;
+      let inserted = false;
+      if (ed.tagName === "TEXTAREA" || ed.tagName === "INPUT") {
+        try {
+          const proto = ed.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+          const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+          const nextVal = (ed.value || "") + textToInsert;
+          if (setter) setter.call(ed, nextVal);
+          else ed.value = nextVal;
+          ed.dispatchEvent(new Event("input", { bubbles: true }));
+          inserted = true;
+        } catch {}
+      } else {
+        const beforeText = ed.textContent || "";
+        try {
+          const dt = new DataTransfer();
+          dt.setData("text/plain", textToInsert);
+          ed.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+          if ((ed.textContent || "").length > beforeText.length) inserted = true;
+        } catch {}
+        if (!inserted) {
+          try {
+            ed.dispatchEvent(new InputEvent("beforeinput", { inputType: "insertText", data: textToInsert, bubbles: true, cancelable: true }));
+            if ((ed.textContent || "").length > beforeText.length) inserted = true;
+          } catch {}
+        }
+        if (!inserted) {
+          try { inserted = Boolean(document.execCommand("insertText", false, textToInsert)); } catch {}
+        }
+      }
+      if (!inserted && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(payload).catch(() => {});
+      }
     } else if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(payload).catch(() => {});
     }
@@ -1779,6 +1832,92 @@ ${__STARDUST_V9_CSS}
     };
   }
 
+  function openFxRatePopover(anchorEl) {
+    const id = "__t3_fx_rate_pop";
+    if (__activeTopbarPop.id === id && __activeTopbarPop.el && document.body.contains(__activeTopbarPop.el)) {
+      closeTopbarQuotaPopover();
+      return;
+    }
+    closeTopbarQuotaPopover();
+    const zh = getLang() === "zh";
+    const pop = __el("div", { className: "t3-topbar-pop", style: "width:248px;", attrs: { "data-quota-ui-managed": "true" } });
+    pop.appendChild(
+      __el(
+        "div",
+        { className: "t3-topbar-pop-head" },
+        __el("span", { className: "t3-topbar-pop-title", text: zh ? "自定义美元/人民币汇率" : "Custom USD/CNY Rate" }),
+        __el("span", { className: "t3-topbar-pop-tag", text: "1 USD" })
+      )
+    );
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = "0.01";
+    input.min = "0.01";
+    input.max = "1000";
+    input.value = String(getRate());
+    input.style.cssText = "width:100%;height:30px;padding:0 10px;border-radius:8px;border:1px solid var(--v9-hair);background:var(--background);color:var(--foreground);font-size:12.5px;font-family:var(--font-mono);outline:none;margin-bottom:8px;";
+    const errEl = __el("div", { style: "display:none;font-size:11px;color:#ef4444;margin:-4px 0 8px;" });
+    const commitRate = () => {
+      const n = Number(input.value);
+      if (!Number.isFinite(n) || n < 0.01 || n > 1000) {
+        errEl.style.display = "block";
+        errEl.textContent = zh ? "请输入 0.01 ~ 1000 之间的有效数字" : "Enter a valid rate (0.01 – 1000)";
+        return;
+      }
+      api.setRate(Number(n.toFixed(4)));
+      closeTopbarQuotaPopover();
+    };
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") { ev.preventDefault(); commitRate(); }
+      else if (ev.key === "Escape") { ev.preventDefault(); closeTopbarQuotaPopover(); }
+    });
+    const resetBtn = __el("button", { className: "t3-pin-bar-btn", text: zh ? "恢复 " + DEFAULT_RATE : "Reset " + DEFAULT_RATE, attrs: { type: "button" } });
+    resetBtn.onclick = () => { api.resetRate(); closeTopbarQuotaPopover(); };
+    const saveBtn = __el("button", { className: "t3-pin-bar-btn send", text: zh ? "保存" : "Save", attrs: { type: "button" } });
+    saveBtn.onclick = commitRate;
+    const foot = __el("div", { style: "display:flex;justify-content:space-between;gap:6px;" }, resetBtn, saveBtn);
+    pop.appendChild(input);
+    pop.appendChild(errEl);
+    pop.appendChild(foot);
+    document.body.appendChild(pop);
+    __placePopover(pop, anchorEl, "auto");
+    setTimeout(() => { input.focus(); input.select(); }, 10);
+    const onDown = (ev) => { if (!pop.contains(ev.target) && !(anchorEl && anchorEl.contains(ev.target))) closeTopbarQuotaPopover(); };
+    const onKey = (ev) => { if (ev.key === "Escape") closeTopbarQuotaPopover(); };
+    setTimeout(() => {
+      document.addEventListener("pointerdown", onDown, true);
+      document.addEventListener("keydown", onKey, true);
+    }, 0);
+    __activeTopbarPop = {
+      id,
+      el: pop,
+      cleanup: () => {
+        document.removeEventListener("pointerdown", onDown, true);
+        document.removeEventListener("keydown", onKey, true);
+      }
+    };
+  }
+
+  const __minListeners = new Set();
+  let __minTimer = null;
+  function subscribeMinute(listener) {
+    if (typeof listener !== "function") return () => {};
+    __minListeners.add(listener);
+    if (!__minTimer) {
+      __minTimer = setInterval(() => {
+        const ts = Date.now();
+        for (const fn of __minListeners) { try { fn(ts); } catch {} }
+      }, 60000);
+    }
+    return () => {
+      __minListeners.delete(listener);
+      if (__minListeners.size === 0 && __minTimer) {
+        clearInterval(__minTimer);
+        __minTimer = null;
+      }
+    };
+  }
+
   const api = {
     getLang,
     isZh: () => getLang() === "zh",
@@ -1794,6 +1933,19 @@ ${__STARDUST_V9_CSS}
     getCurrency,
     isCny: () => getCurrency() === "CNY",
     getRate,
+    setRate: (next) => {
+      const n = Number(next);
+      if (!Number.isFinite(n) || n < 0.01 || n > 1000) return false;
+      try { window.localStorage.setItem(RATE_KEY, String(n)); } catch {}
+      emitChange();
+      return true;
+    },
+    resetRate: () => {
+      try { window.localStorage.removeItem(RATE_KEY); } catch {}
+      emitChange();
+    },
+    openFxRatePopover,
+    subscribeMinute,
     setCurrency: (next) => {
       const v = next === "CNY" ? "CNY" : "USD";
       try { window.localStorage.setItem(CURR_KEY, v); } catch {}
@@ -1842,24 +1994,61 @@ ${__STARDUST_V9_CSS}
   syncDataset();
 
   window.addEventListener("DOMContentLoaded", () => {
-    applyDomI18n(document.body);
-    let raf = 0;
-    const obs = new MutationObserver(() => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        applyDomI18n(document.body);
-      });
+    const nativeMatches = () => typeof window.__t3NativeSetLocale === "function" && document.documentElement.lang === getLang();
+    if (!nativeMatches()) applyDomI18n(document.body);
+    let timer = 0;
+    const pendingRoots = new Set();
+    const STREAM_SKIP = "[data-quota-ui-managed], .chat-markdown, .composer-tiptap, [data-timeline-root], [data-thread-terminal-drawer], [data-file-explorer], pre, code";
+    const flush = () => {
+      timer = 0;
+      if (nativeMatches()) { pendingRoots.clear(); return; }
+      for (const node of pendingRoots) {
+        if (node && node.isConnected) applyDomI18n(node);
+      }
+      pendingRoots.clear();
+    };
+    const obs = new MutationObserver((records) => {
+      if (nativeMatches()) return;
+      for (let i = 0; i < records.length; i += 1) {
+        const rec = records[i];
+        const t = rec.target && rec.target.nodeType === 1 ? rec.target : rec.target?.parentElement;
+        if (t && t.closest && t.closest(STREAM_SKIP)) continue;
+        for (let j = 0; j < rec.addedNodes.length; j += 1) {
+          const n = rec.addedNodes[j];
+          if (n.nodeType === 1) {
+            if (!n.closest || !n.closest(STREAM_SKIP)) pendingRoots.add(n);
+          } else if (n.nodeType === 3 && t) {
+            pendingRoots.add(t);
+          }
+        }
+      }
+      if (pendingRoots.size > 0 && !timer) {
+        timer = setTimeout(flush, 120);
+      }
     });
     obs.observe(document.body, { childList: true, subtree: true });
   });
-})();
-</script>`;
+})();`;
 
-  const v18Script = __STARDUST_V18_JS
-    ? `<script id="t3-stardust-v18">\n${__STARDUST_V18_JS}\n</script>`
-    : "";
+  const v18JsText = __STARDUST_V18_JS || "";
+  const headBlock = [
+    "<!-- T3_QUOTA_UI_START -->",
+    '<link rel="stylesheet" id="t3-quota-ui-styles" href="/assets/t3-quota-ui-v9.css" />',
+    v18JsText ? '<script id="t3-stardust-v18" src="/assets/t3-quota-ui-v18.js"></script>' : "",
+    `<script id="t3-quota-ui-i18n" src="/assets/t3-quota-ui-runtime.js" data-default-lang="${safeDefaultLang}"></script>`,
+    "<!-- T3_QUOTA_UI_END -->",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
+  return { cssText, v18JsText, runtimeJsText, headBlock };
+}
+
+export function buildInjectedHeadBlock(defaultLang = "zh") {
+  const { cssText, v18JsText, runtimeJsText } = buildInjectedAssets(defaultLang);
+  const styleBlock = `<style id="t3-quota-ui-styles">\n${cssText}</style>`;
+  const v18Script = v18JsText ? `<script id="t3-stardust-v18">\n${v18JsText}\n</script>` : "";
+  const runtimeScript = `<script id="t3-quota-ui-i18n">\n${runtimeJsText}\n</script>`;
   return `<!-- T3_QUOTA_UI_START -->\n${styleBlock}\n${v18Script}\n${runtimeScript}\n<!-- T3_QUOTA_UI_END -->`;
 }
 
@@ -2763,6 +2952,14 @@ function __t3RenderToolbarToggles(compact){
       (0,${jsxNs}.jsx)(${toggleItemIdent},{value:"en",title:__langTip,children:"EN"},"en")
     ]
   });
+  const __fxRateBtn=isCny?(0,${jsxNs}.jsx)("button",{
+    type:"button",
+    className:"t3-pin-bar-btn",
+    style:{fontVariantNumeric:"tabular-nums"},
+    title:isZh?\`点击自定义美元/人民币汇率（当前 1 USD = \${rate} CNY）\`:\`Click to edit USD/CNY rate (currently 1 USD = \${rate} CNY)\`,
+    onClick:ev=>{ev.stopPropagation();globalThis.__t3QuotaUi?.openFxRatePopover?.(ev.currentTarget)},
+    children:compact?\`¥\${rate}\`:\`1$=¥\${rate}\`
+  }):null;
   const __cacheBtn=(0,${jsxNs}.jsx)("button",{
     type:"button",
     className:"t3-pin-bar-btn",
@@ -2770,7 +2967,7 @@ function __t3RenderToolbarToggles(compact){
     onClick:()=>globalThis.__t3QuotaUi?.openCacheCleaner?.(),
     children:isZh?"🧹 缓存":"🧹 Cache"
   });
-  return (0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[${currButtonExpr},__langSeg,__cacheBtn]});
+  return (0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[${currButtonExpr},__fxRateBtn,__langSeg,__cacheBtn]});
 }
 `;
 
@@ -2942,7 +3139,7 @@ function patchChatTopbarBundle(src) {
   const jsxNs = topbarCallMatch ? topbarCallMatch[2] : (jsxNsMatch ? jsxNsMatch[1] : null);
 
   if (jsxNs) {
-    const newTopbarComp = `function __T3TopbarQuotaPills({providers,onOpenUsageLimits,rightPanelOpen}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const unsub=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof unsub==="function")unsub()}},[]);const pills=globalThis.__t3QuotaUi?.buildTopbarPills?.(providers,now)||[];if(pills.length===0)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("div",{className:"t3-topbar-quota-strip",style:{marginRight:rightPanelOpen?"52px":"128px"},"data-quota-ui-managed":"true","aria-label":zh?"模型额度状态":"Model quota status",children:pills.map(p=>(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-topbar-pill",title:p.tooltip+(zh?"\\n点击查看该厂商详细配额":"\\nClick for this provider's quota details"),onClick:ev=>{ev.stopPropagation();if(globalThis.__t3QuotaUi?.showTopbarQuotaPopover){globalThis.__t3QuotaUi.showTopbarQuotaPopover(p,ev.currentTarget)}else if(typeof onOpenUsageLimits==="function"){onOpenUsageLimits()}},children:[(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-dot t3-q-dot-"+p.tone}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-name",children:p.shortLabel}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-pct t3-q-"+p.tone,children:p.remaining+"%"}),p.resetShort?(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-reset",children:"· "+p.resetShort}):null]},p.id))})}`;
+    const newTopbarComp = `function __T3TopbarQuotaPills({providers,onOpenUsageLimits,rightPanelOpen}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const uMin=globalThis.__t3QuotaUi?.subscribeMinute?.(ts=>setNow(ts));const id=uMin?null:setInterval(()=>setNow(Date.now()),60000);const unsub=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof uMin==="function")uMin();if(id)clearInterval(id);if(typeof unsub==="function")unsub()}},[]);const pills=globalThis.__t3QuotaUi?.buildTopbarPills?.(providers,now)||[];if(pills.length===0)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("div",{className:"t3-topbar-quota-strip",style:{marginRight:rightPanelOpen?"52px":"128px"},"data-quota-ui-managed":"true","aria-label":zh?"模型额度状态":"Model quota status",children:pills.map(p=>(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-topbar-pill",title:p.tooltip+(zh?"\\n点击查看该厂商详细配额":"\\nClick for this provider's quota details"),onClick:ev=>{ev.stopPropagation();if(globalThis.__t3QuotaUi?.showTopbarQuotaPopover){globalThis.__t3QuotaUi.showTopbarQuotaPopover(p,ev.currentTarget)}else if(typeof onOpenUsageLimits==="function"){onOpenUsageLimits()}},children:[(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-dot t3-q-dot-"+p.tone}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-name",children:p.shortLabel}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-pct t3-q-"+p.tone,children:p.remaining+"%"}),p.resetShort?(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-reset",children:"· "+p.resetShort}):null]},p.id))})}`;
 
     if (out.includes("__T3TopbarQuotaPills")) {
       // Auto-heal v1.2.0 call & component to pass rightPanelOpen and safe right margin (idempotent)
@@ -2987,8 +3184,8 @@ function patchChatTopbarBundle(src) {
     const v9StatsFn = `function __T3TelemetryPill({usage,liveTurn,latestTurn,turnCount,toolCallCount,cacheHitPercent,isWorking}){const[,setTick]=(0,${reactNs}.useState)(0);const clusterRef=(0,${reactNs}.useRef)(null);const dockRef=(0,${reactNs}.useRef)(null);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const turns=Number.isFinite(turnCount)?turnCount:0;const steps=Number.isFinite(toolCallCount)?toolCallCount:0;const tObj=liveTurn||latestTurn||null;let tps=tObj?.generationTps??tObj?.outputTokensPerSecond??tObj?.tokensPerSecond??tObj?.genTokensPerSecond??null;if((!Number.isFinite(tps)||tps<=0)&&tObj&&Number.isFinite(tObj.outputTokens)&&Number.isFinite(tObj.durationMs)&&tObj.durationMs>200){tps=tObj.outputTokens/(tObj.durationMs/1000)}const tokRaw=usage?.usedTokens??usage?.totalTokens??usage?.contextTokens??tObj?.totalTokens??null;const ctxPct=Number.isFinite(usage?.usedPercentage)?Math.round(usage.usedPercentage):null;const fmtTok=n=>{if(!Number.isFinite(n)||n<=0)return null;if(n>=1e6)return(n/1e6).toFixed(1)+"M";if(n>=1e3)return(n/1e3).toFixed(1)+"K";return String(Math.round(n))};const tokStr=fmtTok(tokRaw);const cacheStr=Number.isFinite(cacheHitPercent)?Math.round(cacheHitPercent)+"%":null;if(turns<=0&&steps<=0&&!tokStr)return null;const leftTxt=turns>0||steps>0?(zh?(turns+" 轮"+(steps>0?" "+steps+" 步":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":"")):(turns+"t"+(steps>0?" · "+steps+"s":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":""))):(zh?"会话中":"Session");const rightParts=[];if(tokStr)rightParts.push(tokStr+(zh?" 令牌":" tok")+(ctxPct!==null&&!cacheStr?" ("+ctxPct+"%)":""));if(cacheStr)rightParts.push((zh?"缓存 ":"cache ")+cacheStr);const dockTo=ev=>{const d=dockRef.current,c=clusterRef.current;if(!d||!c)return;const cr=c.getBoundingClientRect(),tr=ev.currentTarget.getBoundingClientRect();d.style.transform="translateX("+(tr.left-cr.left)+"px)";d.style.width=tr.width+"px";d.style.opacity="1"};const undock=()=>{const d=dockRef.current;if(d)d.style.opacity="0"};return(0,${jsxNs}.jsxs)("div",{ref:clusterRef,"data-v9-stats-cluster":"","data-quota-ui-managed":"true",onMouseLeave:undock,children:[(0,${jsxNs}.jsx)("span",{ref:dockRef,"data-v9-stats-dock-pill":"","aria-hidden":"true"}),(0,${jsxNs}.jsxs)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:[(0,${jsxNs}.jsx)("span",{"data-v9-stats-dot":"","data-running":isWorking?"true":"false"}),(0,${jsxNs}.jsx)("span",{children:leftTxt})]}),rightParts.length>0?(0,${jsxNs}.jsx)("span",{"data-v9-stats-sep":"","aria-hidden":"true"}):null,rightParts.length>0?(0,${jsxNs}.jsx)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:rightParts.join(" · ")}):null]})}`;
 
     const watchArcHelpers = `function __T3WatchArc({remaining,tone,paceTone,size=15}){const r=5.6,c=2*Math.PI*r,l=Math.max(0,Math.min(100,Number.isFinite(remaining)?remaining:0)),off=c*(1-l/100),ang=((l/100)*360-90)*(Math.PI/180),cx=8+r*Math.cos(ang),cy=8+r*Math.sin(ang);const stroke=tone==="danger"?"#ef4444":(tone==="warn"||paceTone==="fast")?"#f59e0b":paceTone==="good"?"#10b981":"currentColor";return(0,${jsxNs}.jsxs)("svg",{width:size,height:size,viewBox:"0 0 16 16",fill:"none","aria-hidden":!0,className:"shrink-0",children:[(0,${jsxNs}.jsx)("circle",{cx:"8",cy:"8",r:r,stroke:"currentColor",strokeWidth:"1.9",opacity:"0.16"}),l>0?(0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[(0,${jsxNs}.jsx)("circle",{cx:"8",cy:"8",r:r,stroke:stroke,strokeWidth:"1.9",strokeLinecap:"round",strokeDasharray:c,strokeDashoffset:off,transform:"rotate(-90 8 8)"}),(0,${jsxNs}.jsx)("circle",{cx:cx,cy:cy,r:"1.5",fill:"var(--background)",stroke:"var(--foreground)",strokeWidth:"0.95"})]}):null]})}
-function __T3ComposerTelemetryStrip({threadRef,threadDetail,usage,providers,providerInstanceId,activeModel,runs,activeThread,isWorking}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const u1=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof u1==="function")u1()}},[]);const tel=(0,${reactNs}.useMemo)(()=>{if(threadDetail&&threadRef&&globalThis.__t3QuotaUi?.publishThreadTelemetry){return globalThis.__t3QuotaUi.publishThreadTelemetry(threadRef,threadDetail)}return null},[threadRef,threadDetail]);const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const activeProv=Array.isArray(providers)?(providers.find(p=>p&&p.instanceId===providerInstanceId)||providers.find(p=>p&&Array.isArray(p.usageLimits?.windows)&&p.usageLimits.windows.length>0&&!p.usageLimits.unavailable)):null;const split=qApi?.splitProviderWindows?qApi.splitProviderWindows(activeProv,activeModel,2):{inline:[],sibling:[],overflowCount:0};const topWins=split.inline;const overflowCount=split.overflowCount;const usedTok=usage?.usedTokens??null;const maxTok=usage?.maxTokens>0?usage.maxTokens:null;const usedPct=maxTok&&Number.isFinite(usedTok)?Math.min(100,Math.round((usedTok/maxTok)*100)):(Number.isFinite(usage?.usedPercentage)?Math.round(usage.usedPercentage):null);const lt=tel?.latestWithCache||tel?.latest||null;const cachedTok=Number.isFinite(lt?.cachedInputTokens)&&Number.isFinite(usedTok)?Math.min(usedTok,lt.cachedInputTokens):0;const uncachedTok=Number.isFinite(usedTok)?Math.max(0,usedTok-cachedTok):0;const turns=tel?.turnCount||(Array.isArray(runs)?runs.length:0);const tools=tel?.toolCallCount||(Array.isArray(activeThread?.activities)?activeThread.activities.filter(__a=>__a&&/tool|command|mcp|edit|write|read/i.test(String(__a.kind||__a.type||""))).length:0);const liveTtft=isWorking&&tel?.latest?.ttftMs!=null?tel.latest.ttftMs:null;if(!usage&&topWins.length===0&&turns<=0)return null;const openProvPop=ev=>{ev.stopPropagation();if(!activeProv||!qApi?.buildTopbarPills||!qApi?.showTopbarQuotaPopover)return;const pills=qApi.buildTopbarPills([activeProv],now);if(pills[0])qApi.showTopbarQuotaPopover(pills[0],ev.currentTarget)};const usedShort=qApi?.fmtCompactTok?.(usedTok,!0)||"";const maxShort=maxTok?(qApi?.fmtCompactTok?.(maxTok,!0)||""):"";return(0,${jsxNs}.jsxs)("div",{"data-slot":"composer-telemetry-strip","data-quota-ui-managed":"true",className:"t3-tel-strip",children:[(0,${jsxNs}.jsxs)("div",{className:"t3-tel-group",children:[usage?(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-tel-btn",title:zh?"点击查看上下文与缓存拆解":"Click for context & cache breakdown",onClick:ev=>{ev.stopPropagation();qApi?.showContextPopover?.(usage,tel,ev.currentTarget)},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.72},children:zh?"上下文":"Ctx"}),(0,${jsxNs}.jsxs)("span",{className:"t3-tel-mini-bar",children:[maxTok&&cachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-cached",style:{width:Math.min(100,(cachedTok/maxTok)*100)+"%"}}):null,maxTok&&uncachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:Math.min(100,(uncachedTok/maxTok)*100)+"%"}}):null,!maxTok&&usedPct!==null?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:usedPct+"%"}}):null]}),usedShort?(0,${jsxNs}.jsx)("span",{style:{opacity:0.65},children:maxShort?usedShort+"/"+maxShort:usedShort}):null,usedPct!==null?(0,${jsxNs}.jsx)("span",{style:{color:usedPct>=90?"#ef4444":usedPct>=80?"#f59e0b":"var(--v9-fg)",fontWeight:600},children:usedPct+"%"}):null]}):null,liveTtft!==null?(0,${jsxNs}.jsxs)("span",{className:"t3-tel-btn",style:{cursor:"default"},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"TTFT"}),(0,${jsxNs}.jsx)("span",{children:qApi?.fmtDurationMs?.(liveTtft)})]}):null]}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-strip-center",children:(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:usage,liveTurn:tel?.latest,latestTurn:tel?.latestWithCache||tel?.latest,turnCount:turns,toolCallCount:tools,cacheHitPercent:tel?.sessionCacheHitPercent??lt?.cacheHitPercent??null,isWorking:isWorking})}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-group",children:topWins.length>0?(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-tel-btn",title:zh?"点击查看当前厂商配额明细":"Click for active provider quota details",onClick:openProvPop,children:[topWins.map((w,idx)=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),tone:"ok",paceTone:"neutral",shortTag:w.label};return(0,${jsxNs}.jsxs)("span",{className:"inline-flex items-center gap-1",children:[idx>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.35},children:"·"}):null,(0,${jsxNs}.jsx)(__T3WatchArc,{remaining:g.remaining,tone:g.tone,paceTone:g.paceTone,size:15}),(0,${jsxNs}.jsx)("span",{style:{opacity:0.7},children:g.shortTag}),(0,${jsxNs}.jsx)("span",{className:g.tone==="danger"?"t3-q-danger":g.tone==="warn"?"t3-q-warn":"",style:{fontWeight:600,color:g.tone==="ok"?"var(--v9-fg)":void 0},children:g.remaining+"%"})]},w.id||idx)}),overflowCount>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"+"+overflowCount}):null]}):null})]})}
-function __T3LedQuotaSidebar(props){const{providerInstanceId,providers,activeModel,model,Fallback}=props;const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const u=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof u==="function")u()}},[]);const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const prov=Array.isArray(providers)?(providers.find(p=>p&&p.instanceId===providerInstanceId)||providers.find(p=>p&&Array.isArray(p.usageLimits?.windows)&&p.usageLimits.windows.length>0&&!p.usageLimits.unavailable)):null;const mdl=activeModel||model||null;const split=qApi?.splitProviderWindows?qApi.splitProviderWindows(prov,mdl,2):{inline:[],sibling:[],all:[]};if(split.all.length===0)return Fallback?(0,${jsxNs}.jsx)(Fallback,{...props}):null;const cells=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];const openLimits=()=>{try{const raw=window.localStorage.getItem("usage-page-preferences:v1");const pref=raw?JSON.parse(raw):{};pref.tab="limits";window.localStorage.setItem("usage-page-preferences:v1",JSON.stringify(pref))}catch{}const link=document.querySelector('a[href="/usage"], a[href*="/usage"]');if(link)link.click()};const provTitle=prov?.displayName||prov?.driver||"";const mdlShort=mdl?String(mdl).split("/").pop():"";const planLabel=prov?.auth?.label||"";return(0,${jsxNs}.jsxs)("section",{className:"t3-tel-section","data-thread-details-telemetry":"usage","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2 text-xs",children:[(0,${jsxNs}.jsx)("span",{className:"truncate font-semibold text-foreground",title:mdlShort?provTitle+" · "+mdlShort:provTitle,children:mdlShort?provTitle+" · "+mdlShort:provTitle}),(0,${jsxNs}.jsx)("button",{type:"button",className:"shrink-0 text-2xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors",onClick:openLimits,title:zh?"打开完整配额面板":"Open full limits panel",children:planLabel||(zh?"完整面板":"Limits")})]}),split.inline.map(w=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),used:Math.round(w.usedPercent),resetsInMs:null,timeRemaining:null,tone:"ok",paceTone:"neutral"};const ledCls=g.tone==="danger"?"t3-tel-led-danger":(g.tone==="warn"||g.paceTone==="fast")?"t3-tel-led-warn":g.paceTone==="good"?"t3-tel-led-ok":"t3-tel-led-neutral";const lbl=qApi?.translateWindowLabel?qApi.translateWindowLabel(w.label||w.kind||w.id||""):(w.label||w.id);const resetTxt=g.resetsInMs!==null&&g.resetsInMs>0?(zh?(qApi.fmtDurLong(g.resetsInMs)+"后重置"):("resets in "+qApi.fmtDurLong(g.resetsInMs))):(zh?("已用 "+g.used+"%"):(g.used+"% used"));return(0,${jsxNs}.jsxs)("div",{className:"t3-tel-card",children:[(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2",children:[(0,${jsxNs}.jsxs)("div",{className:"flex min-w-0 items-center gap-1.5",children:[(0,${jsxNs}.jsx)(__T3WatchArc,{remaining:g.remaining,tone:g.tone,paceTone:g.paceTone,size:18}),(0,${jsxNs}.jsx)("span",{className:"truncate text-xs font-medium text-foreground",children:lbl})]}),(0,${jsxNs}.jsx)("span",{className:"shrink-0 font-mono text-sm font-semibold "+(g.tone==="danger"?"t3-q-danger":g.tone==="warn"?"t3-q-warn":"text-foreground"),children:g.remaining+"%"})]}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-led-row","aria-hidden":!0,children:cells.map(i=>{const th=i*5,full=g.remaining>=th+5,half=!full&&g.remaining>th;return(0,${jsxNs}.jsx)("span",{className:"t3-tel-led-cell"+(full?" "+ledCls:half?" "+ledCls+" t3-tel-led-half":"")},i)})}),g.timeRemaining!==null?(0,${jsxNs}.jsxs)("div",{className:"t3-tel-pace-track","aria-hidden":!0,children:[(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-bg"}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-fill",style:{width:g.timeRemaining+"%"}}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-needle",style:{left:g.timeRemaining+"%"}})]}):null,(0,${jsxNs}.jsx)("div",{className:"flex items-center justify-between gap-2 text-2xs text-muted-foreground",children:(0,${jsxNs}.jsx)("span",{className:"truncate",children:resetTxt})})]},w.id||lbl)}),split.sibling.length>0?(0,${jsxNs}.jsxs)("div",{className:"mt-1 flex flex-col gap-1.5",children:[(0,${jsxNs}.jsx)("div",{className:"text-2xs text-muted-foreground/80",children:zh?"其他模型配额池":"Other model pools"}),split.sibling.map(w=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),tone:"ok"};const lbl=qApi?.translateWindowLabel?qApi.translateWindowLabel(w.label||w.kind||w.id||""):(w.label||w.id);return(0,${jsxNs}.jsxs)("div",{className:"t3-tel-sib-row",children:[(0,${jsxNs}.jsx)("span",{className:"truncate text-muted-foreground",title:lbl,children:lbl}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-sib-bar",children:(0,${jsxNs}.jsx)("span",{style:{display:"block",height:"100%",borderRadius:"999px",width:Math.max(0,Math.min(100,g.remaining))+"%",background:g.tone==="danger"?"#ef4444":g.tone==="warn"?"#f59e0b":"color-mix(in oklab, var(--foreground) 72%, transparent)"}})}),(0,${jsxNs}.jsx)("span",{className:"text-right font-mono font-medium text-foreground",children:g.remaining+"%"})]},w.id||lbl)})]}):null]})}
+function __T3ComposerTelemetryStrip({threadRef,threadDetail,usage,providers,providerInstanceId,activeModel,runs,activeThread,isWorking}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const uMin=globalThis.__t3QuotaUi?.subscribeMinute?.(ts=>setNow(ts));const id=uMin?null:setInterval(()=>setNow(Date.now()),60000);const u1=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof uMin==="function")uMin();if(id)clearInterval(id);if(typeof u1==="function")u1()}},[]);const tel=(0,${reactNs}.useMemo)(()=>{if(threadDetail&&threadRef&&globalThis.__t3QuotaUi?.publishThreadTelemetry){return globalThis.__t3QuotaUi.publishThreadTelemetry(threadRef,threadDetail)}return null},[threadRef,threadDetail]);const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const activeProv=Array.isArray(providers)?(providers.find(p=>p&&p.instanceId===providerInstanceId)||providers.find(p=>p&&Array.isArray(p.usageLimits?.windows)&&p.usageLimits.windows.length>0&&!p.usageLimits.unavailable)):null;const split=qApi?.splitProviderWindows?qApi.splitProviderWindows(activeProv,activeModel,2):{inline:[],sibling:[],overflowCount:0};const topWins=split.inline;const overflowCount=split.overflowCount;const usedTok=usage?.usedTokens??null;const maxTok=usage?.maxTokens>0?usage.maxTokens:null;const usedPct=maxTok&&Number.isFinite(usedTok)?Math.min(100,Math.round((usedTok/maxTok)*100)):(Number.isFinite(usage?.usedPercentage)?Math.round(usage.usedPercentage):null);const lt=tel?.latestWithCache||tel?.latest||null;const cachedTok=Number.isFinite(lt?.cachedInputTokens)&&Number.isFinite(usedTok)?Math.min(usedTok,lt.cachedInputTokens):0;const uncachedTok=Number.isFinite(usedTok)?Math.max(0,usedTok-cachedTok):0;const turns=tel?.turnCount||(Array.isArray(runs)?runs.length:0);const tools=tel?.toolCallCount||(Array.isArray(activeThread?.activities)?activeThread.activities.filter(__a=>__a&&/tool|command|mcp|edit|write|read/i.test(String(__a.kind||__a.type||""))).length:0);const liveTtft=isWorking&&tel?.latest?.ttftMs!=null?tel.latest.ttftMs:null;if(!usage&&topWins.length===0&&turns<=0)return null;const openProvPop=ev=>{ev.stopPropagation();if(!activeProv||!qApi?.buildTopbarPills||!qApi?.showTopbarQuotaPopover)return;const pills=qApi.buildTopbarPills([activeProv],now);if(pills[0])qApi.showTopbarQuotaPopover(pills[0],ev.currentTarget)};const usedShort=qApi?.fmtCompactTok?.(usedTok,!0)||"";const maxShort=maxTok?(qApi?.fmtCompactTok?.(maxTok,!0)||""):"";return(0,${jsxNs}.jsxs)("div",{"data-slot":"composer-telemetry-strip","data-quota-ui-managed":"true",className:"t3-tel-strip",children:[(0,${jsxNs}.jsxs)("div",{className:"t3-tel-group",children:[usage?(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-tel-btn",title:zh?"点击查看上下文与缓存拆解":"Click for context & cache breakdown",onClick:ev=>{ev.stopPropagation();qApi?.showContextPopover?.(usage,tel,ev.currentTarget)},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.72},children:zh?"上下文":"Ctx"}),(0,${jsxNs}.jsxs)("span",{className:"t3-tel-mini-bar",children:[maxTok&&cachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-cached",style:{width:Math.min(100,(cachedTok/maxTok)*100)+"%"}}):null,maxTok&&uncachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:Math.min(100,(uncachedTok/maxTok)*100)+"%"}}):null,!maxTok&&usedPct!==null?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:usedPct+"%"}}):null]}),usedShort?(0,${jsxNs}.jsx)("span",{style:{opacity:0.65},children:maxShort?usedShort+"/"+maxShort:usedShort}):null,usedPct!==null?(0,${jsxNs}.jsx)("span",{style:{color:usedPct>=90?"#ef4444":usedPct>=80?"#f59e0b":"var(--v9-fg)",fontWeight:600},children:usedPct+"%"}):null]}):null,liveTtft!==null?(0,${jsxNs}.jsxs)("span",{className:"t3-tel-btn",style:{cursor:"default"},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"TTFT"}),(0,${jsxNs}.jsx)("span",{children:qApi?.fmtDurationMs?.(liveTtft)})]}):null]}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-strip-center",children:(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:usage,liveTurn:tel?.latest,latestTurn:tel?.latestWithCache||tel?.latest,turnCount:turns,toolCallCount:tools,cacheHitPercent:tel?.sessionCacheHitPercent??lt?.cacheHitPercent??null,isWorking:isWorking})}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-group",children:topWins.length>0?(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-tel-btn",title:zh?"点击查看当前厂商配额明细":"Click for active provider quota details",onClick:openProvPop,children:[topWins.map((w,idx)=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),tone:"ok",paceTone:"neutral",shortTag:w.label};return(0,${jsxNs}.jsxs)("span",{className:"inline-flex items-center gap-1",children:[idx>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.35},children:"·"}):null,(0,${jsxNs}.jsx)(__T3WatchArc,{remaining:g.remaining,tone:g.tone,paceTone:g.paceTone,size:15}),(0,${jsxNs}.jsx)("span",{style:{opacity:0.7},children:g.shortTag}),(0,${jsxNs}.jsx)("span",{className:g.tone==="danger"?"t3-q-danger":g.tone==="warn"?"t3-q-warn":"",style:{fontWeight:600,color:g.tone==="ok"?"var(--v9-fg)":void 0},children:g.remaining+"%"})]},w.id||idx)}),overflowCount>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"+"+overflowCount}):null]}):null})]})}
+function __T3LedQuotaSidebar(props){const{providerInstanceId,providers,activeModel,model,Fallback}=props;const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const uMin=globalThis.__t3QuotaUi?.subscribeMinute?.(ts=>setNow(ts));const id=uMin?null:setInterval(()=>setNow(Date.now()),60000);const u=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof uMin==="function")uMin();if(id)clearInterval(id);if(typeof u==="function")u()}},[]);const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const prov=Array.isArray(providers)?(providers.find(p=>p&&p.instanceId===providerInstanceId)||providers.find(p=>p&&Array.isArray(p.usageLimits?.windows)&&p.usageLimits.windows.length>0&&!p.usageLimits.unavailable)):null;const mdl=activeModel||model||null;const split=qApi?.splitProviderWindows?qApi.splitProviderWindows(prov,mdl,2):{inline:[],sibling:[],all:[]};if(split.all.length===0)return Fallback?(0,${jsxNs}.jsx)(Fallback,{...props}):null;const cells=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];const openLimits=()=>{try{const raw=window.localStorage.getItem("usage-page-preferences:v1");const pref=raw?JSON.parse(raw):{};pref.tab="limits";window.localStorage.setItem("usage-page-preferences:v1",JSON.stringify(pref))}catch{}const link=document.querySelector('a[href="/usage"], a[href*="/usage"]');if(link)link.click()};const provTitle=prov?.displayName||prov?.driver||"";const mdlShort=mdl?String(mdl).split("/").pop():"";const planLabel=prov?.auth?.label||"";return(0,${jsxNs}.jsxs)("section",{className:"t3-tel-section","data-thread-details-telemetry":"usage","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2 text-xs",children:[(0,${jsxNs}.jsx)("span",{className:"truncate font-semibold text-foreground",title:mdlShort?provTitle+" · "+mdlShort:provTitle,children:mdlShort?provTitle+" · "+mdlShort:provTitle}),(0,${jsxNs}.jsx)("button",{type:"button",className:"shrink-0 text-2xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors",onClick:openLimits,title:zh?"打开完整配额面板":"Open full limits panel",children:planLabel||(zh?"完整面板":"Limits")})]}),split.inline.map(w=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),used:Math.round(w.usedPercent),resetsInMs:null,timeRemaining:null,tone:"ok",paceTone:"neutral"};const ledCls=g.tone==="danger"?"t3-tel-led-danger":(g.tone==="warn"||g.paceTone==="fast")?"t3-tel-led-warn":g.paceTone==="good"?"t3-tel-led-ok":"t3-tel-led-neutral";const lbl=qApi?.translateWindowLabel?qApi.translateWindowLabel(w.label||w.kind||w.id||""):(w.label||w.id);const resetTxt=g.resetsInMs!==null&&g.resetsInMs>0?(zh?(qApi.fmtDurLong(g.resetsInMs)+"后重置"):("resets in "+qApi.fmtDurLong(g.resetsInMs))):(zh?("已用 "+g.used+"%"):(g.used+"% used"));return(0,${jsxNs}.jsxs)("div",{className:"t3-tel-card",children:[(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2",children:[(0,${jsxNs}.jsxs)("div",{className:"flex min-w-0 items-center gap-1.5",children:[(0,${jsxNs}.jsx)(__T3WatchArc,{remaining:g.remaining,tone:g.tone,paceTone:g.paceTone,size:18}),(0,${jsxNs}.jsx)("span",{className:"truncate text-xs font-medium text-foreground",children:lbl})]}),(0,${jsxNs}.jsx)("span",{className:"shrink-0 font-mono text-sm font-semibold "+(g.tone==="danger"?"t3-q-danger":g.tone==="warn"?"t3-q-warn":"text-foreground"),children:g.remaining+"%"})]}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-led-row","aria-hidden":!0,children:cells.map(i=>{const th=i*5,full=g.remaining>=th+5,half=!full&&g.remaining>th;return(0,${jsxNs}.jsx)("span",{className:"t3-tel-led-cell"+(full?" "+ledCls:half?" "+ledCls+" t3-tel-led-half":"")},i)})}),g.timeRemaining!==null?(0,${jsxNs}.jsxs)("div",{className:"t3-tel-pace-track","aria-hidden":!0,children:[(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-bg"}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-fill",style:{width:g.timeRemaining+"%"}}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-needle",style:{left:g.timeRemaining+"%"}})]}):null,(0,${jsxNs}.jsx)("div",{className:"flex items-center justify-between gap-2 text-2xs text-muted-foreground",children:(0,${jsxNs}.jsx)("span",{className:"truncate",children:resetTxt})})]},w.id||lbl)}),split.sibling.length>0?(0,${jsxNs}.jsxs)("div",{className:"mt-1 flex flex-col gap-1.5",children:[(0,${jsxNs}.jsx)("div",{className:"text-2xs text-muted-foreground/80",children:zh?"其他模型配额池":"Other model pools"}),split.sibling.map(w=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),tone:"ok"};const lbl=qApi?.translateWindowLabel?qApi.translateWindowLabel(w.label||w.kind||w.id||""):(w.label||w.id);return(0,${jsxNs}.jsxs)("div",{className:"t3-tel-sib-row",children:[(0,${jsxNs}.jsx)("span",{className:"truncate text-muted-foreground",title:lbl,children:lbl}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-sib-bar",children:(0,${jsxNs}.jsx)("span",{style:{display:"block",height:"100%",borderRadius:"999px",width:Math.max(0,Math.min(100,g.remaining))+"%",background:g.tone==="danger"?"#ef4444":g.tone==="warn"?"#f59e0b":"color-mix(in oklab, var(--foreground) 72%, transparent)"}})}),(0,${jsxNs}.jsx)("span",{className:"text-right font-mono font-medium text-foreground",children:g.remaining+"%"})]},w.id||lbl)})]}):null]})}
 function __T3ContextBreakdownSidebar({usage,environmentId,threadId}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const u1=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));const u2=globalThis.__t3QuotaUi?.subscribeTelemetry?.(()=>setTick(x=>x+1));return()=>{if(typeof u1==="function")u1();if(typeof u2==="function")u2()}},[]);if(!usage)return null;const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const tel=qApi?.getThreadTelemetry?.(environmentId,threadId)||null;const maxTok=usage.maxTokens!=null&&usage.maxTokens>0?usage.maxTokens:null;const usedTok=Number.isFinite(usage.usedTokens)?usage.usedTokens:0;const usedPct=maxTok?Math.min(100,Math.round((usedTok/maxTok)*100)):(Number.isFinite(usage.usedPercentage)?Math.round(usage.usedPercentage):null);const lt=tel?.latestWithCache||tel?.latest||null;const cachedTok=Number.isFinite(lt?.cachedInputTokens)?Math.min(usedTok,lt.cachedInputTokens):(Number.isFinite(usage.cachedInputTokens)?Math.min(usedTok,usage.cachedInputTokens):0);const uncachedTok=Math.max(0,usedTok-cachedTok);const bufTok=maxTok&&Number.isFinite(usage.autoCompactThreshold)&&usage.autoCompactThreshold>0&&usage.autoCompactThreshold<maxTok?Math.max(0,maxTok-usage.autoCompactThreshold):0;const freeTok=maxTok?Math.max(0,maxTok-usedTok-bufTok):null;const pct=v=>(maxTok&&maxTok>0?Math.max(0,Math.min(100,(v/maxTok)*100)):0);const cachePct=tel?.sessionCacheHitPercent??lt?.cacheHitPercent??null;const latestMiss=lt&&lt.cacheHitPercent!==null?Math.max(0,Math.round(100-lt.cacheHitPercent)):null;const rows=[cachedTok>0?{cls:"t3-tel-ctx-seg-cached",lbl:zh?"已缓存上下文":"Cached context",val:qApi?.fmtCompactTok?.(cachedTok,!0),p:maxTok?Math.round(pct(cachedTok))+"%":""}:null,uncachedTok>0?{cls:"t3-tel-ctx-seg-uncached",lbl:zh?"未缓存上下文":"Uncached context",val:qApi?.fmtCompactTok?.(uncachedTok,!0),p:maxTok?Math.round(pct(uncachedTok))+"%":""}:null,bufTok>0?{cls:"t3-tel-ctx-seg-buf",lbl:zh?"自动压缩缓冲":"Autocompact buffer",val:qApi?.fmtCompactTok?.(bufTok,!0),p:maxTok?Math.round(pct(bufTok))+"%":""}:null,freeTok!==null?{cls:"",lbl:zh?"剩余空间":"Free space",val:qApi?.fmtCompactTok?.(freeTok,!0),p:maxTok?Math.round(pct(freeTok))+"%":""}:null].filter(Boolean);return(0,${jsxNs}.jsxs)("section",{className:"t3-tel-section","data-thread-details-telemetry":"context","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsx)("div",{className:"text-xs font-medium text-muted-foreground",children:zh?"上下文":"Context"}),(0,${jsxNs}.jsxs)("div",{className:"flex items-baseline justify-between gap-2",children:[(0,${jsxNs}.jsx)("span",{className:"text-sm font-semibold "+(usedPct>=90?"t3-q-danger":usedPct>=80?"t3-q-warn":"text-foreground"),children:usedPct!==null?(zh?"已用 "+usedPct+"%":usedPct+"% used"):(qApi?.fmtCompactTok?.(usedTok,!0)||"0")}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-xs text-muted-foreground",children:(qApi?.fmtCompactTok?.(usedTok,!0)||"0")+(maxTok?" / "+(qApi?.fmtCompactTok?.(maxTok,!0)||""):"")})]}),(0,${jsxNs}.jsxs)("div",{className:"t3-tel-ctx-bar",children:[cachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-cached",style:{width:pct(cachedTok)+"%"}}):null,uncachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:pct(uncachedTok)+"%"}}):null,bufTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-buf",style:{width:pct(bufTok)+"%",marginLeft:"auto"}}):null]}),(0,${jsxNs}.jsx)("div",{className:"flex flex-col gap-1",children:rows.map((r,idx)=>(0,${jsxNs}.jsxs)("div",{className:"t3-tel-ctx-row",children:[(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-dot "+r.cls,style:r.cls?void 0:{background:"color-mix(in oklab, var(--foreground) 16%, transparent)"}}),(0,${jsxNs}.jsx)("span",{className:"truncate text-muted-foreground",children:r.lbl}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-foreground font-medium",children:r.val}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-muted-foreground text-right",children:r.p})]},idx))}),cachePct!==null?(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2 pt-0.5 text-xs",children:[(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:zh?"提示词缓存":"Prompt cache"}),(0,${jsxNs}.jsxs)("span",{className:"font-mono text-2xs",children:[latestMiss!==null?(0,${jsxNs}.jsx)("span",{style:{color:"#f59e0b"},children:latestMiss+(zh?"% miss":"% miss")}):null,latestMiss!==null?(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground/50",children:" · "}):null,(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:(zh?"平均 ":"avg ")+Math.round(cachePct)+"%"})]})]}):null,tel&&(tel.turnCount>0||tel.toolCallCount>0)?(0,${jsxNs}.jsx)("div",{className:"text-2xs text-muted-foreground/80",children:zh?(tel.turnCount+" 轮对话 · "+tel.toolCallCount+" 次工具"+(tel.skillCount>0?" · "+tel.skillCount+" 个技能":"")):(tel.turnCount+" turns · "+tel.toolCallCount+" tools"+(tel.skillCount>0?" · "+tel.skillCount+" skills":""))}) :null]})}`;
 
     if (out.includes("function __T3TelemetryPill(")) {
@@ -3226,8 +3423,26 @@ function patchServerBundle(src) {
 				if (__fs.existsSync(__acpPath)) __fs.unlinkSync(__acpPath);
 				const __parent = __p.dirname(profileDirectory);
 				const __siblings = __fs.readdirSync(__parent).filter((d) => !d.startsWith(".") && __p.join(__parent, d) !== profileDirectory);
-				if (__siblings.some((d) => __fs.existsSync(__p.join(__parent, d, "antigravity-acp", "antigravity-oauth-token")))) {
-					try { __cp.execFileSync("security", ["delete-generic-password", "-s", "gemini", "-a", "antigravity"], { stdio: "ignore" }); } catch {}
+				const __sibTokens = new Set();
+				for (const d of __siblings) {
+					try {
+						const fp = __p.join(__parent, d, "antigravity-acp", "antigravity-oauth-token");
+						if (!__fs.existsSync(fp)) continue;
+						const parsed = JSON.parse(__fs.readFileSync(fp, "utf8"));
+						const rt = parsed?.token?.refresh_token || parsed?.refresh_token;
+						if (typeof rt === "string" && rt.length > 0) __sibTokens.add(rt);
+					} catch {}
+				}
+				if (__sibTokens.size > 0) {
+					try {
+						const __kc = __cp.execFileSync("security", ["find-generic-password", "-s", "gemini", "-a", "antigravity", "-w"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+						const __json = __kc.startsWith("go-keyring-base64:") ? Buffer.from(__kc.slice(18), "base64").toString("utf8") : __kc;
+						const __kcParsed = JSON.parse(__json);
+						const __kcRt = __kcParsed?.token?.refresh_token || __kcParsed?.refresh_token;
+						if (typeof __kcRt === "string" && __sibTokens.has(__kcRt)) {
+							__cp.execFileSync("security", ["delete-generic-password", "-s", "gemini", "-a", "antigravity"], { stdio: "ignore" });
+						}
+					} catch {}
 				}
 			} catch {}
 		};
@@ -3239,109 +3454,174 @@ function patchServerBundle(src) {
     );
   }
 
-  // 3. v1.4.0 Local macOS Disk Cache Preview & Safe Cleanup API inside layerAssetRoute
-  if (out.includes("const layerAssetRoute =") && !out.includes("__t3_cache_scan")) {
-    const assetRouteHead = out.match(/const layerAssetRoute =[\s\S]{0,360}?if \(isNone\(url\)\) return ([A-Za-z0-9_$]+)\("Bad Request", \{ status: 400 \}\);/);
-    const textReplyFn = assetRouteHead ? assetRouteHead[1] : "text$4";
+  // 3. v1.4.8 Hardened Production CORS (C1) — replace wildcard ACAO * with desktop + loopback allowlist
+  if (out.includes("const layerBrowserApiCors =") && !out.includes("__t3IsAllowedLocalOrigin")) {
     out = out.replace(
-      `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);`,
-      `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);
-	if (suffix === "__t3_cache_scan" || suffix === "__t3_cache_clean") {
-		const __fs = process.getBuiltinModule("node:fs");
-		const __p = process.getBuiltinModule("node:path");
-		const __os = process.getBuiltinModule("node:os");
-		const __home = __os.homedir();
-		const __collectDirs = () => {
-			const agyRoot = __p.join(__home, ".t3", "userdata", "providers", "antigravity");
-			const agyLogs = [], agyCaches = [];
-			try {
+      /const cors\$1 = cors\(\{\s*\.\.\.devOrigin \? \{\s*allowedOrigins: \[\s*devOrigin,\s*\.\.\.DESKTOP_RENDERER_ORIGINS,\s*\.\.\.config\.devAllowedOrigins\s*\],\s*credentials: true\s*\} : \{\},\s*allowedMethods: browserApiCorsAllowedMethods,\s*allowedHeaders: browserApiCorsAllowedHeaders,/,
+      `const __t3IsAllowedLocalOrigin = (o) => typeof o === "string" && (DESKTOP_RENDERER_ORIGINS.includes(o) || /^https?:\\/\\/(127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?$/i.test(o));
+	const cors$1 = cors({
+		...devOrigin ? {
+			allowedOrigins: [
+				devOrigin,
+				...DESKTOP_RENDERER_ORIGINS,
+				...config.devAllowedOrigins
+			],
+			credentials: true
+		} : {
+			allowedOrigins: __t3IsAllowedLocalOrigin,
+			credentials: true
+		},
+		allowedMethods: browserApiCorsAllowedMethods,
+		allowedHeaders: [...browserApiCorsAllowedHeaders, "x-t3-quota-ui"],`,
+    );
+  }
+
+  // 4. v1.4.8 Hardened Local macOS Disk Cache Preview (GET) & Safe Cleanup (POST-only) API (S1)
+  if (out.includes("const layerAssetRoute =") && !out.includes("__t3CacheApiHandle")) {
+    const assetRouteHead = out.match(
+      /const layerAssetRoute = ([A-Za-z0-9_$]+)\("GET", `\$\{ASSET_ROUTE_PREFIX\}\/\*`, gen\(function\* \(\) \{[\s\S]{0,360}?if \(isNone\(url\)\) return ([A-Za-z0-9_$]+)\("Bad Request", \{ status: 400 \}\);/,
+    );
+    const addRouteFn = assetRouteHead ? assetRouteHead[1] : "add$2";
+    const textReplyFn = assetRouteHead ? assetRouteHead[2] : "text$4";
+    const cacheHelperDef = `const __t3CacheApiHandle = (request, url, isCleanPost) => {
+	const hdrs = request?.headers || {};
+	const hdr = (k) => {
+		const v = hdrs[k] ?? hdrs[k.toLowerCase()];
+		return Array.isArray(v) ? String(v[0] || "") : String(v || "");
+	};
+	const origin = hdr("origin");
+	const sfs = hdr("sec-fetch-site").toLowerCase();
+	const allowedOrigin = !origin || DESKTOP_RENDERER_ORIGINS.includes(origin) || /^https?:\\/\\/(127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?$/i.test(origin);
+	if (hdr("x-t3-quota-ui") !== "1" || !allowedOrigin || sfs === "cross-site") {
+		return ${textReplyFn}(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+	}
+	const __fs = process.getBuiltinModule("node:fs");
+	const __p = process.getBuiltinModule("node:path");
+	const __os = process.getBuiltinModule("node:os");
+	const __home = __os.homedir();
+	const __isSafeDir = (dir) => {
+		try { const st = __fs.lstatSync(dir); return st.isDirectory() && !st.isSymbolicLink(); } catch { return false; }
+	};
+	const __collectDirs = () => {
+		const agyRoot = __p.join(__home, ".t3", "userdata", "providers", "antigravity");
+		const agyLogs = [], agyCaches = [];
+		try {
+			if (__isSafeDir(agyRoot)) {
 				for (const d of __fs.readdirSync(agyRoot)) {
 					if (d.startsWith(".")) continue;
 					const lp = __p.join(agyRoot, d, "antigravity-acp", "log");
 					const cp = __p.join(agyRoot, d, "antigravity-acp", "cache");
-					if (__fs.existsSync(lp)) agyLogs.push(lp);
-					if (__fs.existsSync(cp)) agyCaches.push(cp);
+					if (__isSafeDir(lp)) agyLogs.push(lp);
+					if (__isSafeDir(cp)) agyCaches.push(cp);
 				}
-			} catch {}
-			const libCaches = [];
-			try {
-				const lc = __p.join(__home, "Library", "Caches");
+			}
+		} catch {}
+		const libCaches = [];
+		try {
+			const lc = __p.join(__home, "Library", "Caches");
+			if (__isSafeDir(lc)) {
 				for (const d of __fs.readdirSync(lc)) {
-					if (/^(t3|com\\.t3tools|t3code)/i.test(d)) libCaches.push(__p.join(lc, d));
+					const fp = __p.join(lc, d);
+					if (/^(t3|com\\.t3tools|t3code)/i.test(d) && __isSafeDir(fp)) libCaches.push(fp);
 				}
-			} catch {}
-			const gpuCaches = [];
-			try {
-				const asDir = __p.join(__home, "Library", "Application Support");
+			}
+		} catch {}
+		const gpuCaches = [];
+		try {
+			const asDir = __p.join(__home, "Library", "Application Support");
+			if (__isSafeDir(asDir)) {
 				for (const d of __fs.readdirSync(asDir)) {
 					if (/^t3/i.test(d)) {
 						for (const sub of ["GPUCache", "Code Cache", "Cache", "DawnGraphiteCache", "DawnWebGPUCache"]) {
 							const sp = __p.join(asDir, d, sub);
-							if (__fs.existsSync(sp)) gpuCaches.push(sp);
+							if (__isSafeDir(sp)) gpuCaches.push(sp);
 						}
 					}
 				}
-			} catch {}
-			return [
-				{ id: "t3-logs", labelZh: "T3 运行日志", labelEn: "T3 Runtime Logs", descZh: "客户端与服务端历史日志文件", descEn: "Client & server historical log files", displayPath: "~/.t3/userdata/logs", dirs: [__p.join(__home, ".t3", "userdata", "logs")] },
-				{ id: "agy-logs", labelZh: "Antigravity 进程日志", labelEn: "Antigravity ACP Logs", descZh: "多实例 ACP 历史调试日志", descEn: "Historical ACP server debug logs", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/log", dirs: agyLogs },
-				{ id: "agy-cache", labelZh: "Antigravity 临时缓存", labelEn: "Antigravity Temp Cache", descZh: "可安全重建的临时运行缓存（不动登录凭证）", descEn: "Rebuildable runtime cache (keeps auth tokens)", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/cache", dirs: agyCaches },
-				{ id: "app-caches", labelZh: "macOS 应用系统缓存", labelEn: "macOS App Caches", descZh: "系统级缓存与更新残留包", descEn: "System-level caches & updater artifacts", displayPath: "~/Library/Caches/t3*", dirs: libCaches },
-				{ id: "electron-gpu", labelZh: "Electron GPU / 编译缓存", labelEn: "Electron GPU & Code Cache", descZh: "Chromium 渲染与 JS 字节码缓存", descEn: "Chromium GPU & JS bytecode cache", displayPath: "~/Library/Application Support/t3*/{GPUCache,Code Cache,Cache}", dirs: gpuCaches }
-			];
-		};
-		const __statDir = (dir) => {
-			let bytes = 0, files = 0;
-			const stack = [dir];
-			while (stack.length) {
-				const cur = stack.pop();
-				let ents;
-				try { ents = __fs.readdirSync(cur, { withFileTypes: true }); } catch { continue; }
-				for (const e of ents) {
-					const full = __p.join(cur, e.name);
-					if (e.isDirectory()) stack.push(full);
-					else if (e.isFile()) { try { bytes += __fs.statSync(full).size; files += 1; } catch {} }
-				}
 			}
-			return { bytes, files };
-		};
-		const __cleanDir = (dir) => {
-			let freed = 0, removed = 0;
+		} catch {}
+		return [
+			{ id: "t3-logs", labelZh: "T3 运行日志", labelEn: "T3 Runtime Logs", descZh: "客户端与服务端历史日志文件", descEn: "Client & server historical log files", displayPath: "~/.t3/userdata/logs", dirs: [__p.join(__home, ".t3", "userdata", "logs")].filter(__isSafeDir) },
+			{ id: "agy-logs", labelZh: "Antigravity 进程日志", labelEn: "Antigravity ACP Logs", descZh: "多实例 ACP 历史调试日志", descEn: "Historical ACP server debug logs", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/log", dirs: agyLogs },
+			{ id: "agy-cache", labelZh: "Antigravity 临时缓存", labelEn: "Antigravity Temp Cache", descZh: "可安全重建的临时运行缓存（不动登录凭证）", descEn: "Rebuildable runtime cache (keeps auth tokens)", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/cache", dirs: agyCaches },
+			{ id: "app-caches", labelZh: "macOS 应用系统缓存", labelEn: "macOS App Caches", descZh: "系统级缓存与更新残留包", descEn: "System-level caches & updater artifacts", displayPath: "~/Library/Caches/t3*", dirs: libCaches },
+			{ id: "electron-gpu", labelZh: "Electron GPU / 编译缓存", labelEn: "Electron GPU & Code Cache", descZh: "Chromium 渲染与 JS 字节码缓存", descEn: "Chromium GPU & JS bytecode cache", displayPath: "~/Library/Application Support/t3*/{GPUCache,Code Cache,Cache}", dirs: gpuCaches }
+		];
+	};
+	const __statDir = (dir) => {
+		let bytes = 0, files = 0;
+		if (!__isSafeDir(dir)) return { bytes, files };
+		const stack = [dir];
+		while (stack.length) {
+			const cur = stack.pop();
 			let ents;
-			try { ents = __fs.readdirSync(dir, { withFileTypes: true }); } catch { return { freed, removed }; }
+			try { ents = __fs.readdirSync(cur, { withFileTypes: true }); } catch { continue; }
 			for (const e of ents) {
-				const full = __p.join(dir, e.name);
-				if (e.isDirectory()) {
-					const sub = __cleanDir(full);
-					freed += sub.freed; removed += sub.removed;
-					try { __fs.rmdirSync(full); } catch {}
-				} else if (e.isFile()) {
-					try { const sz = __fs.statSync(full).size; __fs.unlinkSync(full); freed += sz; removed += 1; } catch {}
-				}
+				if (e.isSymbolicLink()) continue;
+				const full = __p.join(cur, e.name);
+				if (e.isDirectory()) { if (__isSafeDir(full)) stack.push(full); }
+				else if (e.isFile()) { try { const st = __fs.lstatSync(full); if (!st.isSymbolicLink() && st.isFile()) { bytes += st.size; files += 1; } } catch {} }
 			}
-			return { freed, removed };
-		};
-		const defs = __collectDirs();
-		let freedBytes = 0, removedFiles = 0;
-		if (suffix === "__t3_cache_clean" && url.value.searchParams.get("confirm") === "1") {
-			const allow = new Set((url.value.searchParams.get("ids") || "").split(",").filter(Boolean));
-			for (const def of defs) {
-				if (!allow.has(def.id)) continue;
-				for (const d of def.dirs) {
-					if (__fs.existsSync(d)) {
-						const r = __cleanDir(d);
-						freedBytes += r.freed; removedFiles += r.removed;
-					}
+		}
+		return { bytes, files };
+	};
+	const __cleanDir = (dir) => {
+		let freed = 0, removed = 0;
+		if (!__isSafeDir(dir)) return { freed, removed };
+		let ents;
+		try { ents = __fs.readdirSync(dir, { withFileTypes: true }); } catch { return { freed, removed }; }
+		for (const e of ents) {
+			if (e.isSymbolicLink()) continue;
+			const full = __p.join(dir, e.name);
+			if (e.isDirectory()) {
+				if (!__isSafeDir(full)) continue;
+				const sub = __cleanDir(full);
+				freed += sub.freed; removed += sub.removed;
+				try { __fs.rmdirSync(full); } catch {}
+			} else if (e.isFile()) {
+				try { const st = __fs.lstatSync(full); if (!st.isSymbolicLink() && st.isFile()) { __fs.unlinkSync(full); freed += st.size; removed += 1; } } catch {}
+			}
+		}
+		return { freed, removed };
+	};
+	const defs = __collectDirs();
+	let freedBytes = 0, removedFiles = 0;
+	if (isCleanPost && url.value.searchParams.get("confirm") === "1") {
+		const allow = new Set((url.value.searchParams.get("ids") || "").split(",").filter(Boolean));
+		for (const def of defs) {
+			if (!allow.has(def.id)) continue;
+			for (const d of def.dirs) {
+				if (__isSafeDir(d)) {
+					const r = __cleanDir(d);
+					freedBytes += r.freed; removedFiles += r.removed;
 				}
 			}
 		}
-		const items = defs.map((def) => {
-			let bytes = 0, files = 0;
-			for (const d of def.dirs) { if (__fs.existsSync(d)) { const s = __statDir(d); bytes += s.bytes; files += s.files; } }
-			return { id: def.id, labelZh: def.labelZh, labelEn: def.labelEn, descZh: def.descZh, descEn: def.descEn, displayPath: def.displayPath, bytes, files };
-		});
-		return ${textReplyFn}(JSON.stringify({ freedBytes, removedFiles, items }), { status: 200, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
-	}`,
+	}
+	const items = defs.map((def) => {
+		let bytes = 0, files = 0;
+		for (const d of def.dirs) { if (__isSafeDir(d)) { const s = __statDir(d); bytes += s.bytes; files += s.files; } }
+		return { id: def.id, labelZh: def.labelZh, labelEn: def.labelEn, descZh: def.descZh, descEn: def.descEn, displayPath: def.displayPath, bytes, files };
+	});
+	return ${textReplyFn}(JSON.stringify({ freedBytes, removedFiles, items }), { status: 200, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+};
+const layerT3CacheCleanRoute = ${addRouteFn}("POST", \`\${ASSET_ROUTE_PREFIX}/__t3_cache_clean\`, gen(function* () {
+	const request = yield* HttpServerRequest;
+	const url = requestUrl(request);
+	if (isNone(url)) return ${textReplyFn}("Bad Request", { status: 400 });
+	return __t3CacheApiHandle(request, url, true);
+}));
+const layerAssetRoute =`;
+    out = out.replace("const layerAssetRoute =", cacheHelperDef);
+    out = out.replace(
+      `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);`,
+      `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);
+	if (suffix === "__t3_cache_clean") return ${textReplyFn}(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers: { "content-type": "application/json; charset=utf-8", "allow": "POST" } });
+	if (suffix === "__t3_cache_scan") return __t3CacheApiHandle(request, url, false);`,
+    );
+    out = out.replace(
+      "layerAssetRoute, layerAttachmentUploadRoute",
+      "layerAssetRoute, layerT3CacheCleanRoute, layerAttachmentUploadRoute",
     );
   }
 
@@ -3405,7 +3685,7 @@ function patchRuntimeLayerBundle(src) {
 			for (const cand of candidates) {
 				try {
 					const body = "client_id=" + encodeURIComponent(cand.id) + "&client_secret=" + encodeURIComponent(cand.s) + "&refresh_token=" + encodeURIComponent(refreshToken) + "&grant_type=refresh_token";
-					const resp = nodeCp.execFileSync("curl", ["-fsS", "--max-time", "5", "-X", "POST", "https://oauth2.googleapis.com/token", "-H", "Content-Type: application/x-www-form-urlencoded", "-d", body], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+					const resp = nodeCp.execFileSync("curl", ["-fsS", "--max-time", "5", "-X", "POST", "https://oauth2.googleapis.com/token", "-H", "Content-Type: application/x-www-form-urlencoded", "--data-binary", "@-"], { encoding: "utf8", input: body, stdio: ["pipe", "pipe", "ignore"] });
 					if (resp && resp.includes('"access_token"')) {
 						__agyClientMetaCache = cand;
 						return __agyClientMetaCache;
@@ -3587,15 +3867,62 @@ function main() {
     return true;
   };
 
-  // 1. Patch index.html (CSS layout + runtime currency & bilingual switcher)
+  const upsertAsarText = (relPath, nextText, tag) => {
+    const prevText = readText(relPath);
+    if (prevText === nextText) return false;
+    const nextBuf = Buffer.from(nextText, "utf8");
+    if (prevText === null) {
+      const parts = relPath.split("/");
+      let cur = header;
+      for (let i = 0; i < parts.length - 1; i += 1) {
+        if (!cur.files) cur.files = {};
+        if (!cur.files[parts[i]]) cur.files[parts[i]] = { files: {} };
+        cur = cur.files[parts[i]];
+      }
+      if (!cur.files) cur.files = {};
+      cur.files[parts[parts.length - 1]] = {
+        size: nextBuf.length,
+        offset: "0",
+        integrity: computeIntegrity(nextBuf),
+      };
+    }
+    replacements.set(relPath, nextBuf);
+    patchedSummary.push(`${tag}: ${relPath}`);
+    return true;
+  };
+
+  const featureHits = {
+    indexAssets: false,
+    usageFormat: false,
+    usageShortcuts: false,
+    usageLimitsView: false,
+    usageLimitsShared: false,
+    chatUsage: false,
+    modelPicker: false,
+    chatTopbar: false,
+    timelineTelemetry: false,
+    mainLocale: false,
+    previewPanel: false,
+    serverCacheApi: false,
+    serverCors: false,
+    runtimeOauth: false,
+  };
+
+  // 1. Patch index.html + emit externalized cached static assets (O3)
   const indexHtmlRel = "apps/server/dist/client/index.html";
   if (getFileNode(header, indexHtmlRel)) {
+    const assets = buildInjectedAssets(opts.lang);
+    upsertAsarText("apps/server/dist/client/assets/t3-quota-ui-v9.css", assets.cssText, "client-asset");
+    if (assets.v18JsText) {
+      upsertAsarText("apps/server/dist/client/assets/t3-quota-ui-v18.js", assets.v18JsText, "client-asset");
+    }
+    upsertAsarText("apps/server/dist/client/assets/t3-quota-ui-runtime.js", assets.runtimeJsText, "client-asset");
     let html = readText(indexHtmlRel);
     html = html.replace(/<!-- T3_QUOTA_UI_START -->[\s\S]*?<!-- T3_QUOTA_UI_END -->\n?/g, "");
     html = html.replace(/<script>\s*\(function\(\)\{\s*const DICT = \{[\s\S]*?<\/script>(?=<\/head>)/g, "");
-    const block = buildInjectedHeadBlock(opts.lang);
-    html = html.replace("</head>", `${block}</head>`);
+    html = html.replace("</head>", `${assets.headBlock}</head>`);
     writeTextIfChanged(indexHtmlRel, html, `index-head(${opts.lang})`);
+    featureHits.indexAssets = true;
   }
 
   // 2. Scan client JS bundles dynamically (hash-agnostic)
@@ -3603,6 +3930,10 @@ function main() {
     if (!rel.startsWith("apps/server/dist/client/assets/") || !rel.endsWith(".js")) {
       continue;
     }
+    if (rel.includes("/t3-quota-ui-")) {
+      continue;
+    }
+    // Never mutate built-in i18n locale catalog bundles (en-*.js, zh-*.js, etc.)
     if (/(?:^|\/)(?:en|de|es|fr|ja|ko|pt-BR|ru|sv|zh)-[A-Za-z0-9_-]+\.js$/.test(rel)) {
       continue;
     }
@@ -3614,10 +3945,12 @@ function main() {
       updated.includes("minimumFractionDigits:2,maximumFractionDigits:2")
     ) {
       updated = patchUsageFormatBundle(updated);
+      if (updated.includes("__t3CnyFmt")) featureHits.usageFormat = true;
     }
 
     if (updated.includes("usage.cost") && updated.includes("usage.period.day")) {
       updated = patchUsageShortcutsBundle(updated);
+      if (updated.includes("__t3ShortcutZh")) featureHits.usageShortcuts = true;
     }
 
     if (
@@ -3626,6 +3959,7 @@ function main() {
       updated.includes("grid-cols-[8.5rem_minmax(0,1fr)]")
     ) {
       updated = patchUsageLimitsView(updated);
+      if (updated.includes("t3-quota-col-1") || updated.includes("t3-burn-row")) featureHits.usageLimitsView = true;
     }
 
     if (
@@ -3633,6 +3967,7 @@ function main() {
       updated.includes("subscription_sharing_usage_limit_exceeded")
     ) {
       updated = patchUsageLimitsShared(updated);
+      if (updated.includes("splitAccount:") || updated.includes("__t3LimSharedZh")) featureHits.usageLimitsShared = true;
     }
 
     if (
@@ -3640,6 +3975,7 @@ function main() {
       (updated.includes("Cost by type") || updated.includes("按类型费用"))
     ) {
       updated = patchChatUsageBundle(updated);
+      if (updated.includes("__T3UsageRootWrapper")) featureHits.chatUsage = true;
     }
 
     if (
@@ -3647,6 +3983,7 @@ function main() {
       updated.includes("Search models...")
     ) {
       updated = patchModelPickerBundle(updated);
+      if (updated.includes("t3-mp-quota-badge")) featureHits.modelPicker = true;
     }
 
     if (
@@ -3655,6 +3992,9 @@ function main() {
       (updated.includes("onOpenUsageLimits:") || updated.includes("usage:{providerInstanceId:"))
     ) {
       updated = patchChatTopbarBundle(updated);
+      if (updated.includes("__T3TopbarQuotaPills") && (updated.includes("__T3ComposerTelemetryStrip") || updated.includes("__T3TelemetryPill"))) {
+        featureHits.chatTopbar = true;
+      }
     }
 
     if (
@@ -3662,6 +4002,7 @@ function main() {
       updated.includes("navigator.languages")
     ) {
       updated = patchMainLocaleBundle(updated);
+      if (updated.includes("__t3NativeSetLocale")) featureHits.mainLocale = true;
     }
 
     if (
@@ -3671,12 +4012,16 @@ function main() {
     ) {
       updated = patchTimelineTelemetryBundle(updated);
     }
+    if (updated.includes("__T3TurnTelemetryBadge") || updated.includes("data-turn-telemetry")) {
+      featureHits.timelineTelemetry = true;
+    }
 
     if (
       updated.includes("Screenshot · Shift-click to record") &&
       updated.includes("data-preview-viewport")
     ) {
       updated = patchPreviewPanelBundle(updated);
+      if (updated.includes("__T3PreviewPinBtn")) featureHits.previewPanel = true;
     }
 
     if (opts.lang === "zh") {
@@ -3708,11 +4053,14 @@ function main() {
     let text = readText(rel);
     let updated = text;
 
-    if (updated.includes("AGY_ACP_FORCE_FILE_STORAGE") || updated.includes("customApiEndpoint")) {
+    if (updated.includes("AGY_ACP_FORCE_FILE_STORAGE") || updated.includes("customApiEndpoint") || updated.includes("layerAssetRoute")) {
       updated = patchServerBundle(updated);
+      if (updated.includes("__t3CacheApiHandle")) featureHits.serverCacheApi = true;
+      if (updated.includes("__t3IsAllowedLocalOrigin")) featureHits.serverCors = true;
     }
     if (updated.includes('"antigravity-acp", "acp_token.json"')) {
       updated = patchRuntimeLayerBundle(updated);
+      if (updated.includes("__t3SyncAgyQuotaAuthV2")) featureHits.runtimeOauth = true;
     }
 
     if (updated !== text) {
@@ -3725,6 +4073,17 @@ function main() {
   console.log(`[t3code-quota-ui] Modified bundle entries: ${patchedSummary.length}`);
   for (const item of patchedSummary) {
     console.log(`  - ${item}`);
+  }
+  const hitList = Object.entries(featureHits);
+  const missedCore = hitList
+    .filter(([k, ok]) => !ok && !["mainLocale", "timelineTelemetry", "serverCors"].includes(k))
+    .map(([k]) => k);
+  console.log(`[t3code-quota-ui] Feature match report (${hitList.filter(([, ok]) => ok).length}/${hitList.length}):`);
+  for (const [k, ok] of hitList) {
+    console.log(`  ${ok ? "✓" : "⚠"} ${k}`);
+  }
+  if (missedCore.length > 0) {
+    console.warn(`[t3code-quota-ui] WARNING: Core hooks did not match: ${missedCore.join(", ")}`);
   }
 
   if (opts.dryRun) {

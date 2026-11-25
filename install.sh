@@ -19,7 +19,8 @@
 
 set -euo pipefail
 
-REPO_RAW_BASE="https://raw.githubusercontent.com/Leobai03/t3code-quota-ui/main"
+REPO_REF="${T3_QUOTA_UI_REF:-main}"
+REPO_RAW_BASE="https://raw.githubusercontent.com/Leobai03/t3code-quota-ui/${REPO_REF}"
 BACKUP_ROOT="${HOME}/.t3/quota-ui-backups"
 
 LANG_MODE="zh"
@@ -86,6 +87,34 @@ cleanup() {
 }
 trap cleanup EXIT
 
+verify_remote_sha256() {
+  local rel_path="$1"
+  local file_path="$2"
+  local manifest="${WORK_TMP}/checksums.sha256"
+  if [[ ! -f "${manifest}" ]]; then
+    curl -fsSL "${REPO_RAW_BASE}/checksums.sha256" -o "${manifest}" 2>/dev/null || true
+  fi
+  if [[ -f "${manifest}" ]]; then
+    local expected
+    expected="$(awk -v p="${rel_path}" '$2 == p || $2 == ("./" p) { print $1; exit }' "${manifest}")"
+    if [[ -n "${expected}" ]]; then
+      local actual
+      actual="$(shasum -a 256 "${file_path}" | awk '{print $1}')"
+      if [[ "${actual}" != "${expected}" ]]; then
+        echo "Error: SHA-256 checksum mismatch for ${rel_path}!" >&2
+        echo "  Expected: ${expected}" >&2
+        echo "  Actual  : ${actual}" >&2
+        exit 1
+      fi
+      return 0
+    fi
+  fi
+  if [[ "${T3_QUOTA_UI_REQUIRE_CHECKSUM:-0}" == "1" ]]; then
+    echo "Error: T3_QUOTA_UI_REQUIRE_CHECKSUM=1 set, but no checksum entry found for ${rel_path}." >&2
+    exit 1
+  fi
+}
+
 resolve_script() {
   local name="$1"
   local script_dir=""
@@ -97,12 +126,15 @@ resolve_script() {
     return 0
   fi
   local dest="${WORK_TMP}/${name}"
-  echo "==> Downloading ${name}..." >&2
+  echo "==> Downloading ${name} (ref: ${REPO_REF})..." >&2
   curl -fsSL "${REPO_RAW_BASE}/scripts/${name}" -o "${dest}"
+  verify_remote_sha256 "scripts/${name}" "${dest}"
   if [[ "${name}" == "patch-asar.mjs" ]]; then
     mkdir -p "${WORK_TMP}/stardust"
     curl -fsSL "${REPO_RAW_BASE}/scripts/stardust/v18-starship-scenes.js" -o "${WORK_TMP}/stardust/v18-starship-scenes.js"
+    verify_remote_sha256 "scripts/stardust/v18-starship-scenes.js" "${WORK_TMP}/stardust/v18-starship-scenes.js"
     curl -fsSL "${REPO_RAW_BASE}/scripts/stardust/v9-stardust.css" -o "${WORK_TMP}/stardust/v9-stardust.css"
+    verify_remote_sha256 "scripts/stardust/v9-stardust.css" "${WORK_TMP}/stardust/v9-stardust.css"
   fi
   printf '%s\n' "${dest}"
 }
@@ -167,9 +199,11 @@ if [[ -z "${TARGET_APP}" ]]; then
     "/Applications/t3 (Beta).app"
     "/Applications/T3 Code (Beta).app"
     "/Applications/T3 Code.app"
+    "/Applications/T3 Code (Nightly).app"
     "${HOME}/Applications/t3 (Beta).app"
     "${HOME}/Applications/T3 Code (Beta).app"
     "${HOME}/Applications/T3 Code.app"
+    "${HOME}/Applications/T3 Code (Nightly).app"
   )
   for candidate in "${CANDIDATES[@]}"; do
     if [[ -d "${candidate}" ]]; then
@@ -182,6 +216,11 @@ fi
 if [[ -z "${TARGET_APP}" || ! -d "${TARGET_APP}" ]]; then
   echo "Error: No T3 Code installation found in /Applications." >&2
   echo "Please install T3 Code from https://t3.codes first (or run with --build-full), then re-run this command." >&2
+  exit 1
+fi
+
+if [[ "${TARGET_APP}" != *.app || "${TARGET_APP}" == *".."* ]]; then
+  echo "Error: Target path must be a valid .app bundle: ${TARGET_APP}" >&2
   exit 1
 fi
 
@@ -249,7 +288,7 @@ codesign --verify --deep --strict "${TARGET_APP}"
 
 if [[ "${AUTO_RELAUNCH}" == "1" ]]; then
   echo "==> Restarting ${APP_BASENAME}..."
-  osascript -e "quit app \"${APP_BASENAME}\"" >/dev/null 2>&1 || true
+  osascript -e 'on run argv' -e 'tell application (item 1 of argv) to quit' -e 'end run' -- "${APP_BASENAME}" >/dev/null 2>&1 || true
   sleep 1
   open -a "${TARGET_APP}"
 fi
@@ -257,7 +296,7 @@ fi
 cat <<EOF
 
 ====================================================================
-  ✅ T3 Code Quota UI Enhanced Edition v1.4.7 Installed!
+  ✅ T3 Code Quota UI Enhanced Edition v1.4.8 Installed!
 ====================================================================
   • Patched App : ${TARGET_APP}
   • Default UI  : ${LANG_MODE} (Switchable live via [中 / EN] in Usage)

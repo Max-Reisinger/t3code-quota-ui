@@ -51,6 +51,10 @@ for dir in "${BACKUP_ROOT}"/*; do
   if [[ -z "${app_path}" || ! -d "${app_path}" ]]; then
     continue
   fi
+  if [[ "${app_path}" != /* || "${app_path}" != *.app || "${app_path}" == *".."* || ! -f "${app_path}/Contents/Info.plist" || ! -f "${app_path}/Contents/Resources/app.asar" ]]; then
+    echo "==> Skipping invalid bundle path recorded in ${dir}/target-app.txt: ${app_path}" >&2
+    continue
+  fi
   if [[ ! -f "${dir}/app.asar.orig" || ! -f "${dir}/Info.plist.orig" ]]; then
     echo "==> Skipping ${app_path}: no original backup snapshot recorded (app was already customized before backup)."
     continue
