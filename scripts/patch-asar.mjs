@@ -3753,6 +3753,38 @@ function patchRuntimeLayerBundle(src) {
   return out;
 }
 
+function patchTelemetryPrivacyBundle(src) {
+  let out = src;
+
+  // 1. Make PostHog product analytics strictly opt-in (T3CODE_TELEMETRY_ENABLED defaults to false)
+  out = out.replace(
+    /(enabled:\s*[A-Za-z0-9_$]+\("T3CODE_TELEMETRY_ENABLED"\)\.pipe\([A-Za-z0-9_$]+\()true(\)\))/g,
+    "$1false$2",
+  );
+  out = out.replace(
+    /(return\s+[A-Za-z0-9_$]+\("T3CODE_TELEMETRY_ENABLED"\)\.pipe\([A-Za-z0-9_$]+\()true(\),)/g,
+    "$1false$2",
+  );
+
+  // 2. Strip legacy v0.1.11 Identify.ts reading of ~/.codex/auth.json & ~/.claude.json for telemetry fingerprinting
+  if (out.includes('TelemetryIdentity.readProviderLogins') && !out.includes("__t3NoAuthFingerprint")) {
+    const noneMatch = out.match(/if \(isNone\(encoded\)\) return ([A-Za-z0-9_$]+)\(\);/);
+    const noneFn = noneMatch ? noneMatch[1] : "none$1";
+    out = out.replace(
+      /const readProviderLogins = ([A-Za-z0-9_$]+)\("TelemetryIdentity\.readProviderLogins"\)\(function\* \([A-Za-z0-9_$]+\) \{[\s\S]{0,600}?\.claude\.json[\s\S]{0,200}?\}\);/,
+      `const readProviderLogins = $1("TelemetryIdentity.readProviderLogins")(function* () { /* __t3NoAuthFingerprint */ return { codexTokens: ${noneFn}(), claudeJson: ${noneFn}() }; });`,
+    );
+  }
+
+  // 3. Make Axiom relay OTLP tracing strictly opt-in (only enabled when T3CODE_TELEMETRY_ENABLED=true)
+  out = out.replace(
+    /\(\{\s*telemetry,\s*t3,\s*spec\s*\}\)\s*=>\s*telemetry\.value !== false && !\(t3\.value \?\? spec\.value \?\? false\)/g,
+    "({ telemetry, t3, spec }) => telemetry.value === true && !(t3.value ?? spec.value ?? false)",
+  );
+
+  return out;
+}
+
 const ZH_PAIRS_CHAT = [
   ["children:`Context`", "children:`上下文`"],
   ["`${i}% used`", "`已用 ${i}%`"],
@@ -3906,6 +3938,7 @@ function main() {
     serverCacheApi: false,
     serverCors: false,
     runtimeOauth: false,
+    telemetryOptIn: false,
   };
 
   // 1. Patch index.html + emit externalized cached static assets (O3)
@@ -4061,6 +4094,19 @@ function main() {
     if (updated.includes('"antigravity-acp", "acp_token.json"')) {
       updated = patchRuntimeLayerBundle(updated);
       if (updated.includes("__t3SyncAgyQuotaAuthV2")) featureHits.runtimeOauth = true;
+    }
+    if (
+      updated.includes("T3CODE_TELEMETRY_ENABLED") ||
+      updated.includes("TelemetryIdentity.readProviderLogins") ||
+      updated.includes("isRelayTracingEnabled =")
+    ) {
+      updated = patchTelemetryPrivacyBundle(updated);
+      if (
+        updated.includes('("T3CODE_TELEMETRY_ENABLED").pipe(') &&
+        updated.includes("(false)")
+      ) {
+        featureHits.telemetryOptIn = true;
+      }
     }
 
     if (updated !== text) {
