@@ -406,21 +406,7 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
 html[data-t3-perm-switching="1"] [role="menu"]:has([data-composer-permissions]) {
   opacity: 0 !important;
 }
-/* Blue frosted glass permission pill on composer bar (Red Box 2) */
-[data-composer-permissions-trigger] {
-  height: 28px !important;
-  padding: 0 10px !important;
-  border-radius: 999px !important;
-  font-size: 11.5px !important;
-  font-weight: 600 !important;
-  background: var(--v9-blue-bg) !important;
-  color: var(--v9-blue) !important;
-  border: 0.5px solid color-mix(in srgb, var(--v9-blue) 30%, transparent) !important;
-}
-[data-composer-permissions-trigger]:hover {
-  background: color-mix(in srgb, var(--v9-blue) 24%, transparent) !important;
-}
-/* Unified rounded dark model+effort capsule on composer bar (Red Box 2) */
+/* Unified rounded model+effort capsule on composer bar */
 [data-chat-provider-model-picker="true"],
 [data-composer-model-trigger] {
   height: 30px !important;
