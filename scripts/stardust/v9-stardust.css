@@ -360,8 +360,8 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   justify-content: space-between;
   gap: 6px;
   min-width: 0;
-  padding-top: 4px;
-  margin-top: 4px;
+  padding-top: 5px;
+  margin-top: 5px;
   border-top: 0.5px solid var(--v9-hair);
   font-size: 10px;
   line-height: 1.3;
@@ -377,7 +377,7 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   flex-shrink: 0;
 }
 [data-v9-perm-opt] {
-  padding: 1.5px 6px;
+  padding: 2px 5.5px;
   font-size: 10px;
   line-height: 1.3;
   font-weight: 500;
@@ -397,6 +397,14 @@ div:has(> [data-model-picker-effort]):has([data-v9-perm-row]) + div {
   color: var(--v9-fg);
   font-weight: 650;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+/* Hide standalone permissions chip in chat composer bar; permissions live in the model picker slider */
+[data-chat-composer-form="true"] button[data-composer-shortcut="composer.mode"]:has([data-composer-control-label]) {
+  display: none !important;
+}
+/* Prevent transient flash of native permissions menu during 1-click switch from the slider */
+html[data-t3-perm-switching="1"] [role="menu"]:has([data-composer-permissions]) {
+  opacity: 0 !important;
 }
 /* Blue frosted glass permission pill on composer bar (Red Box 2) */
 [data-composer-permissions-trigger] {
