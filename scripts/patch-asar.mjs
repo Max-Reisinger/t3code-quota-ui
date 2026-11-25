@@ -899,13 +899,7 @@ ${__STARDUST_V9_CSS}
     pop.appendChild(foot);
 
     document.body.appendChild(pop);
-    const rect = anchorEl?.getBoundingClientRect?.();
-    const popW = 304;
-    let left = rect ? rect.left + rect.width / 2 - popW / 2 : window.innerWidth - popW - 24;
-    left = Math.max(12, Math.min(window.innerWidth - popW - 12, left));
-    const topPos = rect ? Math.min(window.innerHeight - 120, rect.bottom + 8) : 44;
-    pop.style.left = Math.round(left) + "px";
-    pop.style.top = Math.round(topPos) + "px";
+    __placePopover(pop, anchorEl, "auto");
 
     const onDown = (ev) => {
       if (!pop.contains(ev.target) && !(anchorEl && anchorEl.contains(ev.target))) closeTopbarQuotaPopover();
@@ -944,6 +938,43 @@ ${__STARDUST_V9_CSS}
     if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB";
     if (bytes >= 1024) return (bytes / 1024).toFixed(1) + " KB";
     return Math.round(bytes) + " B";
+  }
+
+  function __placePopover(pop, anchorEl, preferredSide) {
+    const margin = 12;
+    const gap = 8;
+    const rect = anchorEl?.getBoundingClientRect?.();
+    const vw = window.innerWidth || 1280;
+    const vh = window.innerHeight || 800;
+    const popW = pop.offsetWidth || 304;
+    let left = rect ? rect.left + rect.width / 2 - popW / 2 : vw - popW - 24;
+    if (preferredSide === "top-end" && rect) left = rect.right - popW;
+    else if (preferredSide === "top-start" && rect) left = rect.left;
+    left = Math.max(margin, Math.min(vw - popW - margin, left));
+
+    const naturalH = pop.scrollHeight || pop.offsetHeight || 220;
+    let topPos = 44;
+    let maxH = vh - margin * 2;
+    if (rect) {
+      const spaceBelow = Math.max(0, vh - rect.bottom - margin - gap);
+      const spaceAbove = Math.max(0, rect.top - margin - gap);
+      const preferTop = preferredSide === "top" || preferredSide === "top-end" || preferredSide === "top-start";
+      const openAbove = preferTop
+        ? (spaceAbove >= naturalH || spaceAbove >= spaceBelow)
+        : (spaceBelow < naturalH && spaceAbove > spaceBelow);
+      if (openAbove) {
+        maxH = Math.max(140, Math.min(vh - margin * 2, spaceAbove));
+        const usedH = Math.min(naturalH, maxH);
+        topPos = Math.max(margin, rect.top - usedH - gap);
+      } else {
+        maxH = Math.max(140, Math.min(vh - margin * 2, spaceBelow));
+        const usedH = Math.min(naturalH, maxH);
+        topPos = Math.max(margin, Math.min(vh - usedH - margin, rect.bottom + gap));
+      }
+    }
+    pop.style.maxHeight = Math.round(maxH) + "px";
+    pop.style.left = Math.round(left) + "px";
+    pop.style.top = Math.round(topPos) + "px";
   }
 
   function __el(tag, opts, ...children) {
@@ -1680,14 +1711,7 @@ ${__STARDUST_V9_CSS}
       );
     }
     document.body.appendChild(pop);
-    const rect = anchorEl?.getBoundingClientRect?.();
-    const popW = 304;
-    let left = rect ? rect.left : 24;
-    left = Math.max(12, Math.min(window.innerWidth - popW - 12, left));
-    const popH = pop.offsetHeight || 190;
-    const topPos = rect ? Math.max(12, rect.top - popH - 8) : window.innerHeight - popH - 60;
-    pop.style.left = Math.round(left) + "px";
-    pop.style.top = Math.round(topPos) + "px";
+    __placePopover(pop, anchorEl, "top-start");
     const onDown = (ev) => { if (!pop.contains(ev.target) && !(anchorEl && anchorEl.contains(ev.target))) closeTopbarQuotaPopover(); };
     const onKey = (ev) => { if (ev.key === "Escape") closeTopbarQuotaPopover(); };
     setTimeout(() => {
@@ -1696,6 +1720,57 @@ ${__STARDUST_V9_CSS}
     }, 0);
     __activeTopbarPop = {
       id,
+      el: pop,
+      cleanup: () => {
+        document.removeEventListener("pointerdown", onDown, true);
+        document.removeEventListener("keydown", onKey, true);
+      }
+    };
+  }
+
+  function showTurnTelemetryPopover(rows, summaryText, anchorEl) {
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    const id = "__t3_turn_tel_pop";
+    if (__activeTopbarPop.id === id && __activeTopbarPop.el && document.body.contains(__activeTopbarPop.el) && __activeTopbarPop.anchor === anchorEl) {
+      closeTopbarQuotaPopover();
+      return;
+    }
+    closeTopbarQuotaPopover();
+    const zh = getLang() === "zh";
+    const pop = __el("div", { className: "t3-topbar-pop", style: "width:264px;", attrs: { "data-quota-ui-managed": "true" } });
+    const closeBtn = __el("button", { className: "t3-topbar-pop-close", text: "×", attrs: { type: "button" } });
+    closeBtn.onclick = () => closeTopbarQuotaPopover();
+    const titleWrap = __el(
+      "div",
+      { style: "display:flex;align-items:center;gap:6px;min-width:0;" },
+      __el("span", { className: "t3-topbar-pop-title", text: zh ? "本轮输出详情" : "Turn Telemetry" }),
+      summaryText ? __el("span", { className: "t3-topbar-pop-tag", text: summaryText }) : null
+    );
+    pop.appendChild(__el("div", { className: "t3-topbar-pop-head" }, titleWrap, closeBtn));
+    const body = __el("div", { className: "t3-topbar-pop-body", style: "gap:5px;" });
+    for (const pair of rows) {
+      if (!Array.isArray(pair) || pair.length < 2) continue;
+      body.appendChild(
+        __el(
+          "div",
+          { style: "display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11.5px;line-height:1.45;font-variant-numeric:tabular-nums;" },
+          __el("span", { style: "color:var(--v9-fg-2);white-space:nowrap;", text: pair[0] }),
+          __el("span", { style: "font-family:var(--font-mono);font-weight:600;color:var(--v9-fg);text-align:right;", text: pair[1] })
+        )
+      );
+    }
+    pop.appendChild(body);
+    document.body.appendChild(pop);
+    __placePopover(pop, anchorEl, "top-end");
+    const onDown = (ev) => { if (!pop.contains(ev.target) && !(anchorEl && anchorEl.contains(ev.target))) closeTopbarQuotaPopover(); };
+    const onKey = (ev) => { if (ev.key === "Escape") closeTopbarQuotaPopover(); };
+    setTimeout(() => {
+      document.addEventListener("pointerdown", onDown, true);
+      document.addEventListener("keydown", onKey, true);
+    }, 0);
+    __activeTopbarPop = {
+      id,
+      anchor: anchorEl,
       el: pop,
       cleanup: () => {
         document.removeEventListener("pointerdown", onDown, true);
@@ -1751,6 +1826,7 @@ ${__STARDUST_V9_CSS}
     splitProviderWindows,
     computeWindowGauge,
     showContextPopover,
+    showTurnTelemetryPopover,
     subscribe: (listener) => {
       const onUpdate = () => listener({ lang: getLang(), currency: getCurrency(), rate: getRate() });
       window.addEventListener("t3-quota-ui:change", onUpdate);
@@ -3024,7 +3100,7 @@ function patchTimelineTelemetryBundle(src) {
   if (injected === fullMatch) return src;
   out = out.replace(fullMatch, injected);
 
-  const badgeComp = `function __T3TurnTelemetryBadge({projectedItem,message,threadRef}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const u1=globalThis.__t3QuotaUi?.subscribeTelemetry?.(()=>setTick(x=>x+1));const u2=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof u1==="function")u1();if(typeof u2==="function")u2()}},[]);if(!message||message.streaming)return null;const qApi=globalThis.__t3QuotaUi;const m=qApi?.getTurnTelemetry?.(threadRef,projectedItem?.item?.providerTurnId??null,message?.runId??null);if(!m)return null;const ttftStr=m.ttftMs!==null?qApi.fmtDurationMs(m.ttftMs):null;const tpsCompact=m.generationTps!==null?qApi.fmtTps(m.generationTps,!0):null;const tpsFull=m.generationTps!==null?qApi.fmtTps(m.generationTps,!1):null;const outStr=m.outputTokens!==null?qApi.fmtCompactTok(m.outputTokens,!0):null;const inStr=m.inputTokens!==null?qApi.fmtCompactTok(m.inputTokens,!0):null;if(!ttftStr&&!tpsCompact&&!outStr)return null;const zh=qApi?qApi.isZh():!0;const rows=[ttftStr?["TTFT",ttftStr]:null,m.firstAnswerMs!==null?[zh?"首屏回复":"First answer",qApi.fmtDurationMs(m.firstAnswerMs)]:null,tpsFull?[zh?"生成速度":"Gen speed",tpsFull]:null,m.endToEndTps!==null&&m.toolDurationMs!==null&&m.toolDurationMs>=100?[zh?"端到端速度":"End-to-end",qApi.fmtTps(m.endToEndTps,!1)]:null,outStr?[zh?"输出":"Output",outStr+(m.reasoningTokens>0?" ("+(zh?"推理 ":"reasoning ")+qApi.fmtCompactTok(m.reasoningTokens,!0)+")":"")]:null,inStr?[zh?"输入":"Input",inStr+(m.cachedInputTokens>0?" ("+(zh?"缓存 ":"cached ")+qApi.fmtCompactTok(m.cachedInputTokens,!0)+")":"")]:null,m.cacheHitPercent!==null?[zh?"提示词缓存":"Prompt cache",Math.round(m.cacheHitPercent)+"%"]:null,(m.generationDurationMs??m.totalDurationMs)!==null?[zh?"耗时":"Duration",qApi.fmtDurationMs(m.generationDurationMs??m.totalDurationMs)]:null,m.totalDurationMs!==null&&m.toolDurationMs!==null&&m.toolDurationMs>=100?[zh?"总耗时":"Wall time",qApi.fmtDurationMs(m.totalDurationMs)]:null].filter(Boolean);const trig=(0,${jsxNs}.jsx)("span",{tabIndex:0,"data-turn-telemetry":"true","data-quota-ui-managed":"true",className:"t3-turn-badge"});return(0,${jsxNs}.jsxs)(${tipRoot},{children:[(0,${jsxNs}.jsxs)(${tipTrig},{render:trig,children:[ttftStr?(0,${jsxNs}.jsxs)("span",{children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.65},children:"TTFT "}),ttftStr]}):null,ttftStr&&tpsCompact?(0,${jsxNs}.jsx)("span",{style:{opacity:0.35},children:"·"}):null,tpsCompact?(0,${jsxNs}.jsx)("span",{children:tpsCompact}):(!ttftStr&&outStr?(0,${jsxNs}.jsx)("span",{children:outStr+" tok"}):null)]}),(0,${jsxNs}.jsx)(${tipPopup},{side:"top",align:"end",children:(0,${jsxNs}.jsx)("div",{className:"grid min-w-44 grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-0.5 py-0.5 text-xs tabular-nums",children:rows.map(([k,v],idx)=>(0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:k}),(0,${jsxNs}.jsx)("span",{className:"text-right font-mono text-foreground",children:v})]},idx))})})]})}`;
+  const badgeComp = `function __T3TurnTelemetryBadge({projectedItem,message,threadRef}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const u1=globalThis.__t3QuotaUi?.subscribeTelemetry?.(()=>setTick(x=>x+1));const u2=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof u1==="function")u1();if(typeof u2==="function")u2()}},[]);if(!message||message.streaming)return null;const qApi=globalThis.__t3QuotaUi;const m=qApi?.getTurnTelemetry?.(threadRef,projectedItem?.item?.providerTurnId??null,message?.runId??null);if(!m)return null;const ttftStr=m.ttftMs!==null?qApi.fmtDurationMs(m.ttftMs):null;const tpsCompact=m.generationTps!==null?qApi.fmtTps(m.generationTps,!0):null;const tpsFull=m.generationTps!==null?qApi.fmtTps(m.generationTps,!1):null;const outStr=m.outputTokens!==null?qApi.fmtCompactTok(m.outputTokens,!0):null;const inStr=m.inputTokens!==null?qApi.fmtCompactTok(m.inputTokens,!0):null;if(!ttftStr&&!tpsCompact&&!outStr)return null;const zh=qApi?qApi.isZh():!0;const rows=[ttftStr?["TTFT",ttftStr]:null,m.firstAnswerMs!==null?[zh?"首屏回复":"First answer",qApi.fmtDurationMs(m.firstAnswerMs)]:null,tpsFull?[zh?"生成速度":"Gen speed",tpsFull]:null,m.endToEndTps!==null&&m.toolDurationMs!==null&&m.toolDurationMs>=100?[zh?"端到端速度":"End-to-end",qApi.fmtTps(m.endToEndTps,!1)]:null,outStr?[zh?"输出":"Output",outStr+(m.reasoningTokens>0?" ("+(zh?"推理 ":"reasoning ")+qApi.fmtCompactTok(m.reasoningTokens,!0)+")":"")]:null,inStr?[zh?"输入":"Input",inStr+(m.cachedInputTokens>0?" ("+(zh?"缓存 ":"cached ")+qApi.fmtCompactTok(m.cachedInputTokens,!0)+")":"")]:null,m.cacheHitPercent!==null?[zh?"提示词缓存":"Prompt cache",Math.round(m.cacheHitPercent)+"%"]:null,(m.generationDurationMs??m.totalDurationMs)!==null?[zh?"耗时":"Duration",qApi.fmtDurationMs(m.generationDurationMs??m.totalDurationMs)]:null,m.totalDurationMs!==null&&m.toolDurationMs!==null&&m.toolDurationMs>=100?[zh?"总耗时":"Wall time",qApi.fmtDurationMs(m.totalDurationMs)]:null].filter(Boolean);const summary=tpsCompact||ttftStr||"";const openDetail=ev=>{ev.stopPropagation();qApi?.showTurnTelemetryPopover?.(rows,summary,ev.currentTarget)};const trig=(0,${jsxNs}.jsx)("span",{role:"button",tabIndex:0,"data-turn-telemetry":"true","data-quota-ui-managed":"true",className:"t3-turn-badge",title:zh?"点击查看本轮输出详情":"Click for turn telemetry details",onClick:openDetail,onKeyDown:ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();openDetail(ev)}}});return(0,${jsxNs}.jsxs)(${tipRoot},{children:[(0,${jsxNs}.jsxs)(${tipTrig},{render:trig,children:[ttftStr?(0,${jsxNs}.jsxs)("span",{children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.65},children:"TTFT "}),ttftStr]}):null,ttftStr&&tpsCompact?(0,${jsxNs}.jsx)("span",{style:{opacity:0.35},children:"·"}):null,tpsCompact?(0,${jsxNs}.jsx)("span",{children:tpsCompact}):(!ttftStr&&outStr?(0,${jsxNs}.jsx)("span",{children:outStr+" tok"}):null)]}),(0,${jsxNs}.jsx)(${tipPopup},{side:"top",align:"end",children:(0,${jsxNs}.jsx)("div",{className:"grid min-w-44 grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-0.5 py-0.5 text-xs tabular-nums",children:rows.map(([k,v],idx)=>(0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:k}),(0,${jsxNs}.jsx)("span",{className:"text-right font-mono text-foreground",children:v})]},idx))})})]})}`;
 
   out += `\n${badgeComp}\n`;
   return out;
