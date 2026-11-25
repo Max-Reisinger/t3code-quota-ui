@@ -257,7 +257,7 @@ fi
 cat <<EOF
 
 ====================================================================
-  ✅ T3 Code Quota UI Enhanced Edition v1.1.2 Installed!
+  ✅ T3 Code Quota UI Enhanced Edition v1.4.7 Installed!
 ====================================================================
   • Patched App : ${TARGET_APP}
   • Default UI  : ${LANG_MODE} (Switchable live via [中 / EN] in Usage)

@@ -946,6 +946,25 @@ ${__STARDUST_V9_CSS}
     return Math.round(bytes) + " B";
   }
 
+  function __el(tag, opts, ...children) {
+    const node = document.createElement(tag);
+    if (opts) {
+      if (opts.className) node.className = opts.className;
+      if (opts.style) node.style.cssText = opts.style;
+      if (opts.text !== undefined) node.textContent = String(opts.text);
+      if (opts.attrs) {
+        for (const [k, v] of Object.entries(opts.attrs)) {
+          if (v !== undefined && v !== null) node.setAttribute(k, String(v));
+        }
+      }
+    }
+    for (const c of children) {
+      if (c === null || c === undefined || c === false) continue;
+      node.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(String(c)) : c);
+    }
+    return node;
+  }
+
   function openCacheCleaner() {
     const existing = document.getElementById("t3-cache-cleaner-modal");
     if (existing) existing.remove();
@@ -1198,12 +1217,500 @@ ${__STARDUST_V9_CSS}
     return () => __pinState.listeners.delete(fn);
   }
 
+  // ---- MIT Restrained Telemetry Engine (ported from nanami-0713/t3code for official v0.1.11+) ----
+  function __parseTs(v) {
+    if (v == null) return null;
+    if (typeof v === "number") return Number.isFinite(v) ? v : null;
+    if (typeof v === "string") {
+      const ms = Date.parse(v);
+      return Number.isFinite(ms) ? ms : null;
+    }
+    if (v instanceof Date) {
+      const ms = v.getTime();
+      return Number.isFinite(ms) ? ms : null;
+    }
+    if (typeof v === "object") {
+      if (Number.isFinite(v.epochMilliseconds)) return v.epochMilliseconds;
+      if (Number.isFinite(v.epochMillis)) return v.epochMillis;
+      if (typeof v.toJSON === "function") {
+        const j = v.toJSON();
+        if (typeof j === "string") {
+          const ms = Date.parse(j);
+          if (Number.isFinite(ms)) return ms;
+        }
+      }
+      if (typeof v.toISOString === "function") {
+        const ms = Date.parse(v.toISOString());
+        return Number.isFinite(ms) ? ms : null;
+      }
+    }
+    return null;
+  }
+  function __nonNegNum(v) {
+    return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+  }
+  function __unionIntervalsMs(intervals) {
+    const valid = intervals
+      .filter((x) => Number.isFinite(x.start) && Number.isFinite(x.end) && x.end > x.start)
+      .sort((a, b) => a.start - b.start);
+    if (valid.length === 0) return 0;
+    let total = 0, s = valid[0].start, e = valid[0].end;
+    for (let i = 1; i < valid.length; i += 1) {
+      const cur = valid[i];
+      if (cur.start <= e) { if (cur.end > e) e = cur.end; }
+      else { total += e - s; s = cur.start; e = cur.end; }
+    }
+    return total + (e - s);
+  }
+  function __readTurnUsage(pt) {
+    const t = pt?.turnTokenUsage;
+    const n = pt?.tokenUsage;
+    return {
+      inputTokens: __nonNegNum(t?.inputTokens) ?? __nonNegNum(n?.inputTokens),
+      cachedInputTokens: __nonNegNum(t?.cachedInputTokens) ?? __nonNegNum(n?.cachedInputTokens),
+      cacheCreationTokens: __nonNegNum(t?.cacheCreationTokens) ?? __nonNegNum(n?.cacheCreationTokens),
+      outputTokens: __nonNegNum(t?.outputTokens) ?? __nonNegNum(n?.outputTokens),
+      reasoningTokens: __nonNegNum(t?.reasoningTokens) ?? __nonNegNum(n?.reasoningOutputTokens),
+      usageStatus: t?.usageStatus ?? (n === void 0 ? null : "complete")
+    };
+  }
+  function __calcTurnMetrics(inp) {
+    const MIN_GEN_MS = 100, MAX_TTFT_MS = 3600000;
+    let firstGen = null, firstOther = null, firstAns = null;
+    const genSpans = [], toolSpans = [];
+    for (const it of inp.items || []) {
+      const tp = it?.type;
+      if (tp === "user_message" || tp === "notification" || tp === "system_notice" || tp === "handoff" || tp === "fork" || tp === "checkpoint" || tp === "compaction") continue;
+      const st = __parseTs(it.startedAt);
+      const en = __parseTs(it.completedAt);
+      if (tp === "reasoning" || tp === "assistant_message") {
+        if (st !== null && (firstGen === null || st < firstGen)) firstGen = st;
+        if (tp === "assistant_message" && st !== null && (firstAns === null || st < firstAns)) firstAns = st;
+        if (st !== null && en !== null && en > st) genSpans.push({ start: st, end: en });
+      } else {
+        if (st !== null && (firstOther === null || st < firstOther)) firstOther = st;
+        if (st !== null && en !== null && en > st) toolSpans.push({ start: st, end: en });
+      }
+    }
+    const firstAct = firstGen ?? firstOther;
+    const rawTtft = inp.startMs !== null && firstAct !== null ? Math.max(0, firstAct - inp.startMs) : null;
+    const ttftMs = rawTtft !== null && rawTtft <= MAX_TTFT_MS ? rawTtft : null;
+    const rawAns = inp.startMs !== null && firstAns !== null ? Math.max(0, firstAns - inp.startMs) : null;
+    const firstAnswerMs = rawAns !== null && rawAns <= MAX_TTFT_MS && (ttftMs === null || Math.abs(rawAns - ttftMs) >= 250) ? rawAns : null;
+    const totalDurationMs = inp.startMs !== null && inp.endMs !== null && inp.endMs > inp.startMs ? inp.endMs - inp.startMs : null;
+    const genMsSum = __unionIntervalsMs(genSpans);
+    const generationDurationMs = genMsSum > 0 ? genMsSum : null;
+    const toolMsSum = __unionIntervalsMs(toolSpans);
+    const toolDurationMs = toolMsSum > 0 ? toolMsSum : null;
+    const denom = generationDurationMs !== null && generationDurationMs >= MIN_GEN_MS ? generationDurationMs : totalDurationMs;
+    const calcTps = (toks, ms) => (toks === null || toks <= 0 || ms === null || ms < MIN_GEN_MS ? null : toks / (ms / 1000));
+    const generationTps = calcTps(inp.outputTokens, denom);
+    const endToEndTps = calcTps(inp.outputTokens, totalDurationMs);
+    const cacheHitPercent = inp.inputTokens !== null && inp.inputTokens > 0 && inp.cachedInputTokens !== null
+      ? Math.min(100, (inp.cachedInputTokens / inp.inputTokens) * 100)
+      : null;
+    return {
+      providerTurnId: inp.providerTurnId,
+      runId: inp.runId,
+      status: inp.status,
+      ttftMs,
+      firstAnswerMs,
+      generationDurationMs,
+      toolDurationMs,
+      totalDurationMs,
+      inputTokens: inp.inputTokens,
+      cachedInputTokens: inp.cachedInputTokens,
+      cacheCreationTokens: inp.cacheCreationTokens,
+      cacheHitPercent,
+      outputTokens: inp.outputTokens,
+      reasoningTokens: inp.reasoningTokens,
+      generationTps,
+      endToEndTps,
+      usageStatus: inp.usageStatus
+    };
+  }
+  function computeThreadTelemetry(detail) {
+    const byProviderTurnId = new Map();
+    const byRunId = new Map();
+    const empty = {
+      byProviderTurnId,
+      byRunId,
+      latest: null,
+      latestWithCache: null,
+      sessionCacheHitPercent: null,
+      sessionCacheTurnCount: 0,
+      turnCount: 0,
+      toolCallCount: 0,
+      skillCount: 0
+    };
+    if (!detail || !Array.isArray(detail.providerTurns) || detail.providerTurns.length === 0) {
+      if (detail && Array.isArray(detail.runs)) empty.turnCount = detail.runs.length;
+      return empty;
+    }
+    const runsById = new Map((detail.runs || []).map((r) => [r.id, r]));
+    const attemptsById = new Map((detail.attempts || []).map((a) => [a.id, a]));
+    const itemsByPt = new Map();
+    const itemsByRun = new Map();
+    let toolCallCount = 0, skillCount = 0;
+    for (const it of detail.turnItems || []) {
+      if (it.providerTurnId != null) {
+        let arr = itemsByPt.get(it.providerTurnId);
+        if (!arr) { arr = []; itemsByPt.set(it.providerTurnId, arr); }
+        arr.push(it);
+      }
+      if (it.runId != null) {
+        let arr = itemsByRun.get(it.runId);
+        if (!arr) { arr = []; itemsByRun.set(it.runId, arr); }
+        arr.push(it);
+      }
+      const tp = String(it?.type || "");
+      if (tp === "tool_call" || tp === "command_execution" || tp === "mcp_tool_call" || tp === "file_change" || tp === "web_search" || tp === "subagent") toolCallCount += 1;
+      else if (tp === "skill" || tp === "skill_invocation") skillCount += 1;
+    }
+    const ptsByRun = new Map();
+    let latest = null, latestTs = -1, latestWithCache = null, latestCacheTs = -1;
+    let totalIn = 0, totalCached = 0, cacheTurns = 0;
+    for (const pt of detail.providerTurns) {
+      const att = pt.runAttemptId == null ? void 0 : attemptsById.get(pt.runAttemptId);
+      const run = att === void 0 ? void 0 : runsById.get(att.runId);
+      const runId = run?.id ?? att?.runId ?? null;
+      const startMs = __parseTs(pt.startedAt) ?? __parseTs(att?.startedAt) ?? __parseTs(run?.startedAt) ?? __parseTs(run?.requestedAt);
+      const endMs = __parseTs(pt.completedAt) ?? __parseTs(att?.completedAt);
+      const u = __readTurnUsage(pt);
+      const m = __calcTurnMetrics({
+        providerTurnId: pt.id,
+        runId,
+        status: pt.status,
+        startMs,
+        endMs,
+        items: itemsByPt.get(pt.id) || [],
+        ...u
+      });
+      byProviderTurnId.set(pt.id, m);
+      const ts = endMs ?? startMs ?? 0;
+      if (ts >= latestTs) { latestTs = ts; latest = m; }
+      if (m.cacheHitPercent !== null && m.inputTokens !== null && m.inputTokens > 0) {
+        totalIn += m.inputTokens;
+        totalCached += m.cachedInputTokens ?? 0;
+        cacheTurns += 1;
+        if (ts >= latestCacheTs) { latestCacheTs = ts; latestWithCache = m; }
+      }
+      if (runId !== null) {
+        let arr = ptsByRun.get(runId);
+        if (!arr) { arr = []; ptsByRun.set(runId, arr); }
+        arr.push(pt);
+      }
+    }
+    for (const [runId, pts] of ptsByRun) {
+      if (pts.length === 1) {
+        const m = byProviderTurnId.get(pts[0].id);
+        if (m) byRunId.set(runId, m);
+        continue;
+      }
+      const sorted = [...pts].sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
+      const first = sorted[0], last = sorted[sorted.length - 1];
+      const run = runsById.get(runId);
+      const startMs = __parseTs(first.startedAt) ?? __parseTs(first.runAttemptId == null ? void 0 : attemptsById.get(first.runAttemptId)?.startedAt) ?? __parseTs(run?.startedAt) ?? __parseTs(run?.requestedAt);
+      const endMs = __parseTs(last.completedAt) ?? __parseTs(run?.completedAt);
+      let inT = null, cInT = null, cCrT = null, outT = null, rT = null, st = null;
+      for (const p of sorted) {
+        const u = __readTurnUsage(p);
+        if (u.inputTokens !== null) inT = (inT ?? 0) + u.inputTokens;
+        if (u.cachedInputTokens !== null) cInT = (cInT ?? 0) + u.cachedInputTokens;
+        if (u.cacheCreationTokens !== null) cCrT = (cCrT ?? 0) + u.cacheCreationTokens;
+        if (u.outputTokens !== null) outT = (outT ?? 0) + u.outputTokens;
+        if (u.reasoningTokens !== null) rT = (rT ?? 0) + u.reasoningTokens;
+        if (u.usageStatus === "complete") st ??= "complete";
+        else if (u.usageStatus === "partial") st = "partial";
+        else if (u.usageStatus === "unavailable" && st === null) st = "unavailable";
+      }
+      byRunId.set(runId, __calcTurnMetrics({
+        providerTurnId: last.id,
+        runId,
+        status: last.status,
+        startMs,
+        endMs,
+        items: itemsByRun.get(runId) || [],
+        inputTokens: inT,
+        cachedInputTokens: cInT,
+        cacheCreationTokens: cCrT,
+        outputTokens: outT,
+        reasoningTokens: rT,
+        usageStatus: st
+      }));
+    }
+    return {
+      byProviderTurnId,
+      byRunId,
+      latest,
+      latestWithCache,
+      sessionCacheHitPercent: totalIn > 0 ? Math.min(100, (totalCached / totalIn) * 100) : null,
+      sessionCacheTurnCount: cacheTurns,
+      turnCount: Array.isArray(detail.runs) && detail.runs.length > 0 ? detail.runs.length : detail.providerTurns.length,
+      toolCallCount,
+      skillCount
+    };
+  }
+  const __telemetryStore = new Map();
+  const __telemetrySourceCache = new WeakMap();
+  const __telemetryListeners = new Set();
+  function __threadRefKey(refOrEnv, maybeId) {
+    if (!refOrEnv) return "";
+    if (typeof refOrEnv === "string") return maybeId ? refOrEnv + "::" + maybeId : refOrEnv;
+    if (refOrEnv.environmentId && refOrEnv.threadId) return refOrEnv.environmentId + "::" + refOrEnv.threadId;
+    return "";
+  }
+  function publishThreadTelemetry(threadRef, detail) {
+    const key = __threadRefKey(threadRef);
+    if (!key || !detail) return null;
+    let snap = __telemetrySourceCache.get(detail);
+    if (!snap) {
+      snap = computeThreadTelemetry(detail);
+      __telemetrySourceCache.set(detail, snap);
+    }
+    const prev = __telemetryStore.get(key);
+    if (prev !== snap) {
+      __telemetryStore.set(key, snap);
+      if (__telemetryStore.size > 40) {
+        const firstKey = __telemetryStore.keys().next().value;
+        if (firstKey) __telemetryStore.delete(firstKey);
+      }
+      queueMicrotask(() => {
+        for (const fn of __telemetryListeners) { try { fn(key); } catch {} }
+      });
+    }
+    return snap;
+  }
+  function getThreadTelemetry(refOrEnv, maybeId) {
+    const key = __threadRefKey(refOrEnv, maybeId);
+    return key ? (__telemetryStore.get(key) || null) : null;
+  }
+  function getTurnTelemetry(refOrEnv, providerTurnId, runId) {
+    const snap = getThreadTelemetry(refOrEnv);
+    if (!snap) return null;
+    if (providerTurnId && snap.byProviderTurnId.has(providerTurnId)) return snap.byProviderTurnId.get(providerTurnId);
+    if (runId && snap.byRunId.has(runId)) return snap.byRunId.get(runId);
+    return null;
+  }
+  function subscribeTelemetry(fn) {
+    __telemetryListeners.add(fn);
+    return () => __telemetryListeners.delete(fn);
+  }
+  function fmtDurationMs(ms) {
+    if (!Number.isFinite(ms) || ms < 0) return "";
+    if (ms < 1000) return Math.round(ms) + "ms";
+    const s = ms / 1000;
+    if (s < 60) return (s < 10 ? s.toFixed(1) : Math.round(s)) + "s";
+    const m = Math.floor(s / 60);
+    const remS = Math.round(s % 60);
+    return remS > 0 ? m + "m " + remS + "s" : m + "m";
+  }
+  function fmtTps(tps, compact) {
+    if (!Number.isFinite(tps) || tps <= 0) return "";
+    const n = tps >= 10 ? Math.round(tps) : tps.toFixed(1);
+    return n + (compact ? " t/s" : " tok/s");
+  }
+  function fmtCompactTok(n, lower) {
+    if (!Number.isFinite(n) || n < 0) return null;
+    if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 1 : 2).replace(/\.0+$/, "") + (lower ? "m" : "M");
+    if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0+$/, "") + (lower ? "k" : "K");
+    return String(Math.round(n));
+  }
+  function splitProviderWindows(prov, activeModel, maxInline = 2) {
+    const ul = prov?.usageLimits;
+    const all = (ul && !ul.unavailable && Array.isArray(ul.windows))
+      ? ul.windows.filter((w) => w && w.id !== "custom_api" && Number.isFinite(w.usedPercent))
+      : [];
+    if (all.length === 0) return { inline: [], sibling: [], all: [], overflowCount: 0 };
+    const drv = String(prov?.driver || prov?.driverKind || "").toLowerCase();
+    const bareModel = String(activeModel || "").split("/").pop().toLowerCase();
+    const kindOrder = { session: 0, weekly: 1, monthly: 2, other: 3 };
+    const matchesModel = (w) => {
+      if (!bareModel) return true;
+      if (Array.isArray(w.modelIds) && w.modelIds.length > 0) {
+        return w.modelIds.some((m) => String(m).toLowerCase() === bareModel || bareModel.includes(String(m).toLowerCase()));
+      }
+      if (drv === "antigravity") {
+        const mFam = bareModel.match(/^(gemini|claude|gpt)-/)?.[1];
+        const wFam = String(w.id || "").toLowerCase().match(/^(gemini|claude|gpt|3p)-/)?.[1];
+        if (mFam && wFam) return wFam === mFam || (wFam === "3p" && (mFam === "claude" || mFam === "gpt"));
+      }
+      if (drv === "cursor") {
+        const isAuto = /^(auto|default|grok|composer)/.test(bareModel);
+        if (w.id === "autoPercentUsed") return isAuto;
+        if (w.id === "apiPercentUsed") return !isAuto;
+      }
+      return true;
+    };
+    const modelPriority = (w) => {
+      if (drv !== "antigravity" || !bareModel) return 0;
+      const wid = String(w.id || "").toLowerCase();
+      if ((bareModel.includes("argon") && wid.startsWith("gemini-argon-")) || (bareModel.includes("carbon") && wid.startsWith("gemini-carbon-"))) return -1;
+      return 0;
+    };
+    const matched = all.filter(matchesModel);
+    const pool = (matched.length > 0 ? matched : all).slice().sort((a, b) => {
+      const kd = (kindOrder[a.kind] ?? 3) - (kindOrder[b.kind] ?? 3);
+      if (kd !== 0) return kd;
+      const pd = modelPriority(a) - modelPriority(b);
+      if (pd !== 0) return pd;
+      return (100 - a.usedPercent) - (100 - b.usedPercent);
+    });
+    const inline = [];
+    const seenKinds = new Set();
+    for (const w of pool) {
+      if (inline.length >= maxInline) break;
+      if (!seenKinds.has(w.kind)) { inline.push(w); seenKinds.add(w.kind); }
+    }
+    for (const w of pool) {
+      if (inline.length >= maxInline) break;
+      if (!inline.some((x) => x.id === w.id)) inline.push(w);
+    }
+    const inlineIds = new Set(inline.map((w) => w.id));
+    const sibling = all.filter((w) => !inlineIds.has(w.id));
+    return { inline, sibling, all, overflowCount: sibling.length };
+  }
+  function computeWindowGauge(win, nowInput) {
+    const now = Number.isFinite(nowInput) ? nowInput : Date.now();
+    const used = Math.max(0, Math.min(100, Number.isFinite(win?.usedPercent) ? win.usedPercent : 0));
+    const remaining = Math.round(100 - used);
+    const resetsAtMs = win?.resetsAt ? Date.parse(win.resetsAt) : NaN;
+    const resetsInMs = Number.isFinite(resetsAtMs) ? Math.max(0, resetsAtMs - now) : null;
+    const durMs = inferWindowDurationMs({
+      windowDurationMs: Number.isFinite(win?.windowDurationMins) ? win.windowDurationMins * 60000 : win?.windowDurationMs,
+      kind: win?.kind,
+      label: win?.label
+    }, resetsInMs ?? NaN);
+    let timeRemaining = null, pace = null, headroomDelta = null;
+    if (resetsInMs !== null && durMs > 0 && durMs >= resetsInMs) {
+      timeRemaining = Math.max(0, Math.min(100, Math.round((resetsInMs / durMs) * 100)));
+      const elapsedPct = 100 - timeRemaining;
+      headroomDelta = remaining - timeRemaining;
+      const diff = used - elapsedPct;
+      pace = diff > 5 ? "ahead" : diff < -5 ? "under" : "on";
+    }
+    const tone = remaining <= 10 ? "danger" : remaining <= 20 ? "warn" : "ok";
+    const paceTone = pace === "ahead" || (headroomDelta !== null && headroomDelta <= -10)
+      ? "fast"
+      : pace === "under" || (headroomDelta !== null && headroomDelta >= 8)
+      ? "good"
+      : "neutral";
+    const shortTag = (() => {
+      const lbl = String(win?.label || win?.kind || win?.id || "");
+      if (/5[- ]?hour|5h|session|会话/i.test(lbl)) return "5h";
+      if (/7[- ]?day|7d|weekly|每周/i.test(lbl)) return "7d";
+      if (/month|每月|月度/i.test(lbl)) return "30d";
+      return translateWindowLabel(lbl).slice(0, 8);
+    })();
+    return { used: Math.round(used), remaining, resetsInMs, timeRemaining, pace, headroomDelta, tone, paceTone, shortTag };
+  }
+  function showContextPopover(usage, telSnap, anchorEl) {
+    if (!usage) return;
+    const id = "__t3_ctx_pop";
+    if (__activeTopbarPop.id === id && __activeTopbarPop.el && document.body.contains(__activeTopbarPop.el)) {
+      closeTopbarQuotaPopover();
+      return;
+    }
+    closeTopbarQuotaPopover();
+    const zh = getLang() === "zh";
+    const pop = document.createElement("div");
+    pop.className = "t3-topbar-pop";
+    pop.setAttribute("data-quota-ui-managed", "true");
+    const maxTok = usage.maxTokens > 0 ? usage.maxTokens : null;
+    const usedTok = Number.isFinite(usage.usedTokens) ? usage.usedTokens : 0;
+    const usedPct = maxTok ? Math.min(100, Math.round((usedTok / maxTok) * 100)) : (Number.isFinite(usage.usedPercentage) ? Math.round(usage.usedPercentage) : null);
+    const lt = telSnap?.latestWithCache || telSnap?.latest || null;
+    const cachedTok = Number.isFinite(lt?.cachedInputTokens) ? Math.min(usedTok, lt.cachedInputTokens) : (Number.isFinite(usage.cachedInputTokens) ? Math.min(usedTok, usage.cachedInputTokens) : 0);
+    const uncachedTok = Math.max(0, usedTok - cachedTok);
+    const bufTok = maxTok && Number.isFinite(usage.autoCompactThreshold) && usage.autoCompactThreshold > 0 && usage.autoCompactThreshold < maxTok ? Math.max(0, maxTok - usage.autoCompactThreshold) : 0;
+    const freeTok = maxTok ? Math.max(0, maxTok - usedTok - bufTok) : null;
+    const pct = (v) => (maxTok && maxTok > 0 ? Math.max(0, Math.min(100, (v / maxTok) * 100)) : 0);
+    const rows = [
+      cachedTok > 0 ? { cls: "t3-tel-ctx-seg-cached", lbl: zh ? "已缓存上下文" : "Cached context", val: fmtCompactTok(cachedTok), p: maxTok ? pct(cachedTok).toFixed(0) + "%" : "" } : null,
+      uncachedTok > 0 ? { cls: "t3-tel-ctx-seg-uncached", lbl: zh ? "未缓存上下文" : "Uncached context", val: fmtCompactTok(uncachedTok), p: maxTok ? pct(uncachedTok).toFixed(0) + "%" : "" } : null,
+      bufTok > 0 ? { cls: "t3-tel-ctx-seg-buf", lbl: zh ? "自动压缩缓冲" : "Autocompact buffer", val: fmtCompactTok(bufTok), p: maxTok ? pct(bufTok).toFixed(0) + "%" : "" } : null,
+      freeTok !== null ? { cls: "", lbl: zh ? "剩余空间" : "Free space", val: fmtCompactTok(freeTok), p: maxTok ? pct(freeTok).toFixed(0) + "%" : "" } : null
+    ].filter(Boolean);
+    const cachePct = telSnap?.sessionCacheHitPercent ?? lt?.cacheHitPercent ?? null;
+    pop.appendChild(
+      __el(
+        "div",
+        { className: "t3-topbar-pop-head" },
+        __el("span", { className: "t3-topbar-pop-title", text: zh ? "上下文与缓存拆解" : "Context & Cache" }),
+        __el("span", { className: "t3-topbar-pop-tag", text: usedPct !== null ? (zh ? "已用 " + usedPct + "%" : usedPct + "% used") : fmtCompactTok(usedTok) })
+      )
+    );
+    const bar = __el("div", { className: "t3-tel-ctx-bar", style: "margin-bottom:8px;" });
+    if (cachedTok > 0) bar.appendChild(__el("span", { className: "t3-tel-ctx-seg-cached", style: "width:" + pct(cachedTok).toFixed(2) + "%" }));
+    if (uncachedTok > 0) bar.appendChild(__el("span", { className: "t3-tel-ctx-seg-uncached", style: "width:" + pct(uncachedTok).toFixed(2) + "%" }));
+    if (bufTok > 0) bar.appendChild(__el("span", { className: "t3-tel-ctx-seg-buf", style: "width:" + pct(bufTok).toFixed(2) + "%;margin-left:auto;" }));
+    pop.appendChild(bar);
+    const rowsWrap = __el("div", { style: "display:flex;flex-direction:column;gap:4px;" });
+    for (const r of rows) {
+      rowsWrap.appendChild(
+        __el(
+          "div",
+          { className: "t3-tel-ctx-row" },
+          __el("span", { className: "t3-tel-ctx-dot " + r.cls, style: r.cls ? "" : "background:var(--v9-fill);" }),
+          __el("span", { style: "color:var(--v9-fg-2);", text: r.lbl }),
+          __el("span", { style: "font-family:var(--font-mono);font-weight:600;", text: r.val || "0" }),
+          __el("span", { style: "color:var(--v9-fg-3);min-width:2.4rem;text-align:right;font-family:var(--font-mono);", text: r.p })
+        )
+      );
+    }
+    pop.appendChild(rowsWrap);
+    if (cachePct !== null) {
+      pop.appendChild(
+        __el(
+          "div",
+          { style: "margin-top:8px;padding-top:7px;border-top:0.5px solid var(--v9-hair);display:flex;justify-content:space-between;font-size:11px;" },
+          __el("span", { style: "color:var(--v9-fg-2);", text: zh ? "提示词缓存命中率" : "Prompt cache hit" }),
+          __el("span", { style: "font-weight:700;color:#10b981;", text: Math.round(cachePct) + "%" })
+        )
+      );
+    }
+    if (telSnap && (telSnap.turnCount > 0 || telSnap.toolCallCount > 0)) {
+      pop.appendChild(
+        __el(
+          "div",
+          { style: "margin-top:5px;display:flex;justify-content:space-between;font-size:10.5px;color:var(--v9-fg-3);" },
+          __el("span", { text: zh ? telSnap.turnCount + " 轮对话 · " + telSnap.toolCallCount + " 次工具" : telSnap.turnCount + " turns · " + telSnap.toolCallCount + " tools" }),
+          __el("span", { text: maxTok ? fmtCompactTok(usedTok) + " / " + fmtCompactTok(maxTok) : fmtCompactTok(usedTok) })
+        )
+      );
+    }
+    document.body.appendChild(pop);
+    const rect = anchorEl?.getBoundingClientRect?.();
+    const popW = 304;
+    let left = rect ? rect.left : 24;
+    left = Math.max(12, Math.min(window.innerWidth - popW - 12, left));
+    const popH = pop.offsetHeight || 190;
+    const topPos = rect ? Math.max(12, rect.top - popH - 8) : window.innerHeight - popH - 60;
+    pop.style.left = Math.round(left) + "px";
+    pop.style.top = Math.round(topPos) + "px";
+    const onDown = (ev) => { if (!pop.contains(ev.target) && !(anchorEl && anchorEl.contains(ev.target))) closeTopbarQuotaPopover(); };
+    const onKey = (ev) => { if (ev.key === "Escape") closeTopbarQuotaPopover(); };
+    setTimeout(() => {
+      document.addEventListener("pointerdown", onDown, true);
+      document.addEventListener("keydown", onKey, true);
+    }, 0);
+    __activeTopbarPop = {
+      id,
+      el: pop,
+      cleanup: () => {
+        document.removeEventListener("pointerdown", onDown, true);
+        document.removeEventListener("keydown", onKey, true);
+      }
+    };
+  }
+
   const api = {
     getLang,
     isZh: () => getLang() === "zh",
     setLang: (next) => {
       const v = next === "en" ? "en" : "zh";
       try { window.localStorage.setItem(LANG_KEY, v); } catch {}
+      try { if (typeof window.__t3NativeSetLocale === "function") window.__t3NativeSetLocale(v); } catch {}
       emitChange();
     },
     toggleLang: () => {
@@ -1233,6 +1740,17 @@ ${__STARDUST_V9_CSS}
     togglePreviewPins,
     sendPreviewPins,
     subscribePreviewPins,
+    computeThreadTelemetry,
+    publishThreadTelemetry,
+    getThreadTelemetry,
+    getTurnTelemetry,
+    subscribeTelemetry,
+    fmtDurationMs,
+    fmtTps,
+    fmtCompactTok,
+    splitProviderWindows,
+    computeWindowGauge,
+    showContextPopover,
     subscribe: (listener) => {
       const onUpdate = () => listener({ lang: getLang(), currency: getCurrency(), rate: getRate() });
       window.addEventListener("t3-quota-ui:change", onUpdate);
@@ -1279,15 +1797,35 @@ function patchUsageFormatBundle(src) {
   if (!usdFmtMatch) return out;
   const usdFmtVar = usdFmtMatch[1];
 
-  // 1. Dynamic USD <-> CNY currency formatter
+  const cnyHelperPreamble = `var __t3CnyFmt=new Intl.NumberFormat("zh-CN",{style:"currency",currency:"CNY",minimumFractionDigits:2,maximumFractionDigits:2});function __t3Zh(){return globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0}function __t3Cny(){return globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isCny():!1}function __t3Rate(){return globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.getRate():7.25}`;
+
+  // 1a. Dynamic USD <-> CNY currency formatter (0.1.9 single-arg direct Intl.NumberFormat)
   const fnRe = new RegExp(
     `function ([A-Za-z0-9_$]+)\\(([A-Za-z0-9_$]+)\\)\\{return ${usdFmtVar.replace(/\$/g, "\\$")}\\.format\\(\\2\\)\\}`,
   );
-  out = out.replace(
-    fnRe,
-    (_, fnName, argName) =>
-      `var __t3CnyFmt=new Intl.NumberFormat("zh-CN",{style:"currency",currency:"CNY",minimumFractionDigits:2,maximumFractionDigits:2});function __t3Zh(){return globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0}function __t3Cny(){return globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isCny():!1}function __t3Rate(){return globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.getRate():7.25}function ${fnName}(${argName}){const __v=Number.isFinite(${argName})?${argName}:0;return __t3Cny()?__t3CnyFmt.format(__v*__t3Rate()):${usdFmtVar}.format(__v)}`,
-  );
+  if (fnRe.test(out)) {
+    out = out.replace(
+      fnRe,
+      (_, fnName, argName) =>
+        `${cnyHelperPreamble}function ${fnName}(${argName}){const __v=Number.isFinite(${argName})?${argName}:0;return __t3Cny()?__t3CnyFmt.format(__v*__t3Rate()):${usdFmtVar}.format(__v)}`,
+    );
+  } else {
+    // 1b. Dynamic USD <-> CNY currency formatter (0.1.11+ locale-aware Map-cached formatter: function c(e,t){return a(r(t),!0).format(e)})
+    const v11FnRe =
+      /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\)\{return ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\(\3\),!0\)\.format\(\2\)\}/;
+    if (!v11FnRe.test(out)) return out;
+    out = out.replace(
+      v11FnRe,
+      (_, fnName, argName, locArg, mapFn, normFn) =>
+        `${cnyHelperPreamble}function ${fnName}(${argName},${locArg}){const __v=Number.isFinite(${argName})?${argName}:0;return __t3Cny()?__t3CnyFmt.format(__v*__t3Rate()):${mapFn}(${normFn}(${locArg}),!0).format(__v)}`,
+    );
+    // Sync 0.1.11+ locale normalizer with live [中 / EN] toggle
+    out = out.replace(
+      /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{return \2===void 0\|\|\2===[`"']en[`"']\?[`"']en-US[`"']:\2\}/,
+      (_, normFn, a) =>
+        `function ${normFn}(${a}){if(globalThis.__t3QuotaUi)return globalThis.__t3QuotaUi.isZh()?"zh-CN":"en-US";return ${a}===void 0||${a}==="en"?"en-US":${a}}`,
+    );
+  }
 
   // 2. Malformed records notice
   out = out.replace(
@@ -1316,6 +1854,11 @@ function patchUsageFormatBundle(src) {
     (_, diffVar, hrVar) =>
       `${diffVar}===0?(__t3Zh()?\`今日 \${${hrVar}}\`:\`\${${hrVar}} today\`):${diffVar}===1?(__t3Zh()?\`昨日 \${${hrVar}}\`:\`\${${hrVar}} yesterday\`):`,
   );
+  out = out.replace(
+    /([A-Za-z0-9_$]+)===0\?`\$\{([A-Za-z0-9_$]+)\} today`:`\$\{\2\} yesterday`/g,
+    (_, diffVar, hrVar) =>
+      `${diffVar}===0?(__t3Zh()?\`今日 \${${hrVar}}\`:\`\${${hrVar}} today\`):(__t3Zh()?\`昨日 \${${hrVar}}\`:\`\${${hrVar}} yesterday\`)`,
+  );
 
   // 6. Month-day-hour DateTimeFormat locale
   out = out.replace(
@@ -1331,13 +1874,13 @@ function patchUsageShortcutsBundle(src) {
   let out = src;
 
   const pairs = [
-    [/label:[`"']Cost[`"'],command:[`"']usage\.cost[`"']/, 'get label(){return __t3ShortcutZh()?"费用":"Cost"},command:"usage.cost"'],
-    [/label:[`"']Tokens[`"'],command:[`"']usage\.tokens[`"']/, 'get label(){return __t3ShortcutZh()?"Token":"Tokens"},command:"usage.tokens"'],
-    [/label:[`"']Limits[`"'],command:[`"']usage\.limits[`"']/, 'get label(){return __t3ShortcutZh()?"限额":"Limits"},command:"usage.limits"'],
-    [/label:[`"']Past 24h[`"'],command:[`"']usage\.period\.day[`"']/, 'get label(){return __t3ShortcutZh()?"24小时":"Past 24h"},command:"usage.period.day"'],
-    [/label:[`"']7 days[`"'],command:[`"']usage\.period\.week[`"']/, 'get label(){return __t3ShortcutZh()?"7天":"7 days"},command:"usage.period.week"'],
-    [/label:[`"']30 days[`"'],command:[`"']usage\.period\.month[`"']/, 'get label(){return __t3ShortcutZh()?"30天":"30 days"},command:"usage.period.month"'],
-    [/label:[`"']90 days[`"'],command:[`"']usage\.period\.quarter[`"']/, 'get label(){return __t3ShortcutZh()?"90天":"90 days"},command:"usage.period.quarter"'],
+    [/label:(?:[A-Za-z0-9_$]+\()?[`"']Cost[`"']\)?,command:[`"']usage\.cost[`"']/, 'get label(){return __t3ShortcutZh()?"费用":"Cost"},command:"usage.cost"'],
+    [/label:(?:[A-Za-z0-9_$]+\()?[`"']Tokens[`"']\)?,command:[`"']usage\.tokens[`"']/, 'get label(){return __t3ShortcutZh()?"Token":"Tokens"},command:"usage.tokens"'],
+    [/label:(?:[A-Za-z0-9_$]+\()?[`"']Limits[`"']\)?,command:[`"']usage\.limits[`"']/, 'get label(){return __t3ShortcutZh()?"限额":"Limits"},command:"usage.limits"'],
+    [/label:(?:[A-Za-z0-9_$]+\()?[`"']Past 24h[`"']\)?,command:[`"']usage\.period\.day[`"']/, 'get label(){return __t3ShortcutZh()?"24小时":"Past 24h"},command:"usage.period.day"'],
+    [/label:(?:[A-Za-z0-9_$]+\()?[`"']7 days[`"']\)?,command:[`"']usage\.period\.week[`"']/, 'get label(){return __t3ShortcutZh()?"7天":"7 days"},command:"usage.period.week"'],
+    [/label:(?:[A-Za-z0-9_$]+\()?[`"']30 days[`"']\)?,command:[`"']usage\.period\.month[`"']/, 'get label(){return __t3ShortcutZh()?"30天":"30 days"},command:"usage.period.month"'],
+    [/label:(?:[A-Za-z0-9_$]+\()?[`"']90 days[`"']\)?,command:[`"']usage\.period\.quarter[`"']/, 'get label(){return __t3ShortcutZh()?"90天":"90 days"},command:"usage.period.quarter"'],
   ];
 
   let matched = false;
@@ -1451,11 +1994,11 @@ function patchUsageLimitsView(src) {
       `${q}t3-quota-card grid items-center gap-x-3 gap-y-1.5 rounded-lg border border-border/60 px-3 py-2 grid-cols-[8.5rem_minmax(0,1fr)]${q}`,
   );
 
-  // 3. Upgrade PoolSection (Ee) & PooledLimits (De) for:
+  // 3. Upgrade PoolSection (Ee / ze) & PooledLimits (De / Be) for:
   //    - Side-by-side per-account columns (Left: Antigravity 1, Right: Antigravity 2)
   //    - Dense side-by-side single-card providers (Left: Cursor, Right: Grok)
   if (!out.includes("t3-quota-col-1")) {
-    // Support splitAccount title, accentColor & 1-col vs 2-col section sizing in Ee
+    // 3a. 0.1.9 React Compiler grouped PoolSection (Ee)
     out = out.replace(
       /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.c\)\(\d+\),\{pool:([A-Za-z0-9_$]+),now:([A-Za-z0-9_$]+)\}=\2,([A-Za-z0-9_$]+);\3\[0\]===\5\.driver\?\7=\3\[1\]:\(\7=([A-Za-z0-9_$]+)\(\5\.driver\),\3\[0\]=\5\.driver,\3\[1\]=\7\);let ([A-Za-z0-9_$]+)=\7,([A-Za-z0-9_$]+);\3\[2\]===\5\.driver\?\10=\3\[3\]:\(\10=([A-Za-z0-9_$]+)\.get\(\5\.driver\)\?\.label\?\?String\(\5\.driver\),\3\[2\]=\5\.driver,\3\[3\]=\10\);let ([A-Za-z0-9_$]+)=\10,([A-Za-z0-9_$]+);if\(\3\[4\]!==\9\|\|\3\[5\]!==\12\|\|\3\[6\]!==\6\|\|\3\[7\]!==\5\)\{let ([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\(\5\),([A-Za-z0-9_$]+);\3\[9\]!==\12\|\|\3\[10\]!==\5\.driver\?\(\16=\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{driverKind:\5\.driver,displayName:\12,indicatorBackground:[`"']var\(--background\)[`"'],className:[`"']size-5[`"'],iconClassName:[`"']size-4 text-foreground\/80[`"']\}\),([\s\S]*?),\13=\(0,\17\.jsxs\)\([`"']section[`"'],\{className:[`"'][^`"']*[`"'],children:\[([A-Za-z0-9_$]+),(?:\(0,\17\.jsx\)\([`"']div[`"'],\{className:[`"'][^`"']*[`"'],children:)?([^\]]+?)(?:\}\))?\]\}\)/,
       (
@@ -1485,7 +2028,44 @@ function patchUsageLimitsView(src) {
         `function ${eeFn}(${eArg}){let ${tMemo}=(0,${uNs}.c)(19),{pool:${nPool},now:${rNow}}=${eArg},${iVar};${tMemo}[0]===${nPool}?${iVar}=${tMemo}[1]:(${iVar}=${nPool}.splitAccount?.accentColor||${feFn}(${nPool}.driver),${tMemo}[0]=${nPool},${tMemo}[1]=${iVar});let ${aColor}=${iVar},${oVar};${tMemo}[2]===${nPool}?${oVar}=${tMemo}[3]:(${oVar}=(()=>{const __b=${hMap}.get(${nPool}.driver)?.label??String(${nPool}.driver);return ${nPool}.splitAccount?(${nPool}.splitAccount.displayName||(${nPool}.splitTotal>1?\`\${__b} \${${nPool}.splitIndex}\`:__b)):__b})(),${tMemo}[2]=${nPool},${tMemo}[3]=${oVar});let ${sLbl}=${oVar},${cOut};if(${tMemo}[4]!==${aColor}||${tMemo}[5]!==${sLbl}||${tMemo}[6]!==${rNow}||${tMemo}[7]!==${nPool}){let ${eWins}=${zFn}(${nPool}),${iconEl};const __col1=Boolean(${nPool}.splitAccount)||${eWins}.length<=1;${tMemo}[9]!==${sLbl}||${tMemo}[10]!==${nPool}?(${iconEl}=(0,${jsxNs}.jsx)(${hIconComp},{driverKind:${nPool}.driver,displayName:${sLbl},accentColor:${nPool}.splitAccount?.accentColor,showBadge:Boolean(${nPool}.splitAccount?.accentColor),indicatorBackground:"var(--background)",className:"size-5",iconClassName:"size-4 text-foreground/80"}),${midBlock},${cOut}=(0,${jsxNs}.jsxs)("section",{className:__col1?"t3-quota-section t3-quota-col-1 flex flex-col gap-1.5":"t3-quota-section t3-quota-col-2 flex flex-col gap-1.5",children:[${h2El},(0,${jsxNs}.jsx)("div",{className:__col1?"t3-quota-grid-1 grid grid-cols-1 gap-2":"t3-quota-grid grid grid-cols-1 gap-2 md:grid-cols-2",children:${cardsMapExpr}})]})`,
     );
 
-    // Key pool fragments by poolKey ?? driver in De
+    // 3b. 0.1.11+ flattened React Compiler PoolSection (ze) with GT i18n hook
+    if (!out.includes("t3-quota-col-1")) {
+      out = out.replace(
+        /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.c\)\(\d+\),\{pool:([A-Za-z0-9_$]+),now:([A-Za-z0-9_$]+)\}=\2,([A-Za-z0-9_$]+);\3\[0\]===\5\.driver\?\7=\3\[1\]:\(\7=([A-Za-z0-9_$]+)\(\5\.driver\),\3\[0\]=\5\.driver,\3\[1\]=\7\);let ([A-Za-z0-9_$]+)=\7,([A-Za-z0-9_$]+);\3\[2\]===\5\.driver\?\10=\3\[3\]:\(\10=([A-Za-z0-9_$]+)\.get\(\5\.driver\)\?\.label\?\?String\(\5\.driver\),\3\[2\]=\5\.driver,\3\[3\]=\10\);let ([A-Za-z0-9_$]+)=\10,([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\(\5\),([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\(\),([A-Za-z0-9_$]+);\3\[4\]!==\12\|\|\3\[5\]!==\5\.driver\?\(\17=\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{driverKind:\5\.driver,displayName:\12,indicatorBackground:[`"']var\(--background\)[`"'],className:[`"']size-5[`"'],iconClassName:[`"']size-4 text-foreground\/80[`"']\}\),\3\[4\]=\12,\3\[5\]=\5\.driver,\3\[6\]=\17\):\17=\3\[6\];([\s\S]{0,700}?)return \3\[(\d+)\]!==([A-Za-z0-9_$]+)\|\|\3\[(\d+)\]!==([A-Za-z0-9_$]+)\?\(([A-Za-z0-9_$]+)=\(0,\18\.jsxs\)\([`"']section[`"'],\{className:[`"']flex flex-col gap-3[`"'],children:\[\22,\24\]\}\),\3\[\21\]=\22,\3\[\23\]=\24,\3\[(\d+)\]=\25\):\25=\3\[\26\],\25\}/,
+        (
+          _,
+          fn,
+          eArg,
+          tM,
+          cNs,
+          nPool,
+          rNow,
+          iVar,
+          colorFn,
+          aCol,
+          oVar,
+          provMap,
+          sLbl,
+          lWins,
+          zFn,
+          uGt,
+          gtFn,
+          fIcon,
+          jsxNs,
+          iconComp,
+          midBody,
+          s1,
+          h2El,
+          s2,
+          cardsEl,
+          gOut,
+          s3,
+        ) =>
+          `function ${fn}(${eArg}){let ${tM}=(0,${cNs}.c)(22),{pool:${nPool},now:${rNow}}=${eArg},${iVar};${tM}[0]===${nPool}?${iVar}=${tM}[1]:(${iVar}=${nPool}.splitAccount?.accentColor||${colorFn}(${nPool}.driver),${tM}[0]=${nPool},${tM}[1]=${iVar});let ${aCol}=${iVar},${oVar};${tM}[2]===${nPool}?${oVar}=${tM}[3]:(${oVar}=(()=>{const __b=${provMap}.get(${nPool}.driver)?.label??String(${nPool}.driver);return ${nPool}.splitAccount?(${nPool}.splitAccount.displayName||(${nPool}.splitTotal>1?\`\${__b} \${${nPool}.splitIndex}\`:__b)):__b})(),${tM}[2]=${nPool},${tM}[3]=${oVar});let ${sLbl}=${oVar},${lWins}=${zFn}(${nPool}),${uGt}=${gtFn}(),${fIcon};const __col1=Boolean(${nPool}.splitAccount)||${lWins}.length<=1;${tM}[4]!==${sLbl}||${tM}[5]!==${nPool}?(${fIcon}=(0,${jsxNs}.jsx)(${iconComp},{driverKind:${nPool}.driver,displayName:${sLbl},accentColor:${nPool}.splitAccount?.accentColor,showBadge:Boolean(${nPool}.splitAccount?.accentColor),indicatorBackground:"var(--background)",className:"size-5",iconClassName:"size-4 text-foreground/80"}),${tM}[4]=${sLbl},${tM}[5]=${nPool},${tM}[6]=${fIcon}):${fIcon}=${tM}[6];${midBody}return ${tM}[${s1}]!==${h2El}||${tM}[${s2}]!==${cardsEl}||${tM}[19]!==__col1?(${gOut}=(0,${jsxNs}.jsxs)("section",{className:__col1?"t3-quota-section t3-quota-col-1 flex flex-col gap-1.5":"t3-quota-section t3-quota-col-2 flex flex-col gap-1.5",children:[${h2El},(0,${jsxNs}.jsx)("div",{className:__col1?"t3-quota-grid-1 grid grid-cols-1 gap-2":"t3-quota-grid grid grid-cols-1 gap-2 md:grid-cols-2",children:${cardsEl}})]}),${tM}[${s1}]=${h2El},${tM}[${s2}]=${cardsEl},${tM}[19]=__col1,${tM}[${s3}]=${gOut}):${gOut}=${tM}[${s3}],${gOut}}`,
+      );
+    }
+
+    // Key pool fragments by poolKey ?? driver in De / Be
     out = out.replace(
       /children:\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{pool:([A-Za-z0-9_$]+),now:([A-Za-z0-9_$]+)\}\)\},\3\.driver\)/g,
       "children:(0,$1.jsx)($2,{pool:$3,now:$4})},$3.poolKey??$3.driver)",
@@ -1666,25 +2246,35 @@ function patchChatUsageBundle(src) {
   let out = src;
 
   const reactNsMatch = out.match(/\(\s*0\s*,\s*([A-Za-z0-9_$]+)\.useState\s*\)\([`"']model[`"']\)/);
-  const segMatch = out.match(
+  const segMatchLegacy = out.match(
     /\.map\([A-Za-z0-9_$]+=>\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{value:[A-Za-z0-9_$]+\.value,title:[A-Za-z0-9_$]+\([A-Za-z0-9_$]+\),children:[A-Za-z0-9_$]+\.label\}[\s\S]{0,160}?\(0,\1\.jsx\)\(([A-Za-z0-9_$]+),\{"aria-label":[`"']Usage metric[`"']/,
   );
-  const fmtUsdMatch = out.match(
-    /import\{[^}]*\bd as ([A-Za-z0-9_$]+)[^}]*\}from[`"']\.\/usageFormat-[^`"']+[`"']/,
+  const segMatchV11 = !segMatchLegacy
+    ? out.match(
+        /\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{"aria-label":[A-Za-z0-9_$]+\([`"']Usage period[`"']\),variant:[`"']segmented[`"'],[\s\S]{0,240}?\(0,\1\.jsx\)\(([A-Za-z0-9_$]+),\{value:String\([A-Za-z0-9_$]+\.days\),title:[A-Za-z0-9_$]+\([A-Za-z0-9_$]+\),children:[A-Za-z0-9_$]+\([A-Za-z0-9_$]+\.label\)\}/,
+      )
+    : null;
+  const fmtUsdMatchV11 = out.match(
+    /Cost by speed[`"']\)[\s\S]{0,180}?format:[A-Za-z0-9_$]+=>([A-Za-z0-9_$]+)\([A-Za-z0-9_$]+,[A-Za-z0-9_$]+\)/,
   );
+  const fmtUsdMatchLegacy = !fmtUsdMatchV11
+    ? out.match(
+        /import\{[^}]*\bd as ([A-Za-z0-9_$]+)[^}]*\}from[`"']\.\/usageFormat-[^`"']+[`"']/,
+      )
+    : null;
   const tooltipMatch = out.match(
     /\(0,[A-Za-z0-9_$]+\.jsxs\)\(([A-Za-z0-9_$]+),\{children:\[\(0,[A-Za-z0-9_$]+\.jsx\)\(([A-Za-z0-9_$]+),\{render:\(0,[A-Za-z0-9_$]+\.jsx\)\([`"']div[`"'],\{className:[`"']h-full min-w-1[\s\S]{0,220}?\(0,[A-Za-z0-9_$]+\.jsxs\)\(([A-Za-z0-9_$]+),\{/,
   );
 
-  if (!reactNsMatch || !segMatch || !fmtUsdMatch) {
+  if (!reactNsMatch || (!segMatchLegacy && !segMatchV11) || (!fmtUsdMatchV11 && !fmtUsdMatchLegacy)) {
     return out;
   }
 
   const reactNs = reactNsMatch[1];
-  const jsxNs = segMatch[1];
-  const toggleItemIdent = segMatch[2];
-  const toggleGroupIdent = segMatch[3];
-  const fmtUsdIdent = fmtUsdMatch[1];
+  const jsxNs = segMatchLegacy ? segMatchLegacy[1] : segMatchV11[1];
+  const toggleItemIdent = segMatchLegacy ? segMatchLegacy[2] : segMatchV11[3];
+  const toggleGroupIdent = segMatchLegacy ? segMatchLegacy[3] : segMatchV11[2];
+  const fmtUsdIdent = fmtUsdMatchV11 ? fmtUsdMatchV11[1] : fmtUsdMatchLegacy[1];
   const tooltipRootIdent = tooltipMatch ? tooltipMatch[1] : null;
   const tooltipTriggerIdent = tooltipMatch ? tooltipMatch[2] : null;
   const tooltipPopupIdent = tooltipMatch ? tooltipMatch[3] : null;
@@ -1703,17 +2293,33 @@ function patchChatUsageBundle(src) {
     (_, hVar, gVar) => `[${hVar},${gVar}]=__t3UseSavedBreakdown()`,
   );
 
-  // 2. Inject Currency (¥ CNY | $ USD) & Language (中 | EN) segmented toggles into wide & compact toolbars
+  // 2. Inject Currency (¥ CNY | $ USD), Language (中 | EN) & Cache Cleaner into wide & compact toolbars
   out = out.replace(
     /className:[`"']ms-auto hidden shrink-0 items-center justify-end gap-2 @4xl\/usage-header:flex[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]/,
     (_, periodEl, metricEl, refreshEl) =>
       `className:"ms-auto hidden shrink-0 items-center justify-end gap-2 @4xl/usage-header:flex",children:[${periodEl},${metricEl},__t3RenderToolbarToggles(!1),${refreshEl}]`,
   );
-  out = out.replace(
-    /className:[`"']ms-auto flex shrink-0 items-center justify-end gap-1 @4xl\/usage-header:hidden[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]/,
-    (_, periodEl, metricEl, refreshEl) =>
-      `className:"ms-auto flex shrink-0 items-center justify-end gap-1 @4xl/usage-header:hidden",children:[${periodEl},${metricEl},__t3RenderToolbarToggles(!0),${refreshEl}]`,
-  );
+  if (/className:[`"']ms-auto flex shrink-0 items-center justify-end gap-1 @4xl\/usage-header:hidden[`"'],children:\[/.test(out)) {
+    out = out.replace(
+      /className:[`"']ms-auto flex shrink-0 items-center justify-end gap-1 @4xl\/usage-header:hidden[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]/,
+      (_, periodEl, metricEl, refreshEl) =>
+        `className:"ms-auto flex shrink-0 items-center justify-end gap-1 @4xl/usage-header:hidden",children:[${periodEl},${metricEl},__t3RenderToolbarToggles(!0),${refreshEl}]`,
+    );
+  } else {
+    const compactClsMatch = out.match(
+      /([A-Za-z0-9_$]+)=[`"']ms-auto flex shrink-0 items-center justify-end gap-1 @4xl\/usage-header:hidden[`"']/,
+    );
+    if (compactClsMatch) {
+      const clsVar = compactClsMatch[1];
+      out = out.replace(
+        new RegExp(
+          `className:${clsVar.replace(/\$/g, "\\$")},children:\\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\\]`,
+        ),
+        (_, periodEl, metricEl, refreshEl) =>
+          `className:${clsVar},children:[${periodEl},${metricEl},__t3RenderToolbarToggles(!0),${refreshEl}]`,
+      );
+    }
+  }
 
   // 3. Chart Y-axis clean RMB tick scaling
   out = out.replace(
@@ -1737,30 +2343,41 @@ function patchChatUsageBundle(src) {
   );
 
   // 4. Chart Hover Tooltip: localize "Total" -> "合计" & display reference FX rate note in CNY mode
-  out = out.replace(
-    /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),\{tooltipRef:([A-Za-z0-9_$]+),label:([A-Za-z0-9_$]+),column:([A-Za-z0-9_$]+),providers:([A-Za-z0-9_$]+),loadingProviders:([A-Za-z0-9_$]+),format:([A-Za-z0-9_$]+)\}=\2([\s\S]*?)className:[`"']text-muted-foreground[`"'],children:[`"']Total[`"']([\s\S]*?)className:[`"']surface-glass pointer-events-none absolute z-10 min-w-36 max-w-full rounded-xl border border-border\/50 px-2\.5 py-2 text-xs shadow-lg[`"'],style:([A-Za-z0-9_$]+),children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]/,
-    (
-      _,
-      rnFn,
-      eArg,
-      tMemo,
-      refVar,
-      lblVar,
-      colVar,
-      provVar,
-      loadVar,
-      fmtVar,
-      mid1,
-      mid2,
-      styleVar,
-      uChild,
-      dChild,
-      totChild,
-    ) =>
-      `function ${rnFn}(${eArg}){let ${tMemo}=(0,${
-        out.match(/var [A-Za-z0-9_$]+=e\(t\(\),1\),([A-Za-z0-9_$]+)=n\(\)/)?.[1] ?? "Q"
-      }.c)(26),{tooltipRef:${refVar},label:${lblVar},column:${colVar},providers:${provVar},loadingProviders:${loadVar},format:${fmtVar}}=${eArg}${mid1}className:"text-muted-foreground",children:__t3UsageZh()?"合计":"Total"${mid2}className:"surface-glass pointer-events-none absolute z-10 min-w-36 max-w-full rounded-xl border border-border/50 px-2.5 py-2 text-xs shadow-lg",style:${styleVar},children:[${uChild},${dChild},${totChild},${fmtVar}===${fmtUsdIdent}&&__t3UsageCny()?(0,${jsxNs}.jsx)("div",{className:"mt-1 text-3xs text-muted-foreground/80 tabular-nums",children:__t3UsageZh()?"参考汇率 $1 = ¥"+__t3UsageRate():"Ref: $1 = ¥"+__t3UsageRate()}):null]`,
-  );
+  if (
+    /className:[`"']text-muted-foreground[`"'],children:[`"']Total[`"']/.test(out)
+  ) {
+    out = out.replace(
+      /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),\{tooltipRef:([A-Za-z0-9_$]+),label:([A-Za-z0-9_$]+),column:([A-Za-z0-9_$]+),providers:([A-Za-z0-9_$]+),loadingProviders:([A-Za-z0-9_$]+),format:([A-Za-z0-9_$]+)\}=\2([\s\S]*?)className:[`"']text-muted-foreground[`"'],children:[`"']Total[`"']([\s\S]*?)className:[`"']surface-glass pointer-events-none absolute z-10 min-w-36 max-w-full rounded-xl border border-border\/50 px-2\.5 py-2 text-xs shadow-lg[`"'],style:([A-Za-z0-9_$]+),children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]/,
+      (
+        _,
+        rnFn,
+        eArg,
+        tMemo,
+        refVar,
+        lblVar,
+        colVar,
+        provVar,
+        loadVar,
+        fmtVar,
+        mid1,
+        mid2,
+        styleVar,
+        uChild,
+        dChild,
+        totChild,
+      ) =>
+        `function ${rnFn}(${eArg}){let ${tMemo}=(0,${
+          out.match(/var [A-Za-z0-9_$]+=e\(t\(\),1\),([A-Za-z0-9_$]+)=n\(\)/)?.[1] ?? "Q"
+        }.c)(26),{tooltipRef:${refVar},label:${lblVar},column:${colVar},providers:${provVar},loadingProviders:${loadVar},format:${fmtVar}}=${eArg}${mid1}className:"text-muted-foreground",children:__t3UsageZh()?"合计":"Total"${mid2}className:"surface-glass pointer-events-none absolute z-10 min-w-36 max-w-full rounded-xl border border-border/50 px-2.5 py-2 text-xs shadow-lg",style:${styleVar},children:[${uChild},${dChild},${totChild},${fmtVar}===${fmtUsdIdent}&&__t3UsageCny()?(0,${jsxNs}.jsx)("div",{className:"mt-1 text-3xs text-muted-foreground/80 tabular-nums",children:__t3UsageZh()?"参考汇率 $1 = ¥"+__t3UsageRate():"Ref: $1 = ¥"+__t3UsageRate()}):null]`,
+    );
+  } else {
+    // 0.1.11+ Kn tooltip with ref:n and GT-wrapped Total; detect CNY mode via formatted 0 string
+    out = out.replace(
+      /(function [A-Za-z0-9_$]+\([A-Za-z0-9_$]+\)\{let [A-Za-z0-9_$]+=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),\{tooltipRef:[A-Za-z0-9_$]+,label:[A-Za-z0-9_$]+,column:[A-Za-z0-9_$]+,providers:[A-Za-z0-9_$]+,loadingProviders:[A-Za-z0-9_$]+,format:([A-Za-z0-9_$]+)\}=[A-Za-z0-9_$]+[\s\S]{0,1800}?ref:[A-Za-z0-9_$]+,className:[`"']surface-glass pointer-events-none absolute z-10 min-w-36 max-w-full rounded-xl border border-border\/50 px-2\.5 py-2 text-xs shadow-lg[`"'],style:[A-Za-z0-9_$]+,children:\[[A-Za-z0-9_$]+,[A-Za-z0-9_$]+,[A-Za-z0-9_$]+)\]/,
+      (_, prefix, fmtVar) =>
+        `${prefix},__t3UsageCny()&&typeof ${fmtVar}==="function"&&String(${fmtVar}(0)).includes("¥")?(0,${jsxNs}.jsx)("div",{className:"mt-1 text-3xs text-muted-foreground/80 tabular-nums",children:__t3UsageZh()?"参考汇率 $1 = ¥"+__t3UsageRate():"Ref: $1 = ¥"+__t3UsageRate()}):null]`,
+    );
+  }
 
   // 5. Complete Localization of Cost / Tokens / Breakdown / Filter / Modals
   out = out.replace(
@@ -2138,9 +2755,9 @@ function patchModelPickerBundle(src) {
       /className:`flex h-86\.5 min-h-0 max-sm:h-auto max-sm:flex-col`/g,
       'className:`flex flex-col h-auto min-h-0 gap-2`',
     );
-    // 2. Move provider tabs (qt) below search bar (tn): [qt, (0,Q.jsx)(U,{...,children:(0,Q.jsxs)(`div`,{className:Qt,children:[tn, ...
+    // 2. Move provider tabs (qt / vn) below search bar (tn / En): [qt, (0,Q.jsx)(U,{...,children:(0,Q.jsxs)(`div`,{className:Qt,children:[tn, ...
     s = s.replace(
-      /"data-model-picker-content":`true`,children:\[([A-Za-z0-9_$]+),(\(0,[A-Za-z0-9_$]+\.jsx\)\([A-Za-z0-9_$]+,\{inline:!0,[\s\S]{0,220}?children:\(0,[A-Za-z0-9_$]+\.jsxs\)\(`div`,\{className:[A-Za-z0-9_$]+,children:\[([A-Za-z0-9_$]+),)/,
+      /"data-model-picker-content":`true`,children:\[([A-Za-z0-9_$]+),(\(0,[A-Za-z0-9_$]+\.jsx\)\([A-Za-z0-9_$]+,\{inline:!0,[\s\S]{0,700}?children:\(0,[A-Za-z0-9_$]+\.jsxs\)\(`div`,\{className:[A-Za-z0-9_$]+,children:\[([A-Za-z0-9_$]+),)/,
       '"data-model-picker-content":`true`,children:[$2$1,',
     );
     // 3. Localize search box placeholder
@@ -2210,20 +2827,41 @@ function patchModelPickerBundle(src) {
 function patchChatTopbarBundle(src) {
   let out = src;
 
-  const providersMatch = out.match(/providers:([A-Za-z0-9_$]+),sources:[A-Za-z0-9_$]+,isWorking:[A-Za-z0-9_$]+,[\s\S]{0,320}?onOpenUsageLimits:([A-Za-z0-9_$]+)\?([A-Za-z0-9_$]+):void 0/);
-  const reactMatch = out.match(/var [A-Za-z0-9_$]+=\(0,([A-Za-z0-9_$]+)\.memo\)\(function\([A-Za-z0-9_$]+\)\{let [A-Za-z0-9_$]+=\(0,[A-Za-z0-9_$]+\.c\)\(80\),\{activeThreadEnvironmentId:/);
-  const rightPanelMatch = out.match(/rightPanelOpen:([A-Za-z0-9_$]+),onNewThreadInProject:/);
+  const providersMatchLegacy = out.match(
+    /providers:([A-Za-z0-9_$]+),sources:[A-Za-z0-9_$]+,isWorking:[A-Za-z0-9_$]+,[\s\S]{0,320}?onOpenUsageLimits:([A-Za-z0-9_$]+)\?([A-Za-z0-9_$]+):void 0/,
+  );
+  const providersMatchV11 = !providersMatchLegacy
+    ? out.match(
+        /usage:\{providerInstanceId:([A-Za-z0-9_$]+),(?:[A-Za-z0-9_$]+:[^,}]+,)*providers:([A-Za-z0-9_$]+),sources:([^,}]+),contextWindow:([A-Za-z0-9_$]+)\}/,
+      )
+    : null;
+  const reactMatch = out.match(
+    /var [A-Za-z0-9_$]+=\(0,([A-Za-z0-9_$]+)\.memo\)\(function\([A-Za-z0-9_$]+\)\{let [A-Za-z0-9_$]+=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),\{activeThreadEnvironmentId:/,
+  );
 
-  if (!providersMatch || !reactMatch) return out;
+  if ((!providersMatchLegacy && !providersMatchV11) || !reactMatch) return out;
 
-  const providersVar = providersMatch[1];
-  const canOpenVar = providersMatch[2];
-  const openUsageVar = providersMatch[3];
+  const providerInstanceIdVar = providersMatchV11 ? providersMatchV11[1] : null;
+  const providersVar = providersMatchLegacy ? providersMatchLegacy[1] : providersMatchV11[2];
+  const openUsageExpr = providersMatchLegacy
+    ? `${providersMatchLegacy[2]}?${providersMatchLegacy[3]}:void 0`
+    : "void 0";
+  const contextWindowVar = providersMatchV11 ? providersMatchV11[4] : null;
   const reactNs = reactMatch[1];
-  const rightPanelVar = rightPanelMatch ? rightPanelMatch[1] : "!1";
 
   // 1. Topbar Quota Pills with guaranteed safe right inset (never overlaps top-right 3 icons)
-  const topbarCallMatch = out.match(/(\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{activeThreadEnvironmentId:[A-Za-z0-9_$]+\.environmentId,activeThreadId:[A-Za-z0-9_$]+\.id,[\s\S]{0,420}?\}\)\s*)\]\}\)/);
+  const topbarCallMatch = out.match(
+    /(\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{activeThreadEnvironmentId:[A-Za-z0-9_$]+\.environmentId,activeThreadId:[A-Za-z0-9_$]+\.id,[\s\S]{0,600}?\}\)\s*)\]\}\)/,
+  );
+  const topbarCallWideMatch =
+    topbarCallMatch ||
+    out.match(
+      /\(0,([A-Za-z0-9_$]+)\.jsx\)\([A-Za-z0-9_$]+,\{activeThreadEnvironmentId:[A-Za-z0-9_$]+\.environmentId,activeThreadId:[A-Za-z0-9_$]+\.id,[\s\S]{0,600}?\}\)/,
+    );
+  const rightPanelCallMatch = topbarCallWideMatch
+    ? topbarCallWideMatch[0].match(/rightPanelOpen:([A-Za-z0-9_$]+),onNewThreadInProject:/)
+    : null;
+  const rightPanelVar = rightPanelCallMatch ? rightPanelCallMatch[1] : "!1";
   const jsxNsMatch = out.match(/\(0,([A-Za-z0-9_$]+)\.jsx\)\(__T3TopbarQuotaPills,/);
   const jsxNs = topbarCallMatch ? topbarCallMatch[2] : (jsxNsMatch ? jsxNsMatch[1] : null);
 
@@ -2231,16 +2869,16 @@ function patchChatTopbarBundle(src) {
     const newTopbarComp = `function __T3TopbarQuotaPills({providers,onOpenUsageLimits,rightPanelOpen}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const unsub=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof unsub==="function")unsub()}},[]);const pills=globalThis.__t3QuotaUi?.buildTopbarPills?.(providers,now)||[];if(pills.length===0)return null;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsx)("div",{className:"t3-topbar-quota-strip",style:{marginRight:rightPanelOpen?"52px":"128px"},"data-quota-ui-managed":"true","aria-label":zh?"模型额度状态":"Model quota status",children:pills.map(p=>(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-topbar-pill",title:p.tooltip+(zh?"\\n点击查看该厂商详细配额":"\\nClick for this provider's quota details"),onClick:ev=>{ev.stopPropagation();if(globalThis.__t3QuotaUi?.showTopbarQuotaPopover){globalThis.__t3QuotaUi.showTopbarQuotaPopover(p,ev.currentTarget)}else if(typeof onOpenUsageLimits==="function"){onOpenUsageLimits()}},children:[(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-dot t3-q-dot-"+p.tone}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-name",children:p.shortLabel}),(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-pct t3-q-"+p.tone,children:p.remaining+"%"}),p.resetShort?(0,${jsxNs}.jsx)("span",{className:"t3-topbar-pill-reset",children:"· "+p.resetShort}):null]},p.id))})}`;
 
     if (out.includes("__T3TopbarQuotaPills")) {
-      // Auto-heal v1.2.0 call & component to pass rightPanelOpen and safe right margin
+      // Auto-heal v1.2.0 call & component to pass rightPanelOpen and safe right margin (idempotent)
       out = out.replace(
-        /\(__T3TopbarQuotaPills,\{providers:([A-Za-z0-9_$]+),onOpenUsageLimits:([^}]+?)\}\)/,
+        /\(__T3TopbarQuotaPills,\{providers:([A-Za-z0-9_$]+),onOpenUsageLimits:([^,}]+?)(?:,rightPanelOpen:[A-Za-z0-9_$!]+)?\}\)/,
         `(__T3TopbarQuotaPills,{providers:$1,onOpenUsageLimits:$2,rightPanelOpen:${rightPanelVar}})`,
       );
       out = out.replace(/function __T3TopbarQuotaPills\([\s\S]*?\}\n/, `${newTopbarComp}\n`);
     } else if (topbarCallMatch) {
       out = out.replace(
         topbarCallMatch[0],
-        `${topbarCallMatch[1]},(0,${jsxNs}.jsx)(__T3TopbarQuotaPills,{providers:${providersVar},onOpenUsageLimits:${canOpenVar}?${openUsageVar}:void 0,rightPanelOpen:${rightPanelVar}})]})`,
+        `${topbarCallMatch[1]},(0,${jsxNs}.jsx)(__T3TopbarQuotaPills,{providers:${providersVar},onOpenUsageLimits:${openUsageExpr},rightPanelOpen:${rightPanelVar}})]})`,
       );
       out += `\n${newTopbarComp}\n`;
     }
@@ -2265,9 +2903,17 @@ function patchChatTopbarBundle(src) {
     }
   }
 
-  // 3. v1.4.0 1:1 Original MIT V9 Magnetic-Spring Session Stats Pill inside jU (composer-telemetry-strip)
+  // 3. v1.4.0+ 1:1 Original MIT V9 Magnetic-Spring Session Stats Pill + Official v0.1.11+ Restrained Telemetry UI
+  //    - 0.1.9 telemetry fork: injects __T3TelemetryPill inside existing jU (composer-telemetry-strip)
+  //    - 0.1.11+ official: injects full Bottom Watch-Arc Telemetry Strip (Context bar + V9 stats pill + Watch-Arc quota gauges),
+  //      Right Sidebar 20-Cell LED Fuel Matrix & Segmented Context Card, and publishes live thread telemetry for message TTFT badges
   if (jsxNs) {
-    const v9StatsFn = `function __T3TelemetryPill({usage,liveTurn,latestTurn,turnCount,toolCallCount,cacheHitPercent,isWorking}){const[,setTick]=(0,${reactNs}.useState)(0);const clusterRef=(0,${reactNs}.useRef)(null);const dockRef=(0,${reactNs}.useRef)(null);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const turns=Number.isFinite(turnCount)?turnCount:0;const steps=Number.isFinite(toolCallCount)?toolCallCount:0;const tObj=liveTurn||latestTurn||null;let tps=tObj?.outputTokensPerSecond??tObj?.tokensPerSecond??tObj?.genTokensPerSecond??null;if((!Number.isFinite(tps)||tps<=0)&&tObj&&Number.isFinite(tObj.outputTokens)&&Number.isFinite(tObj.durationMs)&&tObj.durationMs>200){tps=tObj.outputTokens/(tObj.durationMs/1000)}const tokRaw=usage?.usedTokens??usage?.totalTokens??usage?.contextTokens??tObj?.totalTokens??null;const fmtTok=n=>{if(!Number.isFinite(n)||n<=0)return null;if(n>=1e6)return(n/1e6).toFixed(1)+"M";if(n>=1e3)return(n/1e3).toFixed(1)+"K";return String(Math.round(n))};const tokStr=fmtTok(tokRaw);const cacheStr=Number.isFinite(cacheHitPercent)?Math.round(cacheHitPercent)+"%":null;if(turns<=0&&steps<=0&&!tokStr)return null;const leftTxt=zh?(turns+" 轮"+(steps>0?" "+steps+" 步":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":"")):(turns+"t"+(steps>0?" · "+steps+"s":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":""));const rightParts=[];if(tokStr)rightParts.push(tokStr+(zh?" 令牌":" tok"));if(cacheStr)rightParts.push((zh?"缓存 ":"cache ")+cacheStr);const dockTo=ev=>{const d=dockRef.current,c=clusterRef.current;if(!d||!c)return;const cr=c.getBoundingClientRect(),tr=ev.currentTarget.getBoundingClientRect();d.style.transform="translateX("+(tr.left-cr.left)+"px)";d.style.width=tr.width+"px";d.style.opacity="1"};const undock=()=>{const d=dockRef.current;if(d)d.style.opacity="0"};return(0,${jsxNs}.jsxs)("div",{ref:clusterRef,"data-v9-stats-cluster":"","data-quota-ui-managed":"true",onMouseLeave:undock,children:[(0,${jsxNs}.jsx)("span",{ref:dockRef,"data-v9-stats-dock-pill":"","aria-hidden":"true"}),(0,${jsxNs}.jsxs)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:[(0,${jsxNs}.jsx)("span",{"data-v9-stats-dot":"","data-running":isWorking?"true":"false"}),(0,${jsxNs}.jsx)("span",{children:leftTxt})]}),rightParts.length>0?(0,${jsxNs}.jsx)("span",{"data-v9-stats-sep":"","aria-hidden":"true"}):null,rightParts.length>0?(0,${jsxNs}.jsx)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:rightParts.join(" · ")}):null]})}`;
+    const v9StatsFn = `function __T3TelemetryPill({usage,liveTurn,latestTurn,turnCount,toolCallCount,cacheHitPercent,isWorking}){const[,setTick]=(0,${reactNs}.useState)(0);const clusterRef=(0,${reactNs}.useRef)(null);const dockRef=(0,${reactNs}.useRef)(null);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const turns=Number.isFinite(turnCount)?turnCount:0;const steps=Number.isFinite(toolCallCount)?toolCallCount:0;const tObj=liveTurn||latestTurn||null;let tps=tObj?.generationTps??tObj?.outputTokensPerSecond??tObj?.tokensPerSecond??tObj?.genTokensPerSecond??null;if((!Number.isFinite(tps)||tps<=0)&&tObj&&Number.isFinite(tObj.outputTokens)&&Number.isFinite(tObj.durationMs)&&tObj.durationMs>200){tps=tObj.outputTokens/(tObj.durationMs/1000)}const tokRaw=usage?.usedTokens??usage?.totalTokens??usage?.contextTokens??tObj?.totalTokens??null;const ctxPct=Number.isFinite(usage?.usedPercentage)?Math.round(usage.usedPercentage):null;const fmtTok=n=>{if(!Number.isFinite(n)||n<=0)return null;if(n>=1e6)return(n/1e6).toFixed(1)+"M";if(n>=1e3)return(n/1e3).toFixed(1)+"K";return String(Math.round(n))};const tokStr=fmtTok(tokRaw);const cacheStr=Number.isFinite(cacheHitPercent)?Math.round(cacheHitPercent)+"%":null;if(turns<=0&&steps<=0&&!tokStr)return null;const leftTxt=turns>0||steps>0?(zh?(turns+" 轮"+(steps>0?" "+steps+" 步":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":"")):(turns+"t"+(steps>0?" · "+steps+"s":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":""))):(zh?"会话中":"Session");const rightParts=[];if(tokStr)rightParts.push(tokStr+(zh?" 令牌":" tok")+(ctxPct!==null&&!cacheStr?" ("+ctxPct+"%)":""));if(cacheStr)rightParts.push((zh?"缓存 ":"cache ")+cacheStr);const dockTo=ev=>{const d=dockRef.current,c=clusterRef.current;if(!d||!c)return;const cr=c.getBoundingClientRect(),tr=ev.currentTarget.getBoundingClientRect();d.style.transform="translateX("+(tr.left-cr.left)+"px)";d.style.width=tr.width+"px";d.style.opacity="1"};const undock=()=>{const d=dockRef.current;if(d)d.style.opacity="0"};return(0,${jsxNs}.jsxs)("div",{ref:clusterRef,"data-v9-stats-cluster":"","data-quota-ui-managed":"true",onMouseLeave:undock,children:[(0,${jsxNs}.jsx)("span",{ref:dockRef,"data-v9-stats-dock-pill":"","aria-hidden":"true"}),(0,${jsxNs}.jsxs)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:[(0,${jsxNs}.jsx)("span",{"data-v9-stats-dot":"","data-running":isWorking?"true":"false"}),(0,${jsxNs}.jsx)("span",{children:leftTxt})]}),rightParts.length>0?(0,${jsxNs}.jsx)("span",{"data-v9-stats-sep":"","aria-hidden":"true"}):null,rightParts.length>0?(0,${jsxNs}.jsx)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:rightParts.join(" · ")}):null]})}`;
+
+    const watchArcHelpers = `function __T3WatchArc({remaining,tone,paceTone,size=15}){const r=5.6,c=2*Math.PI*r,l=Math.max(0,Math.min(100,Number.isFinite(remaining)?remaining:0)),off=c*(1-l/100),ang=((l/100)*360-90)*(Math.PI/180),cx=8+r*Math.cos(ang),cy=8+r*Math.sin(ang);const stroke=tone==="danger"?"#ef4444":(tone==="warn"||paceTone==="fast")?"#f59e0b":paceTone==="good"?"#10b981":"currentColor";return(0,${jsxNs}.jsxs)("svg",{width:size,height:size,viewBox:"0 0 16 16",fill:"none","aria-hidden":!0,className:"shrink-0",children:[(0,${jsxNs}.jsx)("circle",{cx:"8",cy:"8",r:r,stroke:"currentColor",strokeWidth:"1.9",opacity:"0.16"}),l>0?(0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[(0,${jsxNs}.jsx)("circle",{cx:"8",cy:"8",r:r,stroke:stroke,strokeWidth:"1.9",strokeLinecap:"round",strokeDasharray:c,strokeDashoffset:off,transform:"rotate(-90 8 8)"}),(0,${jsxNs}.jsx)("circle",{cx:cx,cy:cy,r:"1.5",fill:"var(--background)",stroke:"var(--foreground)",strokeWidth:"0.95"})]}):null]})}
+function __T3ComposerTelemetryStrip({threadRef,threadDetail,usage,providers,providerInstanceId,activeModel,runs,activeThread,isWorking}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const u1=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof u1==="function")u1()}},[]);const tel=(0,${reactNs}.useMemo)(()=>{if(threadDetail&&threadRef&&globalThis.__t3QuotaUi?.publishThreadTelemetry){return globalThis.__t3QuotaUi.publishThreadTelemetry(threadRef,threadDetail)}return null},[threadRef,threadDetail]);const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const activeProv=Array.isArray(providers)?(providers.find(p=>p&&p.instanceId===providerInstanceId)||providers.find(p=>p&&Array.isArray(p.usageLimits?.windows)&&p.usageLimits.windows.length>0&&!p.usageLimits.unavailable)):null;const split=qApi?.splitProviderWindows?qApi.splitProviderWindows(activeProv,activeModel,2):{inline:[],sibling:[],overflowCount:0};const topWins=split.inline;const overflowCount=split.overflowCount;const usedTok=usage?.usedTokens??null;const maxTok=usage?.maxTokens>0?usage.maxTokens:null;const usedPct=maxTok&&Number.isFinite(usedTok)?Math.min(100,Math.round((usedTok/maxTok)*100)):(Number.isFinite(usage?.usedPercentage)?Math.round(usage.usedPercentage):null);const lt=tel?.latestWithCache||tel?.latest||null;const cachedTok=Number.isFinite(lt?.cachedInputTokens)&&Number.isFinite(usedTok)?Math.min(usedTok,lt.cachedInputTokens):0;const uncachedTok=Number.isFinite(usedTok)?Math.max(0,usedTok-cachedTok):0;const turns=tel?.turnCount||(Array.isArray(runs)?runs.length:0);const tools=tel?.toolCallCount||(Array.isArray(activeThread?.activities)?activeThread.activities.filter(__a=>__a&&/tool|command|mcp|edit|write|read/i.test(String(__a.kind||__a.type||""))).length:0);const liveTtft=isWorking&&tel?.latest?.ttftMs!=null?tel.latest.ttftMs:null;if(!usage&&topWins.length===0&&turns<=0)return null;const openProvPop=ev=>{ev.stopPropagation();if(!activeProv||!qApi?.buildTopbarPills||!qApi?.showTopbarQuotaPopover)return;const pills=qApi.buildTopbarPills([activeProv],now);if(pills[0])qApi.showTopbarQuotaPopover(pills[0],ev.currentTarget)};const usedShort=qApi?.fmtCompactTok?.(usedTok,!0)||"";const maxShort=maxTok?(qApi?.fmtCompactTok?.(maxTok,!0)||""):"";return(0,${jsxNs}.jsxs)("div",{"data-slot":"composer-telemetry-strip","data-quota-ui-managed":"true",className:"t3-tel-strip",children:[(0,${jsxNs}.jsxs)("div",{className:"t3-tel-group",children:[usage?(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-tel-btn",title:zh?"点击查看上下文与缓存拆解":"Click for context & cache breakdown",onClick:ev=>{ev.stopPropagation();qApi?.showContextPopover?.(usage,tel,ev.currentTarget)},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.72},children:zh?"上下文":"Ctx"}),(0,${jsxNs}.jsxs)("span",{className:"t3-tel-mini-bar",children:[maxTok&&cachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-cached",style:{width:Math.min(100,(cachedTok/maxTok)*100)+"%"}}):null,maxTok&&uncachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:Math.min(100,(uncachedTok/maxTok)*100)+"%"}}):null,!maxTok&&usedPct!==null?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:usedPct+"%"}}):null]}),usedShort?(0,${jsxNs}.jsx)("span",{style:{opacity:0.65},children:maxShort?usedShort+"/"+maxShort:usedShort}):null,usedPct!==null?(0,${jsxNs}.jsx)("span",{style:{color:usedPct>=90?"#ef4444":usedPct>=80?"#f59e0b":"var(--v9-fg)",fontWeight:600},children:usedPct+"%"}):null]}):null,liveTtft!==null?(0,${jsxNs}.jsxs)("span",{className:"t3-tel-btn",style:{cursor:"default"},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"TTFT"}),(0,${jsxNs}.jsx)("span",{children:qApi?.fmtDurationMs?.(liveTtft)})]}):null]}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-strip-center",children:(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:usage,liveTurn:tel?.latest,latestTurn:tel?.latestWithCache||tel?.latest,turnCount:turns,toolCallCount:tools,cacheHitPercent:tel?.sessionCacheHitPercent??lt?.cacheHitPercent??null,isWorking:isWorking})}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-group",children:topWins.length>0?(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-tel-btn",title:zh?"点击查看当前厂商配额明细":"Click for active provider quota details",onClick:openProvPop,children:[topWins.map((w,idx)=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),tone:"ok",paceTone:"neutral",shortTag:w.label};return(0,${jsxNs}.jsxs)("span",{className:"inline-flex items-center gap-1",children:[idx>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.35},children:"·"}):null,(0,${jsxNs}.jsx)(__T3WatchArc,{remaining:g.remaining,tone:g.tone,paceTone:g.paceTone,size:15}),(0,${jsxNs}.jsx)("span",{style:{opacity:0.7},children:g.shortTag}),(0,${jsxNs}.jsx)("span",{className:g.tone==="danger"?"t3-q-danger":g.tone==="warn"?"t3-q-warn":"",style:{fontWeight:600,color:g.tone==="ok"?"var(--v9-fg)":void 0},children:g.remaining+"%"})]},w.id||idx)}),overflowCount>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"+"+overflowCount}):null]}):null})]})}
+function __T3LedQuotaSidebar(props){const{providerInstanceId,providers,activeModel,model,Fallback}=props;const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const id=setInterval(()=>setNow(Date.now()),60000);const u=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{clearInterval(id);if(typeof u==="function")u()}},[]);const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const prov=Array.isArray(providers)?(providers.find(p=>p&&p.instanceId===providerInstanceId)||providers.find(p=>p&&Array.isArray(p.usageLimits?.windows)&&p.usageLimits.windows.length>0&&!p.usageLimits.unavailable)):null;const mdl=activeModel||model||null;const split=qApi?.splitProviderWindows?qApi.splitProviderWindows(prov,mdl,2):{inline:[],sibling:[],all:[]};if(split.all.length===0)return Fallback?(0,${jsxNs}.jsx)(Fallback,{...props}):null;const cells=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];const openLimits=()=>{try{const raw=window.localStorage.getItem("usage-page-preferences:v1");const pref=raw?JSON.parse(raw):{};pref.tab="limits";window.localStorage.setItem("usage-page-preferences:v1",JSON.stringify(pref))}catch{}const link=document.querySelector('a[href="/usage"], a[href*="/usage"]');if(link)link.click()};const provTitle=prov?.displayName||prov?.driver||"";const mdlShort=mdl?String(mdl).split("/").pop():"";const planLabel=prov?.auth?.label||"";return(0,${jsxNs}.jsxs)("section",{className:"t3-tel-section","data-thread-details-telemetry":"usage","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2 text-xs",children:[(0,${jsxNs}.jsx)("span",{className:"truncate font-semibold text-foreground",title:mdlShort?provTitle+" · "+mdlShort:provTitle,children:mdlShort?provTitle+" · "+mdlShort:provTitle}),(0,${jsxNs}.jsx)("button",{type:"button",className:"shrink-0 text-2xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors",onClick:openLimits,title:zh?"打开完整配额面板":"Open full limits panel",children:planLabel||(zh?"完整面板":"Limits")})]}),split.inline.map(w=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),used:Math.round(w.usedPercent),resetsInMs:null,timeRemaining:null,tone:"ok",paceTone:"neutral"};const ledCls=g.tone==="danger"?"t3-tel-led-danger":(g.tone==="warn"||g.paceTone==="fast")?"t3-tel-led-warn":g.paceTone==="good"?"t3-tel-led-ok":"t3-tel-led-neutral";const lbl=qApi?.translateWindowLabel?qApi.translateWindowLabel(w.label||w.kind||w.id||""):(w.label||w.id);const resetTxt=g.resetsInMs!==null&&g.resetsInMs>0?(zh?(qApi.fmtDurLong(g.resetsInMs)+"后重置"):("resets in "+qApi.fmtDurLong(g.resetsInMs))):(zh?("已用 "+g.used+"%"):(g.used+"% used"));return(0,${jsxNs}.jsxs)("div",{className:"t3-tel-card",children:[(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2",children:[(0,${jsxNs}.jsxs)("div",{className:"flex min-w-0 items-center gap-1.5",children:[(0,${jsxNs}.jsx)(__T3WatchArc,{remaining:g.remaining,tone:g.tone,paceTone:g.paceTone,size:18}),(0,${jsxNs}.jsx)("span",{className:"truncate text-xs font-medium text-foreground",children:lbl})]}),(0,${jsxNs}.jsx)("span",{className:"shrink-0 font-mono text-sm font-semibold "+(g.tone==="danger"?"t3-q-danger":g.tone==="warn"?"t3-q-warn":"text-foreground"),children:g.remaining+"%"})]}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-led-row","aria-hidden":!0,children:cells.map(i=>{const th=i*5,full=g.remaining>=th+5,half=!full&&g.remaining>th;return(0,${jsxNs}.jsx)("span",{className:"t3-tel-led-cell"+(full?" "+ledCls:half?" "+ledCls+" t3-tel-led-half":"")},i)})}),g.timeRemaining!==null?(0,${jsxNs}.jsxs)("div",{className:"t3-tel-pace-track","aria-hidden":!0,children:[(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-bg"}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-fill",style:{width:g.timeRemaining+"%"}}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-needle",style:{left:g.timeRemaining+"%"}})]}):null,(0,${jsxNs}.jsx)("div",{className:"flex items-center justify-between gap-2 text-2xs text-muted-foreground",children:(0,${jsxNs}.jsx)("span",{className:"truncate",children:resetTxt})})]},w.id||lbl)}),split.sibling.length>0?(0,${jsxNs}.jsxs)("div",{className:"mt-1 flex flex-col gap-1.5",children:[(0,${jsxNs}.jsx)("div",{className:"text-2xs text-muted-foreground/80",children:zh?"其他模型配额池":"Other model pools"}),split.sibling.map(w=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),tone:"ok"};const lbl=qApi?.translateWindowLabel?qApi.translateWindowLabel(w.label||w.kind||w.id||""):(w.label||w.id);return(0,${jsxNs}.jsxs)("div",{className:"t3-tel-sib-row",children:[(0,${jsxNs}.jsx)("span",{className:"truncate text-muted-foreground",title:lbl,children:lbl}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-sib-bar",children:(0,${jsxNs}.jsx)("span",{style:{display:"block",height:"100%",borderRadius:"999px",width:Math.max(0,Math.min(100,g.remaining))+"%",background:g.tone==="danger"?"#ef4444":g.tone==="warn"?"#f59e0b":"color-mix(in oklab, var(--foreground) 72%, transparent)"}})}),(0,${jsxNs}.jsx)("span",{className:"text-right font-mono font-medium text-foreground",children:g.remaining+"%"})]},w.id||lbl)})]}):null]})}
+function __T3ContextBreakdownSidebar({usage,environmentId,threadId}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const u1=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));const u2=globalThis.__t3QuotaUi?.subscribeTelemetry?.(()=>setTick(x=>x+1));return()=>{if(typeof u1==="function")u1();if(typeof u2==="function")u2()}},[]);if(!usage)return null;const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const tel=qApi?.getThreadTelemetry?.(environmentId,threadId)||null;const maxTok=usage.maxTokens!=null&&usage.maxTokens>0?usage.maxTokens:null;const usedTok=Number.isFinite(usage.usedTokens)?usage.usedTokens:0;const usedPct=maxTok?Math.min(100,Math.round((usedTok/maxTok)*100)):(Number.isFinite(usage.usedPercentage)?Math.round(usage.usedPercentage):null);const lt=tel?.latestWithCache||tel?.latest||null;const cachedTok=Number.isFinite(lt?.cachedInputTokens)?Math.min(usedTok,lt.cachedInputTokens):(Number.isFinite(usage.cachedInputTokens)?Math.min(usedTok,usage.cachedInputTokens):0);const uncachedTok=Math.max(0,usedTok-cachedTok);const bufTok=maxTok&&Number.isFinite(usage.autoCompactThreshold)&&usage.autoCompactThreshold>0&&usage.autoCompactThreshold<maxTok?Math.max(0,maxTok-usage.autoCompactThreshold):0;const freeTok=maxTok?Math.max(0,maxTok-usedTok-bufTok):null;const pct=v=>(maxTok&&maxTok>0?Math.max(0,Math.min(100,(v/maxTok)*100)):0);const cachePct=tel?.sessionCacheHitPercent??lt?.cacheHitPercent??null;const latestMiss=lt&&lt.cacheHitPercent!==null?Math.max(0,Math.round(100-lt.cacheHitPercent)):null;const rows=[cachedTok>0?{cls:"t3-tel-ctx-seg-cached",lbl:zh?"已缓存上下文":"Cached context",val:qApi?.fmtCompactTok?.(cachedTok,!0),p:maxTok?Math.round(pct(cachedTok))+"%":""}:null,uncachedTok>0?{cls:"t3-tel-ctx-seg-uncached",lbl:zh?"未缓存上下文":"Uncached context",val:qApi?.fmtCompactTok?.(uncachedTok,!0),p:maxTok?Math.round(pct(uncachedTok))+"%":""}:null,bufTok>0?{cls:"t3-tel-ctx-seg-buf",lbl:zh?"自动压缩缓冲":"Autocompact buffer",val:qApi?.fmtCompactTok?.(bufTok,!0),p:maxTok?Math.round(pct(bufTok))+"%":""}:null,freeTok!==null?{cls:"",lbl:zh?"剩余空间":"Free space",val:qApi?.fmtCompactTok?.(freeTok,!0),p:maxTok?Math.round(pct(freeTok))+"%":""}:null].filter(Boolean);return(0,${jsxNs}.jsxs)("section",{className:"t3-tel-section","data-thread-details-telemetry":"context","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsx)("div",{className:"text-xs font-medium text-muted-foreground",children:zh?"上下文":"Context"}),(0,${jsxNs}.jsxs)("div",{className:"flex items-baseline justify-between gap-2",children:[(0,${jsxNs}.jsx)("span",{className:"text-sm font-semibold "+(usedPct>=90?"t3-q-danger":usedPct>=80?"t3-q-warn":"text-foreground"),children:usedPct!==null?(zh?"已用 "+usedPct+"%":usedPct+"% used"):(qApi?.fmtCompactTok?.(usedTok,!0)||"0")}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-xs text-muted-foreground",children:(qApi?.fmtCompactTok?.(usedTok,!0)||"0")+(maxTok?" / "+(qApi?.fmtCompactTok?.(maxTok,!0)||""):"")})]}),(0,${jsxNs}.jsxs)("div",{className:"t3-tel-ctx-bar",children:[cachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-cached",style:{width:pct(cachedTok)+"%"}}):null,uncachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:pct(uncachedTok)+"%"}}):null,bufTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-buf",style:{width:pct(bufTok)+"%",marginLeft:"auto"}}):null]}),(0,${jsxNs}.jsx)("div",{className:"flex flex-col gap-1",children:rows.map((r,idx)=>(0,${jsxNs}.jsxs)("div",{className:"t3-tel-ctx-row",children:[(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-dot "+r.cls,style:r.cls?void 0:{background:"color-mix(in oklab, var(--foreground) 16%, transparent)"}}),(0,${jsxNs}.jsx)("span",{className:"truncate text-muted-foreground",children:r.lbl}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-foreground font-medium",children:r.val}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-muted-foreground text-right",children:r.p})]},idx))}),cachePct!==null?(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2 pt-0.5 text-xs",children:[(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:zh?"提示词缓存":"Prompt cache"}),(0,${jsxNs}.jsxs)("span",{className:"font-mono text-2xs",children:[latestMiss!==null?(0,${jsxNs}.jsx)("span",{style:{color:"#f59e0b"},children:latestMiss+(zh?"% miss":"% miss")}):null,latestMiss!==null?(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground/50",children:" · "}):null,(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:(zh?"平均 ":"avg ")+Math.round(cachePct)+"%"})]})]}):null,tel&&(tel.turnCount>0||tel.toolCallCount>0)?(0,${jsxNs}.jsx)("div",{className:"text-2xs text-muted-foreground/80",children:zh?(tel.turnCount+" 轮对话 · "+tel.toolCallCount+" 次工具"+(tel.skillCount>0?" · "+tel.skillCount+" 个技能":"")):(tel.turnCount+" turns · "+tel.toolCallCount+" tools"+(tel.skillCount>0?" · "+tel.skillCount+" skills":""))}) :null]})}`;
 
     if (out.includes("function __T3TelemetryPill(")) {
       out = out.replace(/function __T3TelemetryPill\([\s\S]*?\}\n/, `${v9StatsFn}\n`);
@@ -2285,11 +2931,128 @@ function patchChatTopbarBundle(src) {
           ),
         );
         out += `\n${v9StatsFn}\n`;
+      } else if (contextWindowVar && providerInstanceIdVar) {
+        // 0.1.11+ official composer (Rz): pass threadDetail, contextWindow & providers + render full Watch-Arc telemetry strip BELOW composer box
+        const rzHeadMatch = out.match(
+          /([A-Za-z0-9_$]+)=\(0,[A-Za-z0-9_$]+\.memo\)\(function\(([A-Za-z0-9_$]+)\)\{let [A-Za-z0-9_$]+=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),[\s\S]{0,120}?\{composerDraftTarget:[A-Za-z0-9_$]+,[\s\S]{0,300}?routeThreadRef:([A-Za-z0-9_$]+),[\s\S]{0,300}?activeThread:([A-Za-z0-9_$]+),activeThreadRuns:([A-Za-z0-9_$]+),[\s\S]{0,220}?phase:([A-Za-z0-9_$]+),/,
+        );
+        const formEndMatch = out.match(
+          /("data-chat-composer-form":[`"']true[`"'],\.\.\.[A-Za-z0-9_$]+,children:\[[A-Za-z0-9_$]+,\(0,[A-Za-z0-9_$]+\.jsx\)\([`"']div[`"'],\{className:[`"']relative[`"'],children:\(0,[A-Za-z0-9_$]+\.jsx\)\([A-Za-z0-9_$]+\.Main,[\s\S]{0,650}?\}\)\}\)\}\))(\]\}\)\}\);)/,
+        );
+        const threadDetailMatch = out.match(/activeThreadRuns:([A-Za-z0-9_$]+)\?\.runs\?\?/);
+        const usageObjMatch = out.match(
+          /(usage:\{)(providerInstanceId:[A-Za-z0-9_$]+,(?:[A-Za-z0-9_$]+:[^,}]+,)*providers:[A-Za-z0-9_$]+,sources:[^,}]+,contextWindow:[A-Za-z0-9_$]+\}\}\),?\(0,[A-Za-z0-9_$]+\.jsx\)\([A-Za-z0-9_$]+,\{threadKey:[A-Za-z0-9_$]+,environmentId:([A-Za-z0-9_$]+)\.environmentId)/,
+        );
+        if (rzHeadMatch && formEndMatch && threadDetailMatch) {
+          const [, rzCompName, rzPropsVar, routeRefVar, activeThreadVar, runsVar, phaseVar] = rzHeadMatch;
+          const threadDetailVar = threadDetailMatch[1];
+          const rzCallRe = new RegExp(
+            `\\(0,${jsxNs.replace(/\$/g, "\\$")}\\.jsx\\)\\(${rzCompName.replace(/\$/g, "\\$")},\\{canOperateThread:`,
+          );
+          if (rzCallRe.test(out)) {
+            out = out.replace(
+              rzCallRe,
+              `(0,${jsxNs}.jsx)(${rzCompName},{t3ThreadDetail:${threadDetailVar},t3ContextWindow:${contextWindowVar},t3Providers:${providersVar},t3ProviderInstanceId:${providerInstanceIdVar},canOperateThread:`,
+            );
+            // Place telemetry strip BELOW the composer surface (inside form children, after the div.relative composer card)
+            out = out.replace(
+              formEndMatch[0],
+              `${formEndMatch[1]},(0,${jsxNs}.jsx)(__T3ComposerTelemetryStrip,{threadRef:${routeRefVar},threadDetail:${rzPropsVar}.t3ThreadDetail,usage:${rzPropsVar}.t3ContextWindow,providers:${rzPropsVar}.t3Providers,providerInstanceId:${rzPropsVar}.t3ProviderInstanceId,activeModel:${activeThreadVar}?.modelSelection?.model||${rzPropsVar}.reportedModelSelection?.model||null,runs:${runsVar},activeThread:${activeThreadVar},isWorking:${phaseVar}==="running"||${phaseVar}==="connecting"})${formEndMatch[2]}`,
+            );
+            // Attach activeModel to ChatView usage object so Right Sidebar knows active model pool (e.g. Gemini vs Claude)
+            if (usageObjMatch) {
+              const threadObjVar = usageObjMatch[3];
+              out = out.replace(
+                usageObjMatch[0],
+                `${usageObjMatch[1]}activeModel:${threadObjVar}?.modelSelection?.model??null,${usageObjMatch[2]}`,
+              );
+            }
+            // Upgrade Right Sidebar: ALWAYS show Context Breakdown FIRST and 20-cell LED Fuel Matrix SECOND (matching 0.1.9)
+            out = out.replace(
+              /([A-Za-z0-9_$]+)\.usage\?\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{\.\.\.([A-Za-z0-9_$]+)\.usage\}\):null,\1\.context&&\4\.usage\.contextWindow\?\(0,\2\.jsx\)\(([A-Za-z0-9_$]+),\{usage:\4\.usage\.contextWindow\}\):null/,
+              (_, _visV, jNs, duComp, eArg, _ouComp) =>
+                `${eArg}.usage.contextWindow?(0,${jNs}.jsx)(__T3ContextBreakdownSidebar,{usage:${eArg}.usage.contextWindow,environmentId:${eArg}.environmentId,threadId:${eArg}.threadId}):null,(0,${jNs}.jsx)(__T3LedQuotaSidebar,{...${eArg}.usage,Fallback:${duComp}})`,
+            );
+            out += `\n${v9StatsFn}\n${watchArcHelpers}\n`;
+          }
+        }
       }
     }
   }
 
   return out;
+}
+
+function patchTimelineTelemetryBundle(src) {
+  if (src.includes("__T3TurnTelemetryBadge") || src.includes("data-turn-telemetry")) return src;
+  let out = src;
+
+  const footerMatch = out.match(
+    /function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{let ([A-Za-z0-9_$]+)=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),\{className:([A-Za-z0-9_$]+),projectedItem:([A-Za-z0-9_$]+),message:([A-Za-z0-9_$]+),showCopyButton:[A-Za-z0-9_$]+,copyStreaming:[A-Za-z0-9_$]+,alwaysVisible:[A-Za-z0-9_$]+\}=\2,[A-Za-z0-9_$]+=[A-Za-z0-9_$]+!==void 0&&[A-Za-z0-9_$]+,([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.use\)\([A-Za-z0-9_$]+\),[\s\S]{0,180}?([A-Za-z0-9_$]+)\([`"']flex items-center gap-2 text-xs tabular-nums transition-opacity duration-200[`"'],([A-Za-z0-9_$]+),\4\)[\s\S]{0,1200}?\(0,([A-Za-z0-9_$]+)\.jsxs\)\(([A-Za-z0-9_$]+),\{children:\[\(0,\11\.jsx\)\(([A-Za-z0-9_$]+),\{render:\(0,\11\.jsx\)\([`"']p[`"'],\{className:[`"']text-muted-foreground text-xs tabular-nums[`"']\}\),children:[^}]+\}\),\(0,\11\.jsx\)\(([A-Za-z0-9_$]+),\{children:[^}]+\}\)\]\}\)[\s\S]{0,420}?\(0,\11\.jsxs\)\([`"']div[`"'],\{className:([A-Za-z0-9_$]+),children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}\)/,
+  );
+  if (!footerMatch) return src;
+
+  const [
+    fullMatch,
+    _fnName,
+    _eArg,
+    _tMemo,
+    propClsVar,
+    projVar,
+    msgVar,
+    ctxVar,
+    reactNs,
+    cnFn,
+    opacityVar,
+    jsxNs,
+    tipRoot,
+    tipTrig,
+    tipPopup,
+    clsVar,
+    c1,
+    c2,
+    c3,
+    c4,
+    c5,
+  ] = footerMatch;
+
+  // Keep action buttons (copy/fork/reply/timestamp) hover-only while keeping TTFT · t/s ALWAYS visible & right-aligned (matching 0.1.9)
+  const injected = fullMatch.replace(
+    `(0,${jsxNs}.jsxs)(\`div\`,{className:${clsVar},children:[${c1},${c2},${c3},${c4},${c5}]})`,
+    `(0,${jsxNs}.jsxs)("div",{className:${cnFn}("flex items-center gap-2 text-xs tabular-nums",${propClsVar}),children:[(0,${jsxNs}.jsxs)("div",{className:${cnFn}("flex items-center gap-2 transition-opacity duration-200",${opacityVar}),children:[${c1},${c2},${c3},${c4},${c5}]}),(0,${jsxNs}.jsx)(__T3TurnTelemetryBadge,{projectedItem:${projVar},message:${msgVar},threadRef:${ctxVar}?.threadRef})]})`,
+  );
+  if (injected === fullMatch) return src;
+  out = out.replace(fullMatch, injected);
+
+  const badgeComp = `function __T3TurnTelemetryBadge({projectedItem,message,threadRef}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const u1=globalThis.__t3QuotaUi?.subscribeTelemetry?.(()=>setTick(x=>x+1));const u2=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof u1==="function")u1();if(typeof u2==="function")u2()}},[]);if(!message||message.streaming)return null;const qApi=globalThis.__t3QuotaUi;const m=qApi?.getTurnTelemetry?.(threadRef,projectedItem?.item?.providerTurnId??null,message?.runId??null);if(!m)return null;const ttftStr=m.ttftMs!==null?qApi.fmtDurationMs(m.ttftMs):null;const tpsCompact=m.generationTps!==null?qApi.fmtTps(m.generationTps,!0):null;const tpsFull=m.generationTps!==null?qApi.fmtTps(m.generationTps,!1):null;const outStr=m.outputTokens!==null?qApi.fmtCompactTok(m.outputTokens,!0):null;const inStr=m.inputTokens!==null?qApi.fmtCompactTok(m.inputTokens,!0):null;if(!ttftStr&&!tpsCompact&&!outStr)return null;const zh=qApi?qApi.isZh():!0;const rows=[ttftStr?["TTFT",ttftStr]:null,m.firstAnswerMs!==null?[zh?"首屏回复":"First answer",qApi.fmtDurationMs(m.firstAnswerMs)]:null,tpsFull?[zh?"生成速度":"Gen speed",tpsFull]:null,m.endToEndTps!==null&&m.toolDurationMs!==null&&m.toolDurationMs>=100?[zh?"端到端速度":"End-to-end",qApi.fmtTps(m.endToEndTps,!1)]:null,outStr?[zh?"输出":"Output",outStr+(m.reasoningTokens>0?" ("+(zh?"推理 ":"reasoning ")+qApi.fmtCompactTok(m.reasoningTokens,!0)+")":"")]:null,inStr?[zh?"输入":"Input",inStr+(m.cachedInputTokens>0?" ("+(zh?"缓存 ":"cached ")+qApi.fmtCompactTok(m.cachedInputTokens,!0)+")":"")]:null,m.cacheHitPercent!==null?[zh?"提示词缓存":"Prompt cache",Math.round(m.cacheHitPercent)+"%"]:null,(m.generationDurationMs??m.totalDurationMs)!==null?[zh?"耗时":"Duration",qApi.fmtDurationMs(m.generationDurationMs??m.totalDurationMs)]:null,m.totalDurationMs!==null&&m.toolDurationMs!==null&&m.toolDurationMs>=100?[zh?"总耗时":"Wall time",qApi.fmtDurationMs(m.totalDurationMs)]:null].filter(Boolean);const trig=(0,${jsxNs}.jsx)("span",{tabIndex:0,"data-turn-telemetry":"true","data-quota-ui-managed":"true",className:"t3-turn-badge"});return(0,${jsxNs}.jsxs)(${tipRoot},{children:[(0,${jsxNs}.jsxs)(${tipTrig},{render:trig,children:[ttftStr?(0,${jsxNs}.jsxs)("span",{children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.65},children:"TTFT "}),ttftStr]}):null,ttftStr&&tpsCompact?(0,${jsxNs}.jsx)("span",{style:{opacity:0.35},children:"·"}):null,tpsCompact?(0,${jsxNs}.jsx)("span",{children:tpsCompact}):(!ttftStr&&outStr?(0,${jsxNs}.jsx)("span",{children:outStr+" tok"}):null)]}),(0,${jsxNs}.jsx)(${tipPopup},{side:"top",align:"end",children:(0,${jsxNs}.jsx)("div",{className:"grid min-w-44 grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-0.5 py-0.5 text-xs tabular-nums",children:rows.map(([k,v],idx)=>(0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:k}),(0,${jsxNs}.jsx)("span",{className:"text-right font-mono text-foreground",children:v})]},idx))})})]})}`;
+
+  out += `\n${badgeComp}\n`;
+  return out;
+}
+
+function patchMainLocaleBundle(src) {
+  if (src.includes("__t3NativeSetLocale")) return src;
+  return src.replace(
+    /(function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{if\(([A-Za-z0-9_$]+)===\3&&[\s\S]{0,200}?document\.documentElement\.lang=\3;)([\s\S]{0,60}?\}\})(function ([A-Za-z0-9_$]+)\(\)\{\4=[A-Za-z0-9_$]+\(([A-Za-z0-9_$]+)\(\)\.language,[\s\S]{0,120}?\})function ([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\)\{([A-Za-z0-9_$]+)\(\{language:\10\}\)\}function ([A-Za-z0-9_$]+)\(\)\{([A-Za-z0-9_$]+)\(\9\),([A-Za-z0-9_$]+)\(\7\),\7\(\)\}/,
+    (
+      _,
+      applyHead,
+      _applyFn,
+      langArg,
+      _curLangVar,
+      applyTail,
+      refreshFnBlock,
+      refreshFn,
+      getSettingsFn,
+      setLangFn,
+      setLangArg,
+      saveSettingsFn,
+      initFn,
+      rleFn,
+      subFn,
+    ) =>
+      `${applyHead}try{if((${langArg}==="zh"||${langArg}==="en")&&globalThis.__t3QuotaUi&&globalThis.__t3QuotaUi.getLang()!==${langArg}){window.localStorage.setItem("t3code:quota-ui-lang",${langArg});document.documentElement.dataset.quotaUiLang=${langArg};window.dispatchEvent(new CustomEvent("t3-quota-ui:change",{detail:{lang:${langArg},currency:globalThis.__t3QuotaUi.getCurrency(),rate:globalThis.__t3QuotaUi.getRate()}}))}}catch{}${applyTail}${refreshFnBlock}function ${setLangFn}(${setLangArg}){${saveSettingsFn}({language:${setLangArg}})}globalThis.__t3NativeSetLocale=${setLangFn};function ${initFn}(){${rleFn}(${setLangFn}),${subFn}(${refreshFn}),${refreshFn}();try{const __q=globalThis.__t3QuotaUi;if(__q){const __saved=window.localStorage.getItem("t3code:quota-ui-lang");const __nativeLang=${getSettingsFn}().language;if(__saved==="zh"||__saved==="en"){if(document.documentElement.lang!==__saved)${setLangFn}(__saved)}else if(__nativeLang==="system"&&__q.getLang()==="zh"&&document.documentElement.lang!=="zh"){${setLangFn}("zh")}}}catch{}}`,
+  );
 }
 
 function patchPreviewPanelBundle(src) {
@@ -2402,6 +3165,8 @@ function patchServerBundle(src) {
 
   // 3. v1.4.0 Local macOS Disk Cache Preview & Safe Cleanup API inside layerAssetRoute
   if (out.includes("const layerAssetRoute =") && !out.includes("__t3_cache_scan")) {
+    const assetRouteHead = out.match(/const layerAssetRoute =[\s\S]{0,360}?if \(isNone\(url\)\) return ([A-Za-z0-9_$]+)\("Bad Request", \{ status: 400 \}\);/);
+    const textReplyFn = assetRouteHead ? assetRouteHead[1] : "text$4";
     out = out.replace(
       `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);`,
       `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);
@@ -2499,7 +3264,7 @@ function patchServerBundle(src) {
 			for (const d of def.dirs) { if (__fs.existsSync(d)) { const s = __statDir(d); bytes += s.bytes; files += s.files; } }
 			return { id: def.id, labelZh: def.labelZh, labelEn: def.labelEn, descZh: def.descZh, descEn: def.descEn, displayPath: def.displayPath, bytes, files };
 		});
-		return text$4(JSON.stringify({ freedBytes, removedFiles, items }), { status: 200, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+		return ${textReplyFn}(JSON.stringify({ freedBytes, removedFiles, items }), { status: 200, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 	}`,
     );
   }
@@ -2762,6 +3527,9 @@ function main() {
     if (!rel.startsWith("apps/server/dist/client/assets/") || !rel.endsWith(".js")) {
       continue;
     }
+    if (/(?:^|\/)(?:en|de|es|fr|ja|ko|pt-BR|ru|sv|zh)-[A-Za-z0-9_-]+\.js$/.test(rel)) {
+      continue;
+    }
     let text = readText(rel);
     let updated = text;
 
@@ -2808,9 +3576,24 @@ function main() {
     if (
       updated.includes("activeThreadEnvironmentId") &&
       updated.includes("workspace-topbar-height") &&
-      updated.includes("onOpenUsageLimits:")
+      (updated.includes("onOpenUsageLimits:") || updated.includes("usage:{providerInstanceId:"))
     ) {
       updated = patchChatTopbarBundle(updated);
+    }
+
+    if (
+      updated.includes("document.documentElement.lang=") &&
+      updated.includes("navigator.languages")
+    ) {
+      updated = patchMainLocaleBundle(updated);
+    }
+
+    if (
+      updated.includes("showAssistantCopyButton") &&
+      updated.includes("group-hover/assistant:opacity-100") &&
+      !updated.includes("data-turn-telemetry")
+    ) {
+      updated = patchTimelineTelemetryBundle(updated);
     }
 
     if (
