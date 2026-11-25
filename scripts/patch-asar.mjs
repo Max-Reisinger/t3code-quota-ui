@@ -3772,7 +3772,8 @@ function patchTelemetryPrivacyBundle(src) {
     const noneFn = noneMatch ? noneMatch[1] : "none$1";
     out = out.replace(
       /const readProviderLogins = ([A-Za-z0-9_$]+)\("TelemetryIdentity\.readProviderLogins"\)\(function\* \([A-Za-z0-9_$]+\) \{[\s\S]{0,600}?\.claude\.json[\s\S]{0,200}?\}\);/,
-      `const readProviderLogins = $1("TelemetryIdentity.readProviderLogins")(function* () { /* __t3NoAuthFingerprint */ return { codexTokens: ${noneFn}(), claudeJson: ${noneFn}() }; });`,
+      (_, fnName) =>
+        `const readProviderLogins = ${fnName}("TelemetryIdentity.readProviderLogins")(function* () { /* __t3NoAuthFingerprint */ return { codexTokens: ${noneFn}(), claudeJson: ${noneFn}() }; });`,
     );
   }
 
