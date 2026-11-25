@@ -23,8 +23,10 @@
  */
 
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -1131,7 +1133,7 @@ ${__STARDUST_V9_CSS}
           if (!resp.ok) throw new Error(json.error || "Clean failed");
           state.result = json;
           state.data = json;
-          state.selected = new Set((json.items || []).filter((x) => x.bytes > 0).map((x) => x.id));
+          state.selected = new Set((json.items || []).filter((x) => x.bytes > 0 && x.defaultSelected !== false).map((x) => x.id));
         } catch (e) {
           state.error = String(e.message || e);
         } finally {
@@ -1157,7 +1159,7 @@ ${__STARDUST_V9_CSS}
         const json = await resp.json();
         if (!resp.ok) throw new Error(json.error || "Scan failed");
         state.data = json;
-        state.selected = new Set((json.items || []).filter((x) => x.bytes > 0).map((x) => x.id));
+        state.selected = new Set((json.items || []).filter((x) => x.bytes > 0 && x.defaultSelected !== false).map((x) => x.id));
       } catch (e) {
         state.error = String(e.message || e);
       } finally {
@@ -1763,6 +1765,28 @@ ${__STARDUST_V9_CSS}
         )
       );
     }
+    const cState = getCompactState();
+    if (cState.available) {
+      const foot = __el("div", { className: "t3-topbar-pop-foot", style: "justify-content:space-between;align-items:center;gap:8px;" });
+      const hintText = usedPct !== null && usedPct >= 90
+        ? (zh ? "上下文接近上限，建议立即压缩" : "Near limit — compact recommended")
+        : usedPct !== null && usedPct >= 80
+          ? (zh ? "上下文较高，可提前压缩" : "High usage — consider compacting")
+          : (zh ? "将历史压缩为摘要以释放空间" : "Summarize history to free context");
+      foot.appendChild(__el("span", { style: "font-size:10.5px;color:" + (usedPct >= 90 ? "#ef4444" : usedPct >= 80 ? "#f59e0b" : "var(--v9-fg-3)") + ";", text: hintText }));
+      const compactBtn = __el("button", {
+        className: "t3-ctx-compact-btn" + (usedPct >= 90 ? " is-danger" : usedPct >= 80 ? " is-urgent" : ""),
+        text: zh ? "一键压缩" : "Compact",
+        attrs: {
+          type: "button",
+          title: cState.disabled ? (zh ? "当前正在生成或暂不可压缩" : "Unavailable while running") : (zh ? "立即压缩当前会话上下文" : "Compact current thread context")
+        }
+      });
+      compactBtn.disabled = cState.disabled;
+      compactBtn.onclick = () => { triggerCompact(); };
+      foot.appendChild(compactBtn);
+      pop.appendChild(foot);
+    }
     document.body.appendChild(pop);
     __placePopover(pop, anchorEl, "top-start");
     const onDown = (ev) => { if (!pop.contains(ev.target) && !(anchorEl && anchorEl.contains(ev.target))) closeTopbarQuotaPopover(); };
@@ -1918,6 +1942,147 @@ ${__STARDUST_V9_CSS}
     };
   }
 
+  // ---- One-Click Context Compact + Real 1-Click Permission Mode Switcher ----
+  let __compactState = { fn: null, disabled: false, busy: false };
+  const __compactListeners = new Set();
+  function emitCompactChange() {
+    for (const fn of __compactListeners) { try { fn(__compactState); } catch {} }
+  }
+  function setCompactHandler(fn, disabled) {
+    const nextFn = typeof fn === "function" ? fn : null;
+    const nextDisabled = Boolean(disabled);
+    if (__compactState.fn === nextFn && __compactState.disabled === nextDisabled) return;
+    __compactState = { fn: nextFn, disabled: nextDisabled, busy: __compactState.busy };
+    emitCompactChange();
+  }
+  function getCompactState() {
+    const hasEditor = Boolean(document.querySelector('.composer-tiptap [contenteditable="true"], [data-slot="composer"] [contenteditable="true"], [data-slot="composer"] textarea'));
+    return {
+      available: Boolean(__compactState.fn || hasEditor),
+      disabled: Boolean(__compactState.disabled || __compactState.busy)
+    };
+  }
+  function subscribeCompact(listener) {
+    if (typeof listener !== "function") return () => {};
+    __compactListeners.add(listener);
+    return () => __compactListeners.delete(listener);
+  }
+  function insertComposerText(ed, text, replaceAll) {
+    ed.focus();
+    if (ed.tagName === "TEXTAREA" || ed.tagName === "INPUT") {
+      try {
+        const proto = ed.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+        const nextVal = replaceAll ? text : ((ed.value || "") + text);
+        if (setter) setter.call(ed, nextVal);
+        else ed.value = nextVal;
+        ed.dispatchEvent(new Event("input", { bubbles: true }));
+        return true;
+      } catch { return false; }
+    }
+    if (replaceAll) {
+      try {
+        const sel = window.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(ed);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+      } catch {}
+    }
+    const beforeText = ed.textContent || "";
+    try {
+      const dt = new DataTransfer();
+      dt.setData("text/plain", text);
+      ed.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+      if (replaceAll ? (ed.textContent || "").includes(text.trim()) : (ed.textContent || "").length > beforeText.length) return true;
+    } catch {}
+    try {
+      ed.dispatchEvent(new InputEvent("beforeinput", { inputType: "insertText", data: text, bubbles: true, cancelable: true }));
+      if (replaceAll ? (ed.textContent || "").includes(text.trim()) : (ed.textContent || "").length > beforeText.length) return true;
+    } catch {}
+    try { return Boolean(document.execCommand("insertText", false, text)); } catch { return false; }
+  }
+  function triggerCompact() {
+    if (__compactState.disabled || __compactState.busy) return false;
+    closeTopbarQuotaPopover();
+    if (typeof __compactState.fn === "function") {
+      try {
+        __compactState.busy = true;
+        emitCompactChange();
+        __compactState.fn();
+        setTimeout(() => { __compactState.busy = false; emitCompactChange(); }, 900);
+        return true;
+      } catch {
+        __compactState.busy = false;
+        emitCompactChange();
+      }
+    }
+    const ed = document.querySelector('.composer-tiptap [contenteditable="true"], [data-slot="composer"] [contenteditable="true"], [data-slot="composer"] textarea');
+    if (!ed) return false;
+    const cur = String(ed.value ?? ed.textContent ?? "").trim();
+    if (cur.length > 0 && cur !== "/compact") {
+      ed.focus();
+      return false;
+    }
+    if (cur !== "/compact") insertComposerText(ed, "/compact", true);
+    setTimeout(() => {
+      const form = ed.closest("form[data-chat-composer-form]") || document.querySelector("form[data-chat-composer-form]");
+      const submitBtn = form?.querySelector('button[type="submit"]:not(:disabled)');
+      if (submitBtn) submitBtn.click();
+      else if (form && typeof form.requestSubmit === "function") form.requestSubmit();
+    }, 40);
+    return true;
+  }
+  function selectPermissionMode(modeId, onDone) {
+    const trig = document.querySelector("[data-composer-permissions-trigger]");
+    if (!trig) return false;
+    const matchModeItem = () => {
+      const items = Array.from(document.querySelectorAll('[data-composer-permissions] [role="menuitemradio"]'));
+      if (items.length === 0) return null;
+      const byDesc = items.find((el) => (el.getAttribute("aria-describedby") || "").endsWith("-" + modeId));
+      if (byDesc) return byDesc;
+      return items.find((el) => {
+        const lbl = ((el.getAttribute("aria-label") || el.textContent || "")).toLowerCase();
+        if (modeId === "full-access") return /full|完全/.test(lbl);
+        if (modeId === "approval-required") return /supervised|ask|approval|监督|询问|审批/.test(lbl);
+        if (modeId === "auto-accept-edits") return /edit|编辑/.test(lbl);
+        return (/\\bauto\\b|自动/.test(lbl)) && !/edit|编辑/.test(lbl);
+      }) || null;
+    };
+    const clickIfReady = () => {
+      const target = matchModeItem();
+      if (!target) return false;
+      if (target.getAttribute("aria-disabled") === "true" || target.disabled) return true;
+      if (target.getAttribute("aria-checked") !== "true") target.click();
+      else trig.click();
+      if (typeof onDone === "function") setTimeout(onDone, 40);
+      return true;
+    };
+    if (clickIfReady()) return true;
+    trig.click();
+    let done = false;
+    let timer = 0;
+    const finish = () => {
+      if (done) return;
+      if (clickIfReady()) {
+        done = true;
+        obs.disconnect();
+        if (timer) clearTimeout(timer);
+      }
+    };
+    const obs = new MutationObserver(() => finish());
+    obs.observe(document.body, { childList: true, subtree: true });
+    requestAnimationFrame(() => finish());
+    timer = setTimeout(() => {
+      if (!done) {
+        finish();
+        done = true;
+        obs.disconnect();
+      }
+    }, 450);
+    return true;
+  }
+
   const api = {
     getLang,
     isZh: () => getLang() === "zh",
@@ -1946,6 +2111,11 @@ ${__STARDUST_V9_CSS}
     },
     openFxRatePopover,
     subscribeMinute,
+    setCompactHandler,
+    getCompactState,
+    subscribeCompact,
+    triggerCompact,
+    selectPermissionMode,
     setCurrency: (next) => {
       const v = next === "CNY" ? "CNY" : "USD";
       try { window.localStorage.setItem(CURR_KEY, v); } catch {}
@@ -2361,16 +2531,14 @@ function patchUsageLimitsView(src) {
       const jsxNs = cardMatch[11];
       const poolV = cardMatch[5];
       const nowV = cardMatch[7];
-      out = out.replace(
-        cardMatch[0],
-        cardMatch[0].replace(
-          `children:[${cardMatch[12]},${cardMatch[13]},${cardMatch[14]}]`,
-          `children:[${cardMatch[12]},${cardMatch[13]},${cardMatch[14]},(0,${jsxNs}.jsx)(__T3BurnBadge,{pool:${poolV},now:${nowV}})]`,
-        ),
+      const patchedCard = cardMatch[0].replace(
+        `children:[${cardMatch[12]},${cardMatch[13]},${cardMatch[14]}]`,
+        () => `children:[${cardMatch[12]},${cardMatch[13]},${cardMatch[14]},(0,${jsxNs}.jsx)(__T3BurnBadge,{pool:${poolV},now:${nowV}})]`,
       );
+      out = out.replace(cardMatch[0], () => patchedCard);
       const burnComp = `function __T3BurnBadge({pool,now}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const fc=globalThis.__t3QuotaUi?.computeBurnForecast?.(pool,now);if(!fc||!fc.text)return null;return(0,${jsxNs}.jsx)("div",{className:"t3-burn-row",children:(0,${jsxNs}.jsx)("span",{className:"t3-burn-badge t3-burn-"+fc.tone,title:fc.title||fc.text,children:fc.text})})}`;
       if (out.includes("function __T3BurnBadge(")) {
-        out = out.replace(/function __T3BurnBadge\([\s\S]*?\}\n/, `${burnComp}\n`);
+        out = out.replace(/function __T3BurnBadge\([\s\S]*?\}\n/, () => `${burnComp}\n`);
       } else {
         out += `\n${burnComp}\n`;
       }
@@ -3004,7 +3172,7 @@ function patchModelPickerBundle(src) {
   if (entriesVar && out.includes("quotaEntry:e.instanceEntries?.find(")) {
     out = out.replace(
       /quotaEntry:e\.instanceEntries\?\.find\(/g,
-      `quotaEntry:${entriesVar}?.find(`,
+      () => `quotaEntry:${entriesVar}?.find(`,
     );
   }
 
@@ -3072,7 +3240,8 @@ function patchModelPickerBundle(src) {
   // 1. Pass quotaEntry into Be (model row) inside Tt's renderItem (using outer `entriesVar`, not shadowed `e`)
   out = out.replace(
     /(\(0,[A-Za-z0-9_$]+\.jsx\)\([A-Za-z0-9_$]+,\{index:[A-Za-z0-9_$]+,slug:([A-Za-z0-9_$]+)\.slug,name:\2\.name,subProvider:\2\.subProvider,instanceId:\2\.instanceId,)/,
-    `$1quotaEntry:${entriesVar}?.find(__x=>__x.instanceId===$2.instanceId)??null,`,
+    (_, prefix, itemVar) =>
+      `${prefix}quotaEntry:${entriesVar}?.find(__x=>__x.instanceId===${itemVar}.instanceId)??null,`,
   );
 
   // 2. Render vivid color-coded remaining % badge right next to the favorite star in Be
@@ -3087,8 +3256,9 @@ function patchModelPickerBundle(src) {
     /(let ([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\?([A-Za-z0-9_$]+)\(([A-Za-z0-9_$]+)\):([A-Za-z0-9_$]+)\?e\.getDisabledInstanceTooltip\?\.\(\5\)\?\?\5\.displayName:\5\.displayName,([A-Za-z0-9_$]+)=\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{[\s\S]{0,900}?children:\(0,\8\.jsx\)\(([A-Za-z0-9_$]+),\{driverKind:\5\.driverKind,[\s\S]{0,360}?\}\)\}\))/,
     (full, _all, pVar, _nVar, _weFn, tVar, _iVar, _mVar, jNs) =>
       full.replace(
-        new RegExp(`children:\\(0,${jNs}\\.jsx\\)\\(([A-Za-z0-9_$]+),(\\{driverKind:${tVar}\\.driverKind,[\\s\\S]{0,360}?\\})\\)`),
-        `children:(0,${jNs}.jsxs)(${jNs}.Fragment,{children:[(0,${jNs}.jsx)($1,$2),(0,${jNs}.jsx)(__T3MpProviderMini,{entry:${tVar}})]})`,
+        new RegExp(`children:\\(0,${jNs.replace(/\$/g, "\\$")}\\.jsx\\)\\(([A-Za-z0-9_$]+),(\\{driverKind:${tVar.replace(/\$/g, "\\$")}\\.driverKind,[\\s\\S]{0,360}?\\})\\)`),
+        (_, iconComp, iconProps) =>
+          `children:(0,${jNs}.jsxs)(${jNs}.Fragment,{children:[(0,${jNs}.jsx)(${iconComp},${iconProps}),(0,${jNs}.jsx)(__T3MpProviderMini,{entry:${tVar}})]})`,
       ),
   );
 
@@ -3145,24 +3315,24 @@ function patchChatTopbarBundle(src) {
       // Auto-heal v1.2.0 call & component to pass rightPanelOpen and safe right margin (idempotent)
       out = out.replace(
         /\(__T3TopbarQuotaPills,\{providers:([A-Za-z0-9_$]+),onOpenUsageLimits:([^,}]+?)(?:,rightPanelOpen:[A-Za-z0-9_$!]+)?\}\)/,
-        `(__T3TopbarQuotaPills,{providers:$1,onOpenUsageLimits:$2,rightPanelOpen:${rightPanelVar}})`,
+        (_, pV, oV) => `(__T3TopbarQuotaPills,{providers:${pV},onOpenUsageLimits:${oV},rightPanelOpen:${rightPanelVar}})`,
       );
-      out = out.replace(/function __T3TopbarQuotaPills\([\s\S]*?\}\n/, `${newTopbarComp}\n`);
+      out = out.replace(/function __T3TopbarQuotaPills\([\s\S]*?\}\n/, () => `${newTopbarComp}\n`);
     } else if (topbarCallMatch) {
       out = out.replace(
         topbarCallMatch[0],
-        `${topbarCallMatch[1]},(0,${jsxNs}.jsx)(__T3TopbarQuotaPills,{providers:${providersVar},onOpenUsageLimits:${openUsageExpr},rightPanelOpen:${rightPanelVar}})]})`,
+        () => `${topbarCallMatch[1]},(0,${jsxNs}.jsx)(__T3TopbarQuotaPills,{providers:${providersVar},onOpenUsageLimits:${openUsageExpr},rightPanelOpen:${rightPanelVar}})]})`,
       );
       out += `\n${newTopbarComp}\n`;
     }
   }
 
-  // 2. v1.4.4 Compact 1/2-Height V18 Starship Launch Stack Effort Slider (26px slim track, uniform 0.52x scene scaling, single-line header, 2s auto-sleep)
+  // 2. v1.4.4 Compact 1/2-Height V18 Starship Launch Stack Effort Slider (26px slim track, uniform 0.52x scene scaling, single-line header, 2s auto-sleep, real 1-click permissions)
   if (jsxNs) {
-    const v18SliderFn = `function __T3EffortSlider({options,selectedId,disabled,onPick}){const TRACK_H=24,SCENE_H=50,SCENE_SCALE=TRACK_H/SCENE_H,PAD=16,LENS_W=26,LENS_H=21,SNAP=0.032,IDLE_FRAME_MS=1000/24,IDLE_SLEEP_MS=2000;const wellRef=(0,${reactNs}.useRef)(null);const wrapRef=(0,${reactNs}.useRef)(null);const canvasRef=(0,${reactNs}.useRef)(null);const offRef=(0,${reactNs}.useRef)(null);const particlesRef=(0,${reactNs}.useRef)(null);const wakeLoopRef=(0,${reactNs}.useRef)(null);const[,setLangTick]=(0,${reactNs}.useState)(0);const[dragging,setDragging]=(0,${reactNs}.useState)(!1);const[dragStory,setDragStory]=(0,${reactNs}.useState)(null);const count=Math.max(1,options.length);const foundIdx=options.findIndex(o=>o.id===selectedId);const selectedIndex=Math.max(0,foundIdx);const targetRatio=count<=1?0:selectedIndex/(count-1);const stateRef=(0,${reactNs}.useRef)({val:targetRatio,target:targetRatio,dragging:!1,lastIdx:selectedIndex,t:2.4,hitstop:0,flash:0,shake:0,recoil:0,chroma:0,shock:0,lastIdlePaintMs:0,lastActivityMs:0,hasPainted:!1});const applyJuice=(st,ni,pi)=>{if(ni>pi){st.hitstop=0.024;st.flash=0.3;st.shake=0.7;st.recoil=-3.2;st.chroma=0.85;st.shock=1}else{st.hitstop=0;st.flash=0.08;st.shake=0.18;st.recoil=1.4;st.chroma=0.25;st.shock=0}};const chime=ratio=>{try{if(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!globalThis.__t3CosmicAudio)globalThis.__t3CosmicAudio=new AC;const ac=globalThis.__t3CosmicAudio;if(ac.state==="suspended")void ac.resume();const now=ac.currentTime,o1=ac.createOscillator(),o2=ac.createOscillator(),g=ac.createGain();o1.type="sine";o2.type="triangle";const f=360+ratio*620;o1.frequency.setValueAtTime(f,now);o1.frequency.exponentialRampToValueAtTime(f*1.35,now+0.045);o2.frequency.setValueAtTime(f*1.5,now);g.gain.setValueAtTime(0.04,now);g.gain.exponentialRampToValueAtTime(0.0008,now+0.07);o1.connect(g);o2.connect(g);g.connect(ac.destination);o1.start(now);o2.start(now);o1.stop(now+0.075);o2.stop(now+0.075)}catch{}};(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setLangTick(x=>x+1))},[]);(0,${reactNs}.useEffect)(()=>{const st=stateRef.current;if(!st.dragging){if(st.lastIdx!==selectedIndex){applyJuice(st,selectedIndex,st.lastIdx);st.lastIdx=selectedIndex}st.target=targetRatio;wakeLoopRef.current?.()}},[selectedIndex,targetRatio]);(0,${reactNs}.useEffect)(()=>{const V18=globalThis.__t3StardustV18;const canvas=canvasRef.current,wrap=wrapRef.current;if(!V18||!canvas||!wrap)return;const ctx=canvas.getContext("2d");if(!ctx)return;if(!offRef.current)offRef.current=document.createElement("canvas");const off=offRef.current,octx=off.getContext("2d");if(!octx)return;if(!particlesRef.current){const pool=V18.createStarshipParticles(56);V18.prewarmStarshipParticles(pool,stateRef.current.val);particlesRef.current=pool}const particles=particlesRef.current;const reduced=Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);let raf=0,lastTs=performance.now();const drawFrame=now=>{if(document.hidden){raf=0;canvas.dataset.renderState="sleeping";return}const layoutW=wrap.clientWidth;if(layoutW<2){raf=0;return}const st=stateRef.current;const activeMotion=st.dragging||st.hitstop>0||st.flash>0.01||st.shake>0.02||Math.abs(st.recoil)>0.08||st.chroma>0.01||st.shock>0.01||Math.abs(st.target-st.val)>0.001;if(activeMotion){st.lastActivityMs=now}else if(!reduced&&st.hasPainted&&now-st.lastActivityMs>=IDLE_SLEEP_MS){raf=0;canvas.dataset.renderState="sleeping";return}const cssW=Math.max(120,Math.min(520,Math.round(layoutW))),cssH=TRACK_H,dpr=Math.min(2,window.devicePixelRatio||1),cw=Math.round(cssW*dpr),ch=Math.round(cssH*dpr),needsResize=canvas.width!==cw||canvas.height!==ch;if(!reduced&&!activeMotion&&!needsResize&&st.hasPainted&&now-st.lastIdlePaintMs<IDLE_FRAME_MS){raf=requestAnimationFrame(drawFrame);return}const dt=Math.min(0.05,Math.max(0.001,(now-lastTs)/1000));lastTs=now;st.lastIdlePaintMs=now;if(needsResize){canvas.width=cw;canvas.height=ch;off.width=cw;off.height=ch}if(reduced){st.val=st.target;st.hitstop=st.flash=st.shake=st.recoil=st.chroma=st.shock=0}else if(st.hitstop>0){st.hitstop=Math.max(0,st.hitstop-dt)}else{st.t+=dt;st.val+=(st.target-st.val)*(st.dragging?0.45:0.24);if(Math.abs(st.target-st.val)<0.0005)st.val=st.target;st.flash=Math.max(0,st.flash-dt*4.6);st.shake=Math.max(0,st.shake-dt*6.4);st.recoil*=Math.pow(0.0008,dt);if(Math.abs(st.recoil)<0.05)st.recoil=0;st.chroma=Math.max(0,st.chroma-dt*7.2);st.shock=Math.max(0,st.shock-dt*4.5)}const well=wellRef.current;if(well){if(!reduced&&st.shake>0.02){well.style.transform="translate3d("+(Math.sin(now*0.095)*1.2*st.shake).toFixed(2)+"px,"+(Math.cos(now*0.13)*0.8*st.shake).toFixed(2)+"px,0)"}else if(well.style.transform){well.style.transform=""}}const kx=PAD+st.val*(cssW-PAD*2)+st.recoil,ky=cssH/2;const sceneW=cssW/SCENE_SCALE,sceneKx=kx/SCENE_SCALE;octx.setTransform(dpr*SCENE_SCALE,0,0,dpr*SCENE_SCALE,0,0);octx.clearRect(0,0,sceneW,SCENE_H);const{nx,ny,angle}=V18.drawStarshipScene(octx,sceneW,SCENE_H,st.val,sceneKx,st.t,particles,st.shock);if(!reduced&&st.hitstop<=0)V18.stepStarshipParticles(particles,dt,st.val,nx,ny,angle,sceneW);octx.setTransform(dpr,0,0,dpr,0,0);for(let i=0;i<count;i++){const dx=count<=1?cssW/2:PAD+(i/(count-1))*(cssW-PAD*2);octx.fillStyle=i<=st.lastIdx?"rgba(255,255,255,0.88)":"rgba(255,255,255,0.24)";octx.beginPath();octx.arc(dx,cssH-2.6,i===st.lastIdx?1.35:0.85,0,Math.PI*2);octx.fill()}if(!reduced&&st.flash>0.01){octx.save();octx.fillStyle=V18.sampleStarshipFlash(st.val);octx.globalAlpha=st.flash;octx.fillRect(0,0,cssW,cssH);octx.restore()}ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cw,ch);ctx.drawImage(off,0,0);ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);const kw=LENS_W+st.chroma*1.8,kh=LENS_H-st.chroma*0.8,kr=kh/2;ctx.save();ctx.shadowColor="rgba(0,0,0,0.42)";ctx.shadowBlur=st.dragging?10:6;ctx.shadowOffsetY=1.5;ctx.fillStyle="rgba(0,0,0,0.18)";ctx.beginPath();ctx.roundRect(kx-kw/2,ky-kh/2,kw,kh,kr);ctx.fill();ctx.restore();ctx.save();ctx.beginPath();ctx.roundRect(kx-kw/2,ky-kh/2,kw,kh,kr);ctx.clip();const mag=st.dragging?1.28:1.18,sw=(kw/mag)*dpr,sh=(kh/mag)*dpr,sx=Math.max(0,Math.min(cw-sw,kx*dpr-sw/2)),sy=Math.max(0,Math.min(ch-sh,ky*dpr-sh/2));ctx.drawImage(off,sx,sy,sw,sh,kx-kw/2,ky-kh/2,kw,kh);const disp=0.8+st.chroma*1.6;ctx.globalCompositeOperation="screen";ctx.globalAlpha=0.16+st.chroma*0.22;ctx.drawImage(off,Math.max(0,sx-disp*dpr),sy,sw,sh,kx-kw/2-disp,ky-kh/2,kw,kh);ctx.drawImage(off,Math.min(cw-sw,sx+disp*dpr),sy,sw,sh,kx-kw/2+disp,ky-kh/2,kw,kh);ctx.globalCompositeOperation="source-over";ctx.globalAlpha=1;const gg=ctx.createLinearGradient(kx,ky-kh/2,kx,ky+kh/2);gg.addColorStop(0,"rgba(255,255,255,0.34)");gg.addColorStop(0.22,"rgba(255,255,255,0.02)");gg.addColorStop(0.82,"rgba(255,255,255,0.01)");gg.addColorStop(1,"rgba(255,255,255,0.22)");ctx.fillStyle=gg;ctx.fillRect(kx-kw/2,ky-kh/2,kw,kh);ctx.fillStyle="rgba(255,255,255,0.68)";ctx.beginPath();ctx.ellipse(kx-1.2,ky-kh*0.35,kw*0.26,kh*0.06,0,0,Math.PI*2);ctx.fill();ctx.restore();const rg=ctx.createLinearGradient(kx,ky-kh/2,kx,ky+kh/2);rg.addColorStop(0,"rgba(255,255,255,0.92)");rg.addColorStop(0.5,"rgba(255,255,255,0.28)");rg.addColorStop(1,V18.sampleStarshipAccent(st.val));ctx.strokeStyle=rg;ctx.lineWidth=st.dragging||st.chroma>0.2?1.4:1.1;ctx.beginPath();ctx.roundRect(kx-kw/2+0.55,ky-kh/2+0.55,kw-1.1,kh-1.1,kr);ctx.stroke();ctx.restore();st.hasPainted=!0;canvas.dataset.renderState=reduced?"sleeping":"active";raf=reduced?0:requestAnimationFrame(drawFrame)};const wake=()=>{const now=performance.now();stateRef.current.lastActivityMs=now;canvas.dataset.renderState=reduced?"sleeping":"active";if(!raf){lastTs=now;raf=requestAnimationFrame(drawFrame)}};wakeLoopRef.current=wake;wake();let ro;if(typeof ResizeObserver!=="undefined"){ro=new ResizeObserver(()=>wake());ro.observe(wrap)}return()=>{wakeLoopRef.current=null;if(raf)cancelAnimationFrame(raf);if(wellRef.current)wellRef.current.style.transform="";ro?.disconnect()}},[count]);if(count<2)return null;const V18=globalThis.__t3StardustV18;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const shortLbl=o=>{const id=String(o.id||o.label||"").toLowerCase();if(!zh)return o.label;if(id==="none"||id==="off")return"关";if(id==="minimal")return"极低";if(id==="low")return"低";if(id==="medium")return"中";if(id==="high")return"高";if(id==="xhigh")return"超高";if(id==="max"||id==="ultra")return"Max";return o.label};const activeOpt=options[selectedIndex]||options[0];const activeColor=V18?V18.sampleStarshipAccent(targetRatio):"#3cf6ff";const storyKey=dragStory||(V18?V18.starshipStoryAtRatio(targetRatio):"");const storyTxt=(globalThis.__t3QuotaUi?.translateStarshipStory?globalThis.__t3QuotaUi.translateStarshipStory(storyKey):storyKey).split("·")[0].trim();const p2i=cx=>{const rect=wrapRef.current?.getBoundingClientRect();if(!rect||rect.width<=0||count<=1)return{ratio:targetRatio,idx:selectedIndex};let raw=Math.max(0,Math.min(1,(cx-rect.left-PAD)/Math.max(20,rect.width-PAD*2)));for(let i=0;i<count;i++){const det=i/(count-1);if(Math.abs(raw-det)<SNAP){raw=det;break}}return{ratio:raw,idx:Math.round(raw*(count-1))}};const commit=(idx,snd=!0)=>{const opt=options[idx];if(!opt||disabled)return;if(opt.id!==selectedId){if(snd)chime(count<=1?0:idx/(count-1));onPick(opt.id)}};return(0,${jsxNs}.jsxs)("div",{"data-cosmic-effort-slider":"","data-cosmic-scene":"starship","data-quota-ui-managed":"true",className:disabled?"opacity-60":"",onPointerEnter:()=>wakeLoopRef.current?.(),onFocus:()=>wakeLoopRef.current?.(),children:[(0,${jsxNs}.jsxs)("div",{"data-cosmic-embed-head":"",children:[(0,${jsxNs}.jsxs)("b",{children:[(0,${jsxNs}.jsx)("span",{"aria-hidden":"true","data-cosmic-state-dot":"",style:{background:activeColor,boxShadow:"0 0 6px "+activeColor}}),(0,${jsxNs}.jsx)("span",{className:"shrink-0","data-cosmic-level-heading":"",children:(zh?"推理 · ":"Effort · ")+shortLbl(activeOpt)}),(0,${jsxNs}.jsx)("span",{className:"truncate","data-cosmic-story":storyKey,children:"· "+storyTxt},storyKey)]}),(0,${jsxNs}.jsx)("span",{className:"shrink-0 tabular-nums",style:{color:"var(--v9-fg-3)",fontSize:"10px"},children:zh?count+" 档":count+" lvls"})]}),(0,${jsxNs}.jsx)("div",{ref:wellRef,"data-cosmic-stage-well":"",children:(0,${jsxNs}.jsx)("div",{ref:wrapRef,role:"slider",tabIndex:-1,"aria-valuemin":0,"aria-valuemax":count-1,"aria-valuenow":selectedIndex,"data-cosmic-track":"",className:disabled?"pointer-events-none":dragging?"cursor-grabbing":"cursor-grab",onPointerDown:ev=>{if(disabled||ev.button!==0)return;try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch{}setDragging(!0);stateRef.current.dragging=!0;const{ratio,idx}=p2i(ev.clientX);stateRef.current.target=ratio;stateRef.current.val=ratio;if(V18)setDragStory(V18.starshipStoryAtRatio(ratio));wakeLoopRef.current?.();if(idx!==stateRef.current.lastIdx){applyJuice(stateRef.current,idx,stateRef.current.lastIdx);stateRef.current.lastIdx=idx;commit(idx,!0)}},onPointerMove:ev=>{if(!stateRef.current.dragging||disabled)return;const{ratio,idx}=p2i(ev.clientX);stateRef.current.target=ratio;if(V18){const ns=V18.starshipStoryAtRatio(ratio);setDragStory(p=>p===ns?p:ns)}if(idx!==stateRef.current.lastIdx){applyJuice(stateRef.current,idx,stateRef.current.lastIdx);stateRef.current.lastIdx=idx;commit(idx,!0)}},onPointerUp:()=>{if(!stateRef.current.dragging)return;stateRef.current.dragging=!1;setDragging(!1);setDragStory(null);const idx=Math.round(stateRef.current.target*(count-1));stateRef.current.target=count<=1?0:idx/(count-1);commit(idx,!1);wakeLoopRef.current?.()},onPointerCancel:()=>{if(!stateRef.current.dragging)return;stateRef.current.dragging=!1;setDragging(!1);setDragStory(null);stateRef.current.target=targetRatio;wakeLoopRef.current?.()},children:(0,${jsxNs}.jsx)("canvas",{ref:canvasRef,"aria-hidden":"true",className:"pointer-events-none absolute inset-0 block size-full rounded-full"})})}),(0,${jsxNs}.jsx)("div",{"data-cosmic-tier-scale":"",children:options.map((o,idx)=>(0,${jsxNs}.jsx)("button",{type:"button",role:"radio","aria-checked":idx===selectedIndex,disabled,"data-effort-row":!0,"data-effort-level":!0,tabIndex:idx===selectedIndex?0:-1,title:o.description||o.label,onClick:()=>{applyJuice(stateRef.current,idx,stateRef.current.lastIdx);stateRef.current.lastIdx=idx;commit(idx,!0);wakeLoopRef.current?.()},children:shortLbl(o)},o.id))}),(0,${jsxNs}.jsxs)("div",{"data-v9-perm-row":"",children:[(0,${jsxNs}.jsx)("span",{className:"shrink-0",children:zh?"访问权限":"Permissions"}),(0,${jsxNs}.jsx)("div",{"data-v9-perm-seg":"",role:"radiogroup",children:[{id:"full-access",zh:"完全访问",en:"Full"},{id:"auto",zh:"自动",en:"Auto"},{id:"approval-required",zh:"需审批",en:"Ask"}].map(pm=>{const curTxt=(document.querySelector("[data-composer-permissions-trigger]")?.textContent||"").toLowerCase();const active=pm.id==="full-access"?(/full|完全/.test(curTxt)):pm.id==="approval-required"?(/ask|approval|询问|审批/.test(curTxt)):(!/full|完全|ask|approval|询问|审批/.test(curTxt));return(0,${jsxNs}.jsx)("button",{type:"button","data-v9-perm-opt":"",role:"radio","aria-checked":active,onClick:()=>{const trig=document.querySelector("[data-composer-permissions-trigger]");if(trig)trig.click()},children:zh?pm.zh:pm.en},pm.id)})})]})]})}`;
+    const v18SliderFn = `function __T3EffortSlider({options,selectedId,disabled,onPick}){const TRACK_H=24,SCENE_H=50,SCENE_SCALE=TRACK_H/SCENE_H,PAD=16,LENS_W=26,LENS_H=21,SNAP=0.032,IDLE_FRAME_MS=1000/24,IDLE_SLEEP_MS=2000;const wellRef=(0,${reactNs}.useRef)(null);const wrapRef=(0,${reactNs}.useRef)(null);const canvasRef=(0,${reactNs}.useRef)(null);const offRef=(0,${reactNs}.useRef)(null);const particlesRef=(0,${reactNs}.useRef)(null);const wakeLoopRef=(0,${reactNs}.useRef)(null);const[,setLangTick]=(0,${reactNs}.useState)(0);const[,setPermTick]=(0,${reactNs}.useState)(0);const[dragging,setDragging]=(0,${reactNs}.useState)(!1);const[dragStory,setDragStory]=(0,${reactNs}.useState)(null);const count=Math.max(1,options.length);const foundIdx=options.findIndex(o=>o.id===selectedId);const selectedIndex=Math.max(0,foundIdx);const targetRatio=count<=1?0:selectedIndex/(count-1);const stateRef=(0,${reactNs}.useRef)({val:targetRatio,target:targetRatio,dragging:!1,lastIdx:selectedIndex,t:2.4,hitstop:0,flash:0,shake:0,recoil:0,chroma:0,shock:0,lastIdlePaintMs:0,lastActivityMs:0,hasPainted:!1});const applyJuice=(st,ni,pi)=>{if(ni>pi){st.hitstop=0.024;st.flash=0.3;st.shake=0.7;st.recoil=-3.2;st.chroma=0.85;st.shock=1}else{st.hitstop=0;st.flash=0.08;st.shake=0.18;st.recoil=1.4;st.chroma=0.25;st.shock=0}};const chime=ratio=>{try{if(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!globalThis.__t3CosmicAudio)globalThis.__t3CosmicAudio=new AC;const ac=globalThis.__t3CosmicAudio;if(ac.state==="suspended")void ac.resume();const now=ac.currentTime,o1=ac.createOscillator(),o2=ac.createOscillator(),g=ac.createGain();o1.type="sine";o2.type="triangle";const f=360+ratio*620;o1.frequency.setValueAtTime(f,now);o1.frequency.exponentialRampToValueAtTime(f*1.35,now+0.045);o2.frequency.setValueAtTime(f*1.5,now);g.gain.setValueAtTime(0.04,now);g.gain.exponentialRampToValueAtTime(0.0008,now+0.07);o1.connect(g);o2.connect(g);g.connect(ac.destination);o1.start(now);o2.start(now);o1.stop(now+0.075);o2.stop(now+0.075)}catch{}};(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setLangTick(x=>x+1))},[]);(0,${reactNs}.useEffect)(()=>{const trig=document.querySelector("[data-composer-permissions-trigger]");if(!trig||typeof MutationObserver==="undefined")return;const obs=new MutationObserver(()=>setPermTick(x=>x+1));obs.observe(trig,{attributes:!0,childList:!0,characterData:!0,subtree:!0});return()=>obs.disconnect()},[]);(0,${reactNs}.useEffect)(()=>{const st=stateRef.current;if(!st.dragging){if(st.lastIdx!==selectedIndex){applyJuice(st,selectedIndex,st.lastIdx);st.lastIdx=selectedIndex}st.target=targetRatio;wakeLoopRef.current?.()}},[selectedIndex,targetRatio]);(0,${reactNs}.useEffect)(()=>{const V18=globalThis.__t3StardustV18;const canvas=canvasRef.current,wrap=wrapRef.current;if(!V18||!canvas||!wrap)return;const ctx=canvas.getContext("2d");if(!ctx)return;if(!offRef.current)offRef.current=document.createElement("canvas");const off=offRef.current,octx=off.getContext("2d");if(!octx)return;if(!particlesRef.current){const pool=V18.createStarshipParticles(56);V18.prewarmStarshipParticles(pool,stateRef.current.val);particlesRef.current=pool}const particles=particlesRef.current;const reduced=Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);let raf=0,lastTs=performance.now();const drawFrame=now=>{if(document.hidden){raf=0;canvas.dataset.renderState="sleeping";return}const layoutW=wrap.clientWidth;if(layoutW<2){raf=0;return}const st=stateRef.current;const activeMotion=st.dragging||st.hitstop>0||st.flash>0.01||st.shake>0.02||Math.abs(st.recoil)>0.08||st.chroma>0.01||st.shock>0.01||Math.abs(st.target-st.val)>0.001;if(activeMotion){st.lastActivityMs=now}else if(!reduced&&st.hasPainted&&now-st.lastActivityMs>=IDLE_SLEEP_MS){raf=0;canvas.dataset.renderState="sleeping";return}const cssW=Math.max(120,Math.min(520,Math.round(layoutW))),cssH=TRACK_H,dpr=Math.min(2,window.devicePixelRatio||1),cw=Math.round(cssW*dpr),ch=Math.round(cssH*dpr),needsResize=canvas.width!==cw||canvas.height!==ch;if(!reduced&&!activeMotion&&!needsResize&&st.hasPainted&&now-st.lastIdlePaintMs<IDLE_FRAME_MS){raf=requestAnimationFrame(drawFrame);return}const dt=Math.min(0.05,Math.max(0.001,(now-lastTs)/1000));lastTs=now;st.lastIdlePaintMs=now;if(needsResize){canvas.width=cw;canvas.height=ch;off.width=cw;off.height=ch}if(reduced){st.val=st.target;st.hitstop=st.flash=st.shake=st.recoil=st.chroma=st.shock=0}else if(st.hitstop>0){st.hitstop=Math.max(0,st.hitstop-dt)}else{st.t+=dt;st.val+=(st.target-st.val)*(st.dragging?0.45:0.24);if(Math.abs(st.target-st.val)<0.0005)st.val=st.target;st.flash=Math.max(0,st.flash-dt*4.6);st.shake=Math.max(0,st.shake-dt*6.4);st.recoil*=Math.pow(0.0008,dt);if(Math.abs(st.recoil)<0.05)st.recoil=0;st.chroma=Math.max(0,st.chroma-dt*7.2);st.shock=Math.max(0,st.shock-dt*4.5)}const well=wellRef.current;if(well){if(!reduced&&st.shake>0.02){well.style.transform="translate3d("+(Math.sin(now*0.095)*1.2*st.shake).toFixed(2)+"px,"+(Math.cos(now*0.13)*0.8*st.shake).toFixed(2)+"px,0)"}else if(well.style.transform){well.style.transform=""}}const kx=PAD+st.val*(cssW-PAD*2)+st.recoil,ky=cssH/2;const sceneW=cssW/SCENE_SCALE,sceneKx=kx/SCENE_SCALE;octx.setTransform(dpr*SCENE_SCALE,0,0,dpr*SCENE_SCALE,0,0);octx.clearRect(0,0,sceneW,SCENE_H);const{nx,ny,angle}=V18.drawStarshipScene(octx,sceneW,SCENE_H,st.val,sceneKx,st.t,particles,st.shock);if(!reduced&&st.hitstop<=0)V18.stepStarshipParticles(particles,dt,st.val,nx,ny,angle,sceneW);octx.setTransform(dpr,0,0,dpr,0,0);for(let i=0;i<count;i++){const dx=count<=1?cssW/2:PAD+(i/(count-1))*(cssW-PAD*2);octx.fillStyle=i<=st.lastIdx?"rgba(255,255,255,0.88)":"rgba(255,255,255,0.24)";octx.beginPath();octx.arc(dx,cssH-2.6,i===st.lastIdx?1.35:0.85,0,Math.PI*2);octx.fill()}if(!reduced&&st.flash>0.01){octx.save();octx.fillStyle=V18.sampleStarshipFlash(st.val);octx.globalAlpha=st.flash;octx.fillRect(0,0,cssW,cssH);octx.restore()}ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cw,ch);ctx.drawImage(off,0,0);ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);const kw=LENS_W+st.chroma*1.8,kh=LENS_H-st.chroma*0.8,kr=kh/2;ctx.save();ctx.shadowColor="rgba(0,0,0,0.42)";ctx.shadowBlur=st.dragging?10:6;ctx.shadowOffsetY=1.5;ctx.fillStyle="rgba(0,0,0,0.18)";ctx.beginPath();ctx.roundRect(kx-kw/2,ky-kh/2,kw,kh,kr);ctx.fill();ctx.restore();ctx.save();ctx.beginPath();ctx.roundRect(kx-kw/2,ky-kh/2,kw,kh,kr);ctx.clip();const mag=st.dragging?1.28:1.18,sw=(kw/mag)*dpr,sh=(kh/mag)*dpr,sx=Math.max(0,Math.min(cw-sw,kx*dpr-sw/2)),sy=Math.max(0,Math.min(ch-sh,ky*dpr-sh/2));ctx.drawImage(off,sx,sy,sw,sh,kx-kw/2,ky-kh/2,kw,kh);const disp=0.8+st.chroma*1.6;ctx.globalCompositeOperation="screen";ctx.globalAlpha=0.16+st.chroma*0.22;ctx.drawImage(off,Math.max(0,sx-disp*dpr),sy,sw,sh,kx-kw/2-disp,ky-kh/2,kw,kh);ctx.drawImage(off,Math.min(cw-sw,sx+disp*dpr),sy,sw,sh,kx-kw/2+disp,ky-kh/2,kw,kh);ctx.globalCompositeOperation="source-over";ctx.globalAlpha=1;const gg=ctx.createLinearGradient(kx,ky-kh/2,kx,ky+kh/2);gg.addColorStop(0,"rgba(255,255,255,0.34)");gg.addColorStop(0.22,"rgba(255,255,255,0.02)");gg.addColorStop(0.82,"rgba(255,255,255,0.01)");gg.addColorStop(1,"rgba(255,255,255,0.22)");ctx.fillStyle=gg;ctx.fillRect(kx-kw/2,ky-kh/2,kw,kh);ctx.fillStyle="rgba(255,255,255,0.68)";ctx.beginPath();ctx.ellipse(kx-1.2,ky-kh*0.35,kw*0.26,kh*0.06,0,0,Math.PI*2);ctx.fill();ctx.restore();const rg=ctx.createLinearGradient(kx,ky-kh/2,kx,ky+kh/2);rg.addColorStop(0,"rgba(255,255,255,0.92)");rg.addColorStop(0.5,"rgba(255,255,255,0.28)");rg.addColorStop(1,V18.sampleStarshipAccent(st.val));ctx.strokeStyle=rg;ctx.lineWidth=st.dragging||st.chroma>0.2?1.4:1.1;ctx.beginPath();ctx.roundRect(kx-kw/2+0.55,ky-kh/2+0.55,kw-1.1,kh-1.1,kr);ctx.stroke();ctx.restore();st.hasPainted=!0;canvas.dataset.renderState=reduced?"sleeping":"active";raf=reduced?0:requestAnimationFrame(drawFrame)};const wake=()=>{const now=performance.now();stateRef.current.lastActivityMs=now;canvas.dataset.renderState=reduced?"sleeping":"active";if(!raf){lastTs=now;raf=requestAnimationFrame(drawFrame)}};wakeLoopRef.current=wake;wake();let ro;if(typeof ResizeObserver!=="undefined"){ro=new ResizeObserver(()=>wake());ro.observe(wrap)}return()=>{wakeLoopRef.current=null;if(raf)cancelAnimationFrame(raf);if(wellRef.current)wellRef.current.style.transform="";ro?.disconnect()}},[count]);if(count<2)return null;const V18=globalThis.__t3StardustV18;const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const shortLbl=o=>{const id=String(o.id||o.label||"").toLowerCase();if(!zh)return o.label;if(id==="none"||id==="off")return"关";if(id==="minimal")return"极低";if(id==="low")return"低";if(id==="medium")return"中";if(id==="high")return"高";if(id==="xhigh")return"超高";if(id==="max"||id==="ultra")return"Max";return o.label};const activeOpt=options[selectedIndex]||options[0];const activeColor=V18?V18.sampleStarshipAccent(targetRatio):"#3cf6ff";const storyKey=dragStory||(V18?V18.starshipStoryAtRatio(targetRatio):"");const storyTxt=(globalThis.__t3QuotaUi?.translateStarshipStory?globalThis.__t3QuotaUi.translateStarshipStory(storyKey):storyKey).split("·")[0].trim();const p2i=cx=>{const rect=wrapRef.current?.getBoundingClientRect();if(!rect||rect.width<=0||count<=1)return{ratio:targetRatio,idx:selectedIndex};let raw=Math.max(0,Math.min(1,(cx-rect.left-PAD)/Math.max(20,rect.width-PAD*2)));for(let i=0;i<count;i++){const det=i/(count-1);if(Math.abs(raw-det)<SNAP){raw=det;break}}return{ratio:raw,idx:Math.round(raw*(count-1))}};const commit=(idx,snd=!0)=>{const opt=options[idx];if(!opt||disabled)return;if(opt.id!==selectedId){if(snd)chime(count<=1?0:idx/(count-1));onPick(opt.id)}};const permTrig=document.querySelector("[data-composer-permissions-trigger]");const curPermTxt=((permTrig?.getAttribute("aria-label")||permTrig?.textContent||"")).toLowerCase();const curPermId=/full|完全/.test(curPermTxt)?"full-access":/supervised|ask|approval|监督|询问|审批/.test(curPermTxt)?"approval-required":/edit|编辑/.test(curPermTxt)?"auto-accept-edits":"auto";return(0,${jsxNs}.jsxs)("div",{"data-cosmic-effort-slider":"","data-cosmic-scene":"starship","data-quota-ui-managed":"true",className:disabled?"opacity-60":"",onPointerEnter:()=>wakeLoopRef.current?.(),onFocus:()=>wakeLoopRef.current?.(),children:[(0,${jsxNs}.jsxs)("div",{"data-cosmic-embed-head":"",children:[(0,${jsxNs}.jsxs)("b",{children:[(0,${jsxNs}.jsx)("span",{"aria-hidden":"true","data-cosmic-state-dot":"",style:{background:activeColor,boxShadow:"0 0 6px "+activeColor}}),(0,${jsxNs}.jsx)("span",{className:"shrink-0","data-cosmic-level-heading":"",children:(zh?"推理 · ":"Effort · ")+shortLbl(activeOpt)}),(0,${jsxNs}.jsx)("span",{className:"truncate","data-cosmic-story":storyKey,children:"· "+storyTxt},storyKey)]}),(0,${jsxNs}.jsx)("span",{className:"shrink-0 tabular-nums",style:{color:"var(--v9-fg-3)",fontSize:"10px"},children:zh?count+" 档":count+" lvls"})]}),(0,${jsxNs}.jsx)("div",{ref:wellRef,"data-cosmic-stage-well":"",children:(0,${jsxNs}.jsx)("div",{ref:wrapRef,role:"slider",tabIndex:-1,"aria-valuemin":0,"aria-valuemax":count-1,"aria-valuenow":selectedIndex,"data-cosmic-track":"",className:disabled?"pointer-events-none":dragging?"cursor-grabbing":"cursor-grab",onPointerDown:ev=>{if(disabled||ev.button!==0)return;try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch{}setDragging(!0);stateRef.current.dragging=!0;const{ratio,idx}=p2i(ev.clientX);stateRef.current.target=ratio;stateRef.current.val=ratio;if(V18)setDragStory(V18.starshipStoryAtRatio(ratio));wakeLoopRef.current?.();if(idx!==stateRef.current.lastIdx){applyJuice(stateRef.current,idx,stateRef.current.lastIdx);stateRef.current.lastIdx=idx;commit(idx,!0)}},onPointerMove:ev=>{if(!stateRef.current.dragging||disabled)return;const{ratio,idx}=p2i(ev.clientX);stateRef.current.target=ratio;if(V18){const ns=V18.starshipStoryAtRatio(ratio);setDragStory(p=>p===ns?p:ns)}if(idx!==stateRef.current.lastIdx){applyJuice(stateRef.current,idx,stateRef.current.lastIdx);stateRef.current.lastIdx=idx;commit(idx,!0)}},onPointerUp:()=>{if(!stateRef.current.dragging)return;stateRef.current.dragging=!1;setDragging(!1);setDragStory(null);const idx=Math.round(stateRef.current.target*(count-1));stateRef.current.target=count<=1?0:idx/(count-1);commit(idx,!1);wakeLoopRef.current?.()},onPointerCancel:()=>{if(!stateRef.current.dragging)return;stateRef.current.dragging=!1;setDragging(!1);setDragStory(null);stateRef.current.target=targetRatio;wakeLoopRef.current?.()},children:(0,${jsxNs}.jsx)("canvas",{ref:canvasRef,"aria-hidden":"true",className:"pointer-events-none absolute inset-0 block size-full rounded-full"})})}),(0,${jsxNs}.jsx)("div",{"data-cosmic-tier-scale":"",children:options.map((o,idx)=>(0,${jsxNs}.jsx)("button",{type:"button",role:"radio","aria-checked":idx===selectedIndex,disabled,"data-effort-row":!0,"data-effort-level":!0,tabIndex:idx===selectedIndex?0:-1,title:o.description||o.label,onClick:()=>{applyJuice(stateRef.current,idx,stateRef.current.lastIdx);stateRef.current.lastIdx=idx;commit(idx,!0);wakeLoopRef.current?.()},children:shortLbl(o)},o.id))}),(0,${jsxNs}.jsxs)("div",{"data-v9-perm-row":"",children:[(0,${jsxNs}.jsx)("span",{className:"shrink-0",children:zh?"访问权限":"Permissions"}),(0,${jsxNs}.jsx)("div",{"data-v9-perm-seg":"",role:"radiogroup",children:[{id:"full-access",zh:"完全访问",en:"Full"},{id:"auto",zh:"自动",en:"Auto"},{id:"approval-required",zh:"需审批",en:"Supervised"}].map(pm=>{const active=pm.id===curPermId;return(0,${jsxNs}.jsx)("button",{type:"button","data-v9-perm-opt":"",role:"radio","aria-checked":active,onClick:ev=>{ev.stopPropagation();if(active)return;if(globalThis.__t3QuotaUi?.selectPermissionMode){globalThis.__t3QuotaUi.selectPermissionMode(pm.id,()=>setPermTick(x=>x+1));setTimeout(()=>setPermTick(x=>x+1),160)}else if(permTrig){permTrig.click()}},children:zh?pm.zh:pm.en},pm.id)})})]})]})}`;
 
     if (out.includes("function __T3EffortSlider(")) {
-      out = out.replace(/function __T3EffortSlider\([\s\S]*?\}\n/, `${v18SliderFn}\n`);
+      out = out.replace(/function __T3EffortSlider\([\s\S]*?\}\n/, () => `${v18SliderFn}\n`);
     } else {
       const xrRegex = /([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\.map\(\(([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\)=>\(0,([A-Za-z0-9_$]+)\.jsx\)\(([A-Za-z0-9_$]+),\{label:\3\.label,selected:\3\.id===([A-Za-z0-9_$]+),tabStop:[A-Za-z0-9_$]+\?\3\.id===\7:\4===0,description:\3\.description,isDefault:\3\.isDefault,disabled:([A-Za-z0-9_$]+),onPick:\(\)=>([A-Za-z0-9_$]+)\.changeSelect\(([A-Za-z0-9_$]+)\.descriptor,\3\.id\)\},\3\.id\)\)/;
       if (xrRegex.test(out)) {
@@ -3184,25 +3354,23 @@ function patchChatTopbarBundle(src) {
     const v9StatsFn = `function __T3TelemetryPill({usage,liveTurn,latestTurn,turnCount,toolCallCount,cacheHitPercent,isWorking}){const[,setTick]=(0,${reactNs}.useState)(0);const clusterRef=(0,${reactNs}.useRef)(null);const dockRef=(0,${reactNs}.useRef)(null);(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribe)return;return globalThis.__t3QuotaUi.subscribe(()=>setTick(x=>x+1))},[]);const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;const turns=Number.isFinite(turnCount)?turnCount:0;const steps=Number.isFinite(toolCallCount)?toolCallCount:0;const tObj=liveTurn||latestTurn||null;let tps=tObj?.generationTps??tObj?.outputTokensPerSecond??tObj?.tokensPerSecond??tObj?.genTokensPerSecond??null;if((!Number.isFinite(tps)||tps<=0)&&tObj&&Number.isFinite(tObj.outputTokens)&&Number.isFinite(tObj.durationMs)&&tObj.durationMs>200){tps=tObj.outputTokens/(tObj.durationMs/1000)}const tokRaw=usage?.usedTokens??usage?.totalTokens??usage?.contextTokens??tObj?.totalTokens??null;const ctxPct=Number.isFinite(usage?.usedPercentage)?Math.round(usage.usedPercentage):null;const fmtTok=n=>{if(!Number.isFinite(n)||n<=0)return null;if(n>=1e6)return(n/1e6).toFixed(1)+"M";if(n>=1e3)return(n/1e3).toFixed(1)+"K";return String(Math.round(n))};const tokStr=fmtTok(tokRaw);const cacheStr=Number.isFinite(cacheHitPercent)?Math.round(cacheHitPercent)+"%":null;if(turns<=0&&steps<=0&&!tokStr)return null;const leftTxt=turns>0||steps>0?(zh?(turns+" 轮"+(steps>0?" "+steps+" 步":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":"")):(turns+"t"+(steps>0?" · "+steps+"s":"")+(Number.isFinite(tps)&&tps>0?" · "+Math.round(tps)+" tok/s":""))):(zh?"会话中":"Session");const rightParts=[];if(tokStr)rightParts.push(tokStr+(zh?" 令牌":" tok")+(ctxPct!==null&&!cacheStr?" ("+ctxPct+"%)":""));if(cacheStr)rightParts.push((zh?"缓存 ":"cache ")+cacheStr);const dockTo=ev=>{const d=dockRef.current,c=clusterRef.current;if(!d||!c)return;const cr=c.getBoundingClientRect(),tr=ev.currentTarget.getBoundingClientRect();d.style.transform="translateX("+(tr.left-cr.left)+"px)";d.style.width=tr.width+"px";d.style.opacity="1"};const undock=()=>{const d=dockRef.current;if(d)d.style.opacity="0"};return(0,${jsxNs}.jsxs)("div",{ref:clusterRef,"data-v9-stats-cluster":"","data-quota-ui-managed":"true",onMouseLeave:undock,children:[(0,${jsxNs}.jsx)("span",{ref:dockRef,"data-v9-stats-dock-pill":"","aria-hidden":"true"}),(0,${jsxNs}.jsxs)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:[(0,${jsxNs}.jsx)("span",{"data-v9-stats-dot":"","data-running":isWorking?"true":"false"}),(0,${jsxNs}.jsx)("span",{children:leftTxt})]}),rightParts.length>0?(0,${jsxNs}.jsx)("span",{"data-v9-stats-sep":"","aria-hidden":"true"}):null,rightParts.length>0?(0,${jsxNs}.jsx)("button",{type:"button","data-v9-stats-trig":"",onMouseEnter:dockTo,children:rightParts.join(" · ")}):null]})}`;
 
     const watchArcHelpers = `function __T3WatchArc({remaining,tone,paceTone,size=15}){const r=5.6,c=2*Math.PI*r,l=Math.max(0,Math.min(100,Number.isFinite(remaining)?remaining:0)),off=c*(1-l/100),ang=((l/100)*360-90)*(Math.PI/180),cx=8+r*Math.cos(ang),cy=8+r*Math.sin(ang);const stroke=tone==="danger"?"#ef4444":(tone==="warn"||paceTone==="fast")?"#f59e0b":paceTone==="good"?"#10b981":"currentColor";return(0,${jsxNs}.jsxs)("svg",{width:size,height:size,viewBox:"0 0 16 16",fill:"none","aria-hidden":!0,className:"shrink-0",children:[(0,${jsxNs}.jsx)("circle",{cx:"8",cy:"8",r:r,stroke:"currentColor",strokeWidth:"1.9",opacity:"0.16"}),l>0?(0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[(0,${jsxNs}.jsx)("circle",{cx:"8",cy:"8",r:r,stroke:stroke,strokeWidth:"1.9",strokeLinecap:"round",strokeDasharray:c,strokeDashoffset:off,transform:"rotate(-90 8 8)"}),(0,${jsxNs}.jsx)("circle",{cx:cx,cy:cy,r:"1.5",fill:"var(--background)",stroke:"var(--foreground)",strokeWidth:"0.95"})]}):null]})}
-function __T3ComposerTelemetryStrip({threadRef,threadDetail,usage,providers,providerInstanceId,activeModel,runs,activeThread,isWorking}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const uMin=globalThis.__t3QuotaUi?.subscribeMinute?.(ts=>setNow(ts));const id=uMin?null:setInterval(()=>setNow(Date.now()),60000);const u1=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof uMin==="function")uMin();if(id)clearInterval(id);if(typeof u1==="function")u1()}},[]);const tel=(0,${reactNs}.useMemo)(()=>{if(threadDetail&&threadRef&&globalThis.__t3QuotaUi?.publishThreadTelemetry){return globalThis.__t3QuotaUi.publishThreadTelemetry(threadRef,threadDetail)}return null},[threadRef,threadDetail]);const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const activeProv=Array.isArray(providers)?(providers.find(p=>p&&p.instanceId===providerInstanceId)||providers.find(p=>p&&Array.isArray(p.usageLimits?.windows)&&p.usageLimits.windows.length>0&&!p.usageLimits.unavailable)):null;const split=qApi?.splitProviderWindows?qApi.splitProviderWindows(activeProv,activeModel,2):{inline:[],sibling:[],overflowCount:0};const topWins=split.inline;const overflowCount=split.overflowCount;const usedTok=usage?.usedTokens??null;const maxTok=usage?.maxTokens>0?usage.maxTokens:null;const usedPct=maxTok&&Number.isFinite(usedTok)?Math.min(100,Math.round((usedTok/maxTok)*100)):(Number.isFinite(usage?.usedPercentage)?Math.round(usage.usedPercentage):null);const lt=tel?.latestWithCache||tel?.latest||null;const cachedTok=Number.isFinite(lt?.cachedInputTokens)&&Number.isFinite(usedTok)?Math.min(usedTok,lt.cachedInputTokens):0;const uncachedTok=Number.isFinite(usedTok)?Math.max(0,usedTok-cachedTok):0;const turns=tel?.turnCount||(Array.isArray(runs)?runs.length:0);const tools=tel?.toolCallCount||(Array.isArray(activeThread?.activities)?activeThread.activities.filter(__a=>__a&&/tool|command|mcp|edit|write|read/i.test(String(__a.kind||__a.type||""))).length:0);const liveTtft=isWorking&&tel?.latest?.ttftMs!=null?tel.latest.ttftMs:null;if(!usage&&topWins.length===0&&turns<=0)return null;const openProvPop=ev=>{ev.stopPropagation();if(!activeProv||!qApi?.buildTopbarPills||!qApi?.showTopbarQuotaPopover)return;const pills=qApi.buildTopbarPills([activeProv],now);if(pills[0])qApi.showTopbarQuotaPopover(pills[0],ev.currentTarget)};const usedShort=qApi?.fmtCompactTok?.(usedTok,!0)||"";const maxShort=maxTok?(qApi?.fmtCompactTok?.(maxTok,!0)||""):"";return(0,${jsxNs}.jsxs)("div",{"data-slot":"composer-telemetry-strip","data-quota-ui-managed":"true",className:"t3-tel-strip",children:[(0,${jsxNs}.jsxs)("div",{className:"t3-tel-group",children:[usage?(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-tel-btn",title:zh?"点击查看上下文与缓存拆解":"Click for context & cache breakdown",onClick:ev=>{ev.stopPropagation();qApi?.showContextPopover?.(usage,tel,ev.currentTarget)},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.72},children:zh?"上下文":"Ctx"}),(0,${jsxNs}.jsxs)("span",{className:"t3-tel-mini-bar",children:[maxTok&&cachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-cached",style:{width:Math.min(100,(cachedTok/maxTok)*100)+"%"}}):null,maxTok&&uncachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:Math.min(100,(uncachedTok/maxTok)*100)+"%"}}):null,!maxTok&&usedPct!==null?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:usedPct+"%"}}):null]}),usedShort?(0,${jsxNs}.jsx)("span",{style:{opacity:0.65},children:maxShort?usedShort+"/"+maxShort:usedShort}):null,usedPct!==null?(0,${jsxNs}.jsx)("span",{style:{color:usedPct>=90?"#ef4444":usedPct>=80?"#f59e0b":"var(--v9-fg)",fontWeight:600},children:usedPct+"%"}):null]}):null,liveTtft!==null?(0,${jsxNs}.jsxs)("span",{className:"t3-tel-btn",style:{cursor:"default"},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"TTFT"}),(0,${jsxNs}.jsx)("span",{children:qApi?.fmtDurationMs?.(liveTtft)})]}):null]}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-strip-center",children:(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:usage,liveTurn:tel?.latest,latestTurn:tel?.latestWithCache||tel?.latest,turnCount:turns,toolCallCount:tools,cacheHitPercent:tel?.sessionCacheHitPercent??lt?.cacheHitPercent??null,isWorking:isWorking})}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-group",children:topWins.length>0?(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-tel-btn",title:zh?"点击查看当前厂商配额明细":"Click for active provider quota details",onClick:openProvPop,children:[topWins.map((w,idx)=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),tone:"ok",paceTone:"neutral",shortTag:w.label};return(0,${jsxNs}.jsxs)("span",{className:"inline-flex items-center gap-1",children:[idx>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.35},children:"·"}):null,(0,${jsxNs}.jsx)(__T3WatchArc,{remaining:g.remaining,tone:g.tone,paceTone:g.paceTone,size:15}),(0,${jsxNs}.jsx)("span",{style:{opacity:0.7},children:g.shortTag}),(0,${jsxNs}.jsx)("span",{className:g.tone==="danger"?"t3-q-danger":g.tone==="warn"?"t3-q-warn":"",style:{fontWeight:600,color:g.tone==="ok"?"var(--v9-fg)":void 0},children:g.remaining+"%"})]},w.id||idx)}),overflowCount>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"+"+overflowCount}):null]}):null})]})}
+function __T3ComposerTelemetryStrip({threadRef,threadDetail,usage,providers,providerInstanceId,activeModel,runs,activeThread,isWorking,onCompact,compactDisabled}){const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const uMin=globalThis.__t3QuotaUi?.subscribeMinute?.(ts=>setNow(ts));const id=uMin?null:setInterval(()=>setNow(Date.now()),60000);const u1=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof uMin==="function")uMin();if(id)clearInterval(id);if(typeof u1==="function")u1()}},[]);(0,${reactNs}.useEffect)(()=>{globalThis.__t3QuotaUi?.setCompactHandler?.(onCompact,Boolean(compactDisabled||isWorking));return()=>globalThis.__t3QuotaUi?.setCompactHandler?.(null,!1)},[onCompact,compactDisabled,isWorking]);const tel=(0,${reactNs}.useMemo)(()=>{if(threadDetail&&threadRef&&globalThis.__t3QuotaUi?.publishThreadTelemetry){return globalThis.__t3QuotaUi.publishThreadTelemetry(threadRef,threadDetail)}return null},[threadRef,threadDetail]);const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const activeProv=Array.isArray(providers)?(providers.find(p=>p&&p.instanceId===providerInstanceId)||providers.find(p=>p&&Array.isArray(p.usageLimits?.windows)&&p.usageLimits.windows.length>0&&!p.usageLimits.unavailable)):null;const split=qApi?.splitProviderWindows?qApi.splitProviderWindows(activeProv,activeModel,2):{inline:[],sibling:[],overflowCount:0};const topWins=split.inline;const overflowCount=split.overflowCount;const usedTok=usage?.usedTokens??null;const maxTok=usage?.maxTokens>0?usage.maxTokens:null;const usedPct=maxTok&&Number.isFinite(usedTok)?Math.min(100,Math.round((usedTok/maxTok)*100)):(Number.isFinite(usage?.usedPercentage)?Math.round(usage.usedPercentage):null);const lt=tel?.latestWithCache||tel?.latest||null;const cachedTok=Number.isFinite(lt?.cachedInputTokens)&&Number.isFinite(usedTok)?Math.min(usedTok,lt.cachedInputTokens):0;const uncachedTok=Number.isFinite(usedTok)?Math.max(0,usedTok-cachedTok):0;const turns=tel?.turnCount||(Array.isArray(runs)?runs.length:0);const tools=tel?.toolCallCount||(Array.isArray(activeThread?.activities)?activeThread.activities.filter(__a=>__a&&/tool|command|mcp|edit|write|read/i.test(String(__a.kind||__a.type||""))).length:0);const liveTtft=isWorking&&tel?.latest?.ttftMs!=null?tel.latest.ttftMs:null;if(!usage&&topWins.length===0&&turns<=0)return null;const openProvPop=ev=>{ev.stopPropagation();if(!activeProv||!qApi?.buildTopbarPills||!qApi?.showTopbarQuotaPopover)return;const pills=qApi.buildTopbarPills([activeProv],now);if(pills[0])qApi.showTopbarQuotaPopover(pills[0],ev.currentTarget)};const usedShort=qApi?.fmtCompactTok?.(usedTok,!0)||"";const maxShort=maxTok?(qApi?.fmtCompactTok?.(maxTok,!0)||""):"";const ctxBtnCls="t3-tel-btn"+(usedPct!==null&&usedPct>=90?" t3-tel-btn-danger":usedPct!==null&&usedPct>=80?" t3-tel-btn-warn":"");const ctxBtnTitle=usedPct!==null&&usedPct>=80?(zh?"上下文较高，点击查看拆解或一键压缩":"High context usage — click for breakdown or compact"):(zh?"点击查看上下文与缓存拆解":"Click for context & cache breakdown");return(0,${jsxNs}.jsxs)("div",{"data-slot":"composer-telemetry-strip","data-quota-ui-managed":"true",className:"t3-tel-strip",children:[(0,${jsxNs}.jsxs)("div",{className:"t3-tel-group",children:[usage?(0,${jsxNs}.jsxs)("button",{type:"button",className:ctxBtnCls,title:ctxBtnTitle,onClick:ev=>{ev.stopPropagation();qApi?.showContextPopover?.(usage,tel,ev.currentTarget)},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.72},children:zh?"上下文":"Ctx"}),(0,${jsxNs}.jsxs)("span",{className:"t3-tel-mini-bar",children:[maxTok&&cachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-cached",style:{width:Math.min(100,(cachedTok/maxTok)*100)+"%"}}):null,maxTok&&uncachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:Math.min(100,(uncachedTok/maxTok)*100)+"%"}}):null,!maxTok&&usedPct!==null?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:usedPct+"%"}}):null]}),usedShort?(0,${jsxNs}.jsx)("span",{style:{opacity:0.65},children:maxShort?usedShort+"/"+maxShort:usedShort}):null,usedPct!==null?(0,${jsxNs}.jsx)("span",{style:{color:usedPct>=90?"#ef4444":usedPct>=80?"#f59e0b":"var(--v9-fg)",fontWeight:600},children:usedPct+"%"}):null]}):null,liveTtft!==null?(0,${jsxNs}.jsxs)("span",{className:"t3-tel-btn",style:{cursor:"default"},children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"TTFT"}),(0,${jsxNs}.jsx)("span",{children:qApi?.fmtDurationMs?.(liveTtft)})]}):null]}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-strip-center",children:(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:usage,liveTurn:tel?.latest,latestTurn:tel?.latestWithCache||tel?.latest,turnCount:turns,toolCallCount:tools,cacheHitPercent:tel?.sessionCacheHitPercent??lt?.cacheHitPercent??null,isWorking:isWorking})}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-group",children:topWins.length>0?(0,${jsxNs}.jsxs)("button",{type:"button",className:"t3-tel-btn",title:zh?"点击查看当前厂商配额明细":"Click for active provider quota details",onClick:openProvPop,children:[topWins.map((w,idx)=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),tone:"ok",paceTone:"neutral",shortTag:w.label};return(0,${jsxNs}.jsxs)("span",{className:"inline-flex items-center gap-1",children:[idx>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.35},children:"·"}):null,(0,${jsxNs}.jsx)(__T3WatchArc,{remaining:g.remaining,tone:g.tone,paceTone:g.paceTone,size:15}),(0,${jsxNs}.jsx)("span",{style:{opacity:0.7},children:g.shortTag}),(0,${jsxNs}.jsx)("span",{className:g.tone==="danger"?"t3-q-danger":g.tone==="warn"?"t3-q-warn":"",style:{fontWeight:600,color:g.tone==="ok"?"var(--v9-fg)":void 0},children:g.remaining+"%"})]},w.id||idx)}),overflowCount>0?(0,${jsxNs}.jsx)("span",{style:{opacity:0.55},children:"+"+overflowCount}):null]}):null})]})}
 function __T3LedQuotaSidebar(props){const{providerInstanceId,providers,activeModel,model,Fallback}=props;const[now,setNow]=(0,${reactNs}.useState)(()=>Date.now());const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const uMin=globalThis.__t3QuotaUi?.subscribeMinute?.(ts=>setNow(ts));const id=uMin?null:setInterval(()=>setNow(Date.now()),60000);const u=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof uMin==="function")uMin();if(id)clearInterval(id);if(typeof u==="function")u()}},[]);const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const prov=Array.isArray(providers)?(providers.find(p=>p&&p.instanceId===providerInstanceId)||providers.find(p=>p&&Array.isArray(p.usageLimits?.windows)&&p.usageLimits.windows.length>0&&!p.usageLimits.unavailable)):null;const mdl=activeModel||model||null;const split=qApi?.splitProviderWindows?qApi.splitProviderWindows(prov,mdl,2):{inline:[],sibling:[],all:[]};if(split.all.length===0)return Fallback?(0,${jsxNs}.jsx)(Fallback,{...props}):null;const cells=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];const openLimits=()=>{try{const raw=window.localStorage.getItem("usage-page-preferences:v1");const pref=raw?JSON.parse(raw):{};pref.tab="limits";window.localStorage.setItem("usage-page-preferences:v1",JSON.stringify(pref))}catch{}const link=document.querySelector('a[href="/usage"], a[href*="/usage"]');if(link)link.click()};const provTitle=prov?.displayName||prov?.driver||"";const mdlShort=mdl?String(mdl).split("/").pop():"";const planLabel=prov?.auth?.label||"";return(0,${jsxNs}.jsxs)("section",{className:"t3-tel-section","data-thread-details-telemetry":"usage","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2 text-xs",children:[(0,${jsxNs}.jsx)("span",{className:"truncate font-semibold text-foreground",title:mdlShort?provTitle+" · "+mdlShort:provTitle,children:mdlShort?provTitle+" · "+mdlShort:provTitle}),(0,${jsxNs}.jsx)("button",{type:"button",className:"shrink-0 text-2xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors",onClick:openLimits,title:zh?"打开完整配额面板":"Open full limits panel",children:planLabel||(zh?"完整面板":"Limits")})]}),split.inline.map(w=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),used:Math.round(w.usedPercent),resetsInMs:null,timeRemaining:null,tone:"ok",paceTone:"neutral"};const ledCls=g.tone==="danger"?"t3-tel-led-danger":(g.tone==="warn"||g.paceTone==="fast")?"t3-tel-led-warn":g.paceTone==="good"?"t3-tel-led-ok":"t3-tel-led-neutral";const lbl=qApi?.translateWindowLabel?qApi.translateWindowLabel(w.label||w.kind||w.id||""):(w.label||w.id);const resetTxt=g.resetsInMs!==null&&g.resetsInMs>0?(zh?(qApi.fmtDurLong(g.resetsInMs)+"后重置"):("resets in "+qApi.fmtDurLong(g.resetsInMs))):(zh?("已用 "+g.used+"%"):(g.used+"% used"));return(0,${jsxNs}.jsxs)("div",{className:"t3-tel-card",children:[(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2",children:[(0,${jsxNs}.jsxs)("div",{className:"flex min-w-0 items-center gap-1.5",children:[(0,${jsxNs}.jsx)(__T3WatchArc,{remaining:g.remaining,tone:g.tone,paceTone:g.paceTone,size:18}),(0,${jsxNs}.jsx)("span",{className:"truncate text-xs font-medium text-foreground",children:lbl})]}),(0,${jsxNs}.jsx)("span",{className:"shrink-0 font-mono text-sm font-semibold "+(g.tone==="danger"?"t3-q-danger":g.tone==="warn"?"t3-q-warn":"text-foreground"),children:g.remaining+"%"})]}),(0,${jsxNs}.jsx)("div",{className:"t3-tel-led-row","aria-hidden":!0,children:cells.map(i=>{const th=i*5,full=g.remaining>=th+5,half=!full&&g.remaining>th;return(0,${jsxNs}.jsx)("span",{className:"t3-tel-led-cell"+(full?" "+ledCls:half?" "+ledCls+" t3-tel-led-half":"")},i)})}),g.timeRemaining!==null?(0,${jsxNs}.jsxs)("div",{className:"t3-tel-pace-track","aria-hidden":!0,children:[(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-bg"}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-fill",style:{width:g.timeRemaining+"%"}}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-pace-needle",style:{left:g.timeRemaining+"%"}})]}):null,(0,${jsxNs}.jsx)("div",{className:"flex items-center justify-between gap-2 text-2xs text-muted-foreground",children:(0,${jsxNs}.jsx)("span",{className:"truncate",children:resetTxt})})]},w.id||lbl)}),split.sibling.length>0?(0,${jsxNs}.jsxs)("div",{className:"mt-1 flex flex-col gap-1.5",children:[(0,${jsxNs}.jsx)("div",{className:"text-2xs text-muted-foreground/80",children:zh?"其他模型配额池":"Other model pools"}),split.sibling.map(w=>{const g=qApi?.computeWindowGauge?.(w,now)||{remaining:Math.round(100-w.usedPercent),tone:"ok"};const lbl=qApi?.translateWindowLabel?qApi.translateWindowLabel(w.label||w.kind||w.id||""):(w.label||w.id);return(0,${jsxNs}.jsxs)("div",{className:"t3-tel-sib-row",children:[(0,${jsxNs}.jsx)("span",{className:"truncate text-muted-foreground",title:lbl,children:lbl}),(0,${jsxNs}.jsx)("span",{className:"t3-tel-sib-bar",children:(0,${jsxNs}.jsx)("span",{style:{display:"block",height:"100%",borderRadius:"999px",width:Math.max(0,Math.min(100,g.remaining))+"%",background:g.tone==="danger"?"#ef4444":g.tone==="warn"?"#f59e0b":"color-mix(in oklab, var(--foreground) 72%, transparent)"}})}),(0,${jsxNs}.jsx)("span",{className:"text-right font-mono font-medium text-foreground",children:g.remaining+"%"})]},w.id||lbl)})]}):null]})}
-function __T3ContextBreakdownSidebar({usage,environmentId,threadId}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const u1=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));const u2=globalThis.__t3QuotaUi?.subscribeTelemetry?.(()=>setTick(x=>x+1));return()=>{if(typeof u1==="function")u1();if(typeof u2==="function")u2()}},[]);if(!usage)return null;const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const tel=qApi?.getThreadTelemetry?.(environmentId,threadId)||null;const maxTok=usage.maxTokens!=null&&usage.maxTokens>0?usage.maxTokens:null;const usedTok=Number.isFinite(usage.usedTokens)?usage.usedTokens:0;const usedPct=maxTok?Math.min(100,Math.round((usedTok/maxTok)*100)):(Number.isFinite(usage.usedPercentage)?Math.round(usage.usedPercentage):null);const lt=tel?.latestWithCache||tel?.latest||null;const cachedTok=Number.isFinite(lt?.cachedInputTokens)?Math.min(usedTok,lt.cachedInputTokens):(Number.isFinite(usage.cachedInputTokens)?Math.min(usedTok,usage.cachedInputTokens):0);const uncachedTok=Math.max(0,usedTok-cachedTok);const bufTok=maxTok&&Number.isFinite(usage.autoCompactThreshold)&&usage.autoCompactThreshold>0&&usage.autoCompactThreshold<maxTok?Math.max(0,maxTok-usage.autoCompactThreshold):0;const freeTok=maxTok?Math.max(0,maxTok-usedTok-bufTok):null;const pct=v=>(maxTok&&maxTok>0?Math.max(0,Math.min(100,(v/maxTok)*100)):0);const cachePct=tel?.sessionCacheHitPercent??lt?.cacheHitPercent??null;const latestMiss=lt&&lt.cacheHitPercent!==null?Math.max(0,Math.round(100-lt.cacheHitPercent)):null;const rows=[cachedTok>0?{cls:"t3-tel-ctx-seg-cached",lbl:zh?"已缓存上下文":"Cached context",val:qApi?.fmtCompactTok?.(cachedTok,!0),p:maxTok?Math.round(pct(cachedTok))+"%":""}:null,uncachedTok>0?{cls:"t3-tel-ctx-seg-uncached",lbl:zh?"未缓存上下文":"Uncached context",val:qApi?.fmtCompactTok?.(uncachedTok,!0),p:maxTok?Math.round(pct(uncachedTok))+"%":""}:null,bufTok>0?{cls:"t3-tel-ctx-seg-buf",lbl:zh?"自动压缩缓冲":"Autocompact buffer",val:qApi?.fmtCompactTok?.(bufTok,!0),p:maxTok?Math.round(pct(bufTok))+"%":""}:null,freeTok!==null?{cls:"",lbl:zh?"剩余空间":"Free space",val:qApi?.fmtCompactTok?.(freeTok,!0),p:maxTok?Math.round(pct(freeTok))+"%":""}:null].filter(Boolean);return(0,${jsxNs}.jsxs)("section",{className:"t3-tel-section","data-thread-details-telemetry":"context","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsx)("div",{className:"text-xs font-medium text-muted-foreground",children:zh?"上下文":"Context"}),(0,${jsxNs}.jsxs)("div",{className:"flex items-baseline justify-between gap-2",children:[(0,${jsxNs}.jsx)("span",{className:"text-sm font-semibold "+(usedPct>=90?"t3-q-danger":usedPct>=80?"t3-q-warn":"text-foreground"),children:usedPct!==null?(zh?"已用 "+usedPct+"%":usedPct+"% used"):(qApi?.fmtCompactTok?.(usedTok,!0)||"0")}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-xs text-muted-foreground",children:(qApi?.fmtCompactTok?.(usedTok,!0)||"0")+(maxTok?" / "+(qApi?.fmtCompactTok?.(maxTok,!0)||""):"")})]}),(0,${jsxNs}.jsxs)("div",{className:"t3-tel-ctx-bar",children:[cachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-cached",style:{width:pct(cachedTok)+"%"}}):null,uncachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:pct(uncachedTok)+"%"}}):null,bufTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-buf",style:{width:pct(bufTok)+"%",marginLeft:"auto"}}):null]}),(0,${jsxNs}.jsx)("div",{className:"flex flex-col gap-1",children:rows.map((r,idx)=>(0,${jsxNs}.jsxs)("div",{className:"t3-tel-ctx-row",children:[(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-dot "+r.cls,style:r.cls?void 0:{background:"color-mix(in oklab, var(--foreground) 16%, transparent)"}}),(0,${jsxNs}.jsx)("span",{className:"truncate text-muted-foreground",children:r.lbl}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-foreground font-medium",children:r.val}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-muted-foreground text-right",children:r.p})]},idx))}),cachePct!==null?(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2 pt-0.5 text-xs",children:[(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:zh?"提示词缓存":"Prompt cache"}),(0,${jsxNs}.jsxs)("span",{className:"font-mono text-2xs",children:[latestMiss!==null?(0,${jsxNs}.jsx)("span",{style:{color:"#f59e0b"},children:latestMiss+(zh?"% miss":"% miss")}):null,latestMiss!==null?(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground/50",children:" · "}):null,(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:(zh?"平均 ":"avg ")+Math.round(cachePct)+"%"})]})]}):null,tel&&(tel.turnCount>0||tel.toolCallCount>0)?(0,${jsxNs}.jsx)("div",{className:"text-2xs text-muted-foreground/80",children:zh?(tel.turnCount+" 轮对话 · "+tel.toolCallCount+" 次工具"+(tel.skillCount>0?" · "+tel.skillCount+" 个技能":"")):(tel.turnCount+" turns · "+tel.toolCallCount+" tools"+(tel.skillCount>0?" · "+tel.skillCount+" skills":""))}) :null]})}`;
+function __T3ContextBreakdownSidebar({usage,environmentId,threadId}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const u1=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));const u2=globalThis.__t3QuotaUi?.subscribeTelemetry?.(()=>setTick(x=>x+1));const u3=globalThis.__t3QuotaUi?.subscribeCompact?.(()=>setTick(x=>x+1));return()=>{if(typeof u1==="function")u1();if(typeof u2==="function")u2();if(typeof u3==="function")u3()}},[]);if(!usage)return null;const qApi=globalThis.__t3QuotaUi;const zh=qApi?qApi.isZh():!0;const tel=qApi?.getThreadTelemetry?.(environmentId,threadId)||null;const cState=qApi?.getCompactState?.()||{available:!1,disabled:!0};const maxTok=usage.maxTokens!=null&&usage.maxTokens>0?usage.maxTokens:null;const usedTok=Number.isFinite(usage.usedTokens)?usage.usedTokens:0;const usedPct=maxTok?Math.min(100,Math.round((usedTok/maxTok)*100)):(Number.isFinite(usage.usedPercentage)?Math.round(usage.usedPercentage):null);const lt=tel?.latestWithCache||tel?.latest||null;const cachedTok=Number.isFinite(lt?.cachedInputTokens)?Math.min(usedTok,lt.cachedInputTokens):(Number.isFinite(usage.cachedInputTokens)?Math.min(usedTok,usage.cachedInputTokens):0);const uncachedTok=Math.max(0,usedTok-cachedTok);const bufTok=maxTok&&Number.isFinite(usage.autoCompactThreshold)&&usage.autoCompactThreshold>0&&usage.autoCompactThreshold<maxTok?Math.max(0,maxTok-usage.autoCompactThreshold):0;const freeTok=maxTok?Math.max(0,maxTok-usedTok-bufTok):null;const pct=v=>(maxTok&&maxTok>0?Math.max(0,Math.min(100,(v/maxTok)*100)):0);const cachePct=tel?.sessionCacheHitPercent??lt?.cacheHitPercent??null;const latestMiss=lt&&lt.cacheHitPercent!==null?Math.max(0,Math.round(100-lt.cacheHitPercent)):null;const rows=[cachedTok>0?{cls:"t3-tel-ctx-seg-cached",lbl:zh?"已缓存上下文":"Cached context",val:qApi?.fmtCompactTok?.(cachedTok,!0),p:maxTok?Math.round(pct(cachedTok))+"%":""}:null,uncachedTok>0?{cls:"t3-tel-ctx-seg-uncached",lbl:zh?"未缓存上下文":"Uncached context",val:qApi?.fmtCompactTok?.(uncachedTok,!0),p:maxTok?Math.round(pct(uncachedTok))+"%":""}:null,bufTok>0?{cls:"t3-tel-ctx-seg-buf",lbl:zh?"自动压缩缓冲":"Autocompact buffer",val:qApi?.fmtCompactTok?.(bufTok,!0),p:maxTok?Math.round(pct(bufTok))+"%":""}:null,freeTok!==null?{cls:"",lbl:zh?"剩余空间":"Free space",val:qApi?.fmtCompactTok?.(freeTok,!0),p:maxTok?Math.round(pct(freeTok))+"%":""}:null].filter(Boolean);return(0,${jsxNs}.jsxs)("section",{className:"t3-tel-section","data-thread-details-telemetry":"context","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2",children:[(0,${jsxNs}.jsx)("span",{className:"text-xs font-medium text-muted-foreground",children:zh?"上下文":"Context"}),cState.available?(0,${jsxNs}.jsx)("button",{type:"button",className:"t3-ctx-compact-btn"+(usedPct>=90?" is-danger":usedPct>=80?" is-urgent":""),disabled:cState.disabled,title:cState.disabled?(zh?"当前正在生成或暂不可压缩":"Unavailable while running"):(zh?"立即压缩当前会话上下文":"Compact current thread context"),onClick:()=>qApi?.triggerCompact?.(),children:zh?"一键压缩":"Compact"}):null]}),(0,${jsxNs}.jsxs)("div",{className:"flex items-baseline justify-between gap-2",children:[(0,${jsxNs}.jsx)("span",{className:"text-sm font-semibold "+(usedPct>=90?"t3-q-danger":usedPct>=80?"t3-q-warn":"text-foreground"),children:usedPct!==null?(zh?"已用 "+usedPct+"%":usedPct+"% used"):(qApi?.fmtCompactTok?.(usedTok,!0)||"0")}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-xs text-muted-foreground",children:(qApi?.fmtCompactTok?.(usedTok,!0)||"0")+(maxTok?" / "+(qApi?.fmtCompactTok?.(maxTok,!0)||""):"")})]}),(0,${jsxNs}.jsxs)("div",{className:"t3-tel-ctx-bar",children:[cachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-cached",style:{width:pct(cachedTok)+"%"}}):null,uncachedTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-uncached",style:{width:pct(uncachedTok)+"%"}}):null,bufTok>0?(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-seg-buf",style:{width:pct(bufTok)+"%",marginLeft:"auto"}}):null]}),(0,${jsxNs}.jsx)("div",{className:"flex flex-col gap-1",children:rows.map((r,idx)=>(0,${jsxNs}.jsxs)("div",{className:"t3-tel-ctx-row",children:[(0,${jsxNs}.jsx)("span",{className:"t3-tel-ctx-dot "+r.cls,style:r.cls?void 0:{background:"color-mix(in oklab, var(--foreground) 16%, transparent)"}}),(0,${jsxNs}.jsx)("span",{className:"truncate text-muted-foreground",children:r.lbl}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-foreground font-medium",children:r.val}),(0,${jsxNs}.jsx)("span",{className:"font-mono text-muted-foreground text-right",children:r.p})]},idx))}),cachePct!==null?(0,${jsxNs}.jsxs)("div",{className:"flex items-center justify-between gap-2 pt-0.5 text-xs",children:[(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:zh?"提示词缓存":"Prompt cache"}),(0,${jsxNs}.jsxs)("span",{className:"font-mono text-2xs",children:[latestMiss!==null?(0,${jsxNs}.jsx)("span",{style:{color:"#f59e0b"},children:latestMiss+(zh?"% miss":"% miss")}):null,latestMiss!==null?(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground/50",children:" · "}):null,(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:(zh?"平均 ":"avg ")+Math.round(cachePct)+"%"})]})]}):null,tel&&(tel.turnCount>0||tel.toolCallCount>0)?(0,${jsxNs}.jsx)("div",{className:"text-2xs text-muted-foreground/80",children:zh?(tel.turnCount+" 轮对话 · "+tel.toolCallCount+" 次工具"+(tel.skillCount>0?" · "+tel.skillCount+" 个技能":"")):(tel.turnCount+" turns · "+tel.toolCallCount+" tools"+(tel.skillCount>0?" · "+tel.skillCount+" skills":""))}) :null]})}`;
 
     if (out.includes("function __T3TelemetryPill(")) {
-      out = out.replace(/function __T3TelemetryPill\([\s\S]*?\}\n/, `${v9StatsFn}\n`);
+      out = out.replace(/function __T3TelemetryPill\([\s\S]*?\}\n/, () => `${v9StatsFn}\n`);
     } else {
       const juMatch = out.match(
         /function ([A-Za-z0-9_$]+)\(e\)\{let t=\(0,[A-Za-z0-9_$]+\.c\)\(\d+\),\{contextWindow:([A-Za-z0-9_$]+),providerInstanceId:[A-Za-z0-9_$]+,activeModel:[A-Za-z0-9_$]+,providers:[A-Za-z0-9_$]+,sources:[A-Za-z0-9_$]+,isWorking:([A-Za-z0-9_$]+),liveTurn:([A-Za-z0-9_$]+),latestCacheTurn:([A-Za-z0-9_$]+),sessionCacheHitPercent:([A-Za-z0-9_$]+),sessionCacheTurnCount:[A-Za-z0-9_$]+,turnCount:([A-Za-z0-9_$]+),toolCallCount:([A-Za-z0-9_$]+),[\s\S]{0,3600}?"data-slot":[`"']composer-telemetry-strip[`"'],className:[`"']justify-between gap-2 pt-1\.5 pb-0\.5[`"'],children:\[([A-Za-z0-9_$]+),([A-Za-z0-9_$]+)\]\}/,
       );
       if (juMatch) {
         const [, , ctxV, workV, liveV, cacheTurnV, cachePctV, turnV, toolV, leftV, rightV] = juMatch;
-        out = out.replace(
-          juMatch[0],
-          juMatch[0].replace(
-            `children:[${leftV},${rightV}]}`,
-            `children:[${leftV},(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:${ctxV},liveTurn:${liveV},latestTurn:${cacheTurnV},turnCount:${turnV},toolCallCount:${toolV},cacheHitPercent:${cachePctV},isWorking:${workV}}),${rightV}]}`,
-          ),
+        const patchedJu = juMatch[0].replace(
+          `children:[${leftV},${rightV}]}`,
+          () => `children:[${leftV},(0,${jsxNs}.jsx)(__T3TelemetryPill,{usage:${ctxV},liveTurn:${liveV},latestTurn:${cacheTurnV},turnCount:${turnV},toolCallCount:${toolV},cacheHitPercent:${cachePctV},isWorking:${workV}}),${rightV}]}`,
         );
+        out = out.replace(juMatch[0], () => patchedJu);
         out += `\n${v9StatsFn}\n`;
       } else if (contextWindowVar && providerInstanceIdVar) {
         // 0.1.11+ official composer (Rz): pass threadDetail, contextWindow & providers + render full Watch-Arc telemetry strip BELOW composer box
@@ -3225,19 +3393,19 @@ function __T3ContextBreakdownSidebar({usage,environmentId,threadId}){const[,setT
           if (rzCallRe.test(out)) {
             out = out.replace(
               rzCallRe,
-              `(0,${jsxNs}.jsx)(${rzCompName},{t3ThreadDetail:${threadDetailVar},t3ContextWindow:${contextWindowVar},t3Providers:${providersVar},t3ProviderInstanceId:${providerInstanceIdVar},canOperateThread:`,
+              () => `(0,${jsxNs}.jsx)(${rzCompName},{t3ThreadDetail:${threadDetailVar},t3ContextWindow:${contextWindowVar},t3Providers:${providersVar},t3ProviderInstanceId:${providerInstanceIdVar},canOperateThread:`,
             );
             // Place telemetry strip BELOW the composer surface (inside form children, after the div.relative composer card)
             out = out.replace(
               formEndMatch[0],
-              `${formEndMatch[1]},(0,${jsxNs}.jsx)(__T3ComposerTelemetryStrip,{threadRef:${routeRefVar},threadDetail:${rzPropsVar}.t3ThreadDetail,usage:${rzPropsVar}.t3ContextWindow,providers:${rzPropsVar}.t3Providers,providerInstanceId:${rzPropsVar}.t3ProviderInstanceId,activeModel:${activeThreadVar}?.modelSelection?.model||${rzPropsVar}.reportedModelSelection?.model||null,runs:${runsVar},activeThread:${activeThreadVar},isWorking:${phaseVar}==="running"||${phaseVar}==="connecting"})${formEndMatch[2]}`,
+              () => `${formEndMatch[1]},(0,${jsxNs}.jsx)(__T3ComposerTelemetryStrip,{threadRef:${routeRefVar},threadDetail:${rzPropsVar}.t3ThreadDetail,usage:${rzPropsVar}.t3ContextWindow,providers:${rzPropsVar}.t3Providers,providerInstanceId:${rzPropsVar}.t3ProviderInstanceId,activeModel:${activeThreadVar}?.modelSelection?.model||${rzPropsVar}.reportedModelSelection?.model||null,runs:${runsVar},activeThread:${activeThreadVar},isWorking:${phaseVar}==="running"||${phaseVar}==="connecting",onCompact:${rzPropsVar}.onCompactContext,compactDisabled:${rzPropsVar}.compactDisabled})${formEndMatch[2]}`,
             );
             // Attach activeModel to ChatView usage object so Right Sidebar knows active model pool (e.g. Gemini vs Claude)
             if (usageObjMatch) {
               const threadObjVar = usageObjMatch[3];
               out = out.replace(
                 usageObjMatch[0],
-                `${usageObjMatch[1]}activeModel:${threadObjVar}?.modelSelection?.model??null,${usageObjMatch[2]}`,
+                () => `${usageObjMatch[1]}activeModel:${threadObjVar}?.modelSelection?.model??null,${usageObjMatch[2]}`,
               );
             }
             // Upgrade Right Sidebar: ALWAYS show Context Breakdown FIRST and 20-cell LED Fuel Matrix SECOND (matching 0.1.9)
@@ -3292,10 +3460,10 @@ function patchTimelineTelemetryBundle(src) {
   // Keep action buttons (copy/fork/reply/timestamp) hover-only while keeping TTFT · t/s ALWAYS visible & right-aligned (matching 0.1.9)
   const injected = fullMatch.replace(
     `(0,${jsxNs}.jsxs)(\`div\`,{className:${clsVar},children:[${c1},${c2},${c3},${c4},${c5}]})`,
-    `(0,${jsxNs}.jsxs)("div",{className:${cnFn}("flex items-center gap-2 text-xs tabular-nums",${propClsVar}),children:[(0,${jsxNs}.jsxs)("div",{className:${cnFn}("flex items-center gap-2 transition-opacity duration-200",${opacityVar}),children:[${c1},${c2},${c3},${c4},${c5}]}),(0,${jsxNs}.jsx)(__T3TurnTelemetryBadge,{projectedItem:${projVar},message:${msgVar},threadRef:${ctxVar}?.threadRef})]})`,
+    () => `(0,${jsxNs}.jsxs)("div",{className:${cnFn}("flex items-center gap-2 text-xs tabular-nums",${propClsVar}),children:[(0,${jsxNs}.jsxs)("div",{className:${cnFn}("flex items-center gap-2 transition-opacity duration-200",${opacityVar}),children:[${c1},${c2},${c3},${c4},${c5}]}),(0,${jsxNs}.jsx)(__T3TurnTelemetryBadge,{projectedItem:${projVar},message:${msgVar},threadRef:${ctxVar}?.threadRef})]})`,
   );
   if (injected === fullMatch) return src;
-  out = out.replace(fullMatch, injected);
+  out = out.replace(fullMatch, () => injected);
 
   const badgeComp = `function __T3TurnTelemetryBadge({projectedItem,message,threadRef}){const[,setTick]=(0,${reactNs}.useState)(0);(0,${reactNs}.useEffect)(()=>{const u1=globalThis.__t3QuotaUi?.subscribeTelemetry?.(()=>setTick(x=>x+1));const u2=globalThis.__t3QuotaUi?.subscribe?.(()=>setTick(x=>x+1));return()=>{if(typeof u1==="function")u1();if(typeof u2==="function")u2()}},[]);if(!message||message.streaming)return null;const qApi=globalThis.__t3QuotaUi;const m=qApi?.getTurnTelemetry?.(threadRef,projectedItem?.item?.providerTurnId??null,message?.runId??null);if(!m)return null;const ttftStr=m.ttftMs!==null?qApi.fmtDurationMs(m.ttftMs):null;const tpsCompact=m.generationTps!==null?qApi.fmtTps(m.generationTps,!0):null;const tpsFull=m.generationTps!==null?qApi.fmtTps(m.generationTps,!1):null;const outStr=m.outputTokens!==null?qApi.fmtCompactTok(m.outputTokens,!0):null;const inStr=m.inputTokens!==null?qApi.fmtCompactTok(m.inputTokens,!0):null;if(!ttftStr&&!tpsCompact&&!outStr)return null;const zh=qApi?qApi.isZh():!0;const rows=[ttftStr?["TTFT",ttftStr]:null,m.firstAnswerMs!==null?[zh?"首屏回复":"First answer",qApi.fmtDurationMs(m.firstAnswerMs)]:null,tpsFull?[zh?"生成速度":"Gen speed",tpsFull]:null,m.endToEndTps!==null&&m.toolDurationMs!==null&&m.toolDurationMs>=100?[zh?"端到端速度":"End-to-end",qApi.fmtTps(m.endToEndTps,!1)]:null,outStr?[zh?"输出":"Output",outStr+(m.reasoningTokens>0?" ("+(zh?"推理 ":"reasoning ")+qApi.fmtCompactTok(m.reasoningTokens,!0)+")":"")]:null,inStr?[zh?"输入":"Input",inStr+(m.cachedInputTokens>0?" ("+(zh?"缓存 ":"cached ")+qApi.fmtCompactTok(m.cachedInputTokens,!0)+")":"")]:null,m.cacheHitPercent!==null?[zh?"提示词缓存":"Prompt cache",Math.round(m.cacheHitPercent)+"%"]:null,(m.generationDurationMs??m.totalDurationMs)!==null?[zh?"耗时":"Duration",qApi.fmtDurationMs(m.generationDurationMs??m.totalDurationMs)]:null,m.totalDurationMs!==null&&m.toolDurationMs!==null&&m.toolDurationMs>=100?[zh?"总耗时":"Wall time",qApi.fmtDurationMs(m.totalDurationMs)]:null].filter(Boolean);const summary=tpsCompact||ttftStr||"";const openDetail=ev=>{ev.stopPropagation();qApi?.showTurnTelemetryPopover?.(rows,summary,ev.currentTarget)};const trig=(0,${jsxNs}.jsx)("span",{role:"button",tabIndex:0,"data-turn-telemetry":"true","data-quota-ui-managed":"true",className:"t3-turn-badge",title:zh?"点击查看本轮输出详情":"Click for turn telemetry details",onClick:openDetail,onKeyDown:ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();openDetail(ev)}}});return(0,${jsxNs}.jsxs)(${tipRoot},{children:[(0,${jsxNs}.jsxs)(${tipTrig},{render:trig,children:[ttftStr?(0,${jsxNs}.jsxs)("span",{children:[(0,${jsxNs}.jsx)("span",{style:{opacity:0.65},children:"TTFT "}),ttftStr]}):null,ttftStr&&tpsCompact?(0,${jsxNs}.jsx)("span",{style:{opacity:0.35},children:"·"}):null,tpsCompact?(0,${jsxNs}.jsx)("span",{children:tpsCompact}):(!ttftStr&&outStr?(0,${jsxNs}.jsx)("span",{children:outStr+" tok"}):null)]}),(0,${jsxNs}.jsx)(${tipPopup},{side:"top",align:"end",children:(0,${jsxNs}.jsx)("div",{className:"grid min-w-44 grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-0.5 py-0.5 text-xs tabular-nums",children:rows.map(([k,v],idx)=>(0,${jsxNs}.jsxs)(${jsxNs}.Fragment,{children:[(0,${jsxNs}.jsx)("span",{className:"text-muted-foreground",children:k}),(0,${jsxNs}.jsx)("span",{className:"text-right font-mono text-foreground",children:v})]},idx))})})]})}`;
 
@@ -3343,7 +3511,7 @@ function patchPreviewPanelBundle(src) {
 
   out = out.replace(
     `children:[${formMatch[2]},${formMatch[3]},${formMatch[4]},${formMatch[5]},${formMatch[6]},${formMatch[7]},${formMatch[8]}]`,
-    `children:[${formMatch[2]},${formMatch[3]},${formMatch[4]},${formMatch[5]},${formMatch[6]},(0,${jsxNs}.jsx)(__T3PreviewPinBtn,{onCapture:${captureFn}}),${formMatch[7]},${formMatch[8]}]`,
+    () => `children:[${formMatch[2]},${formMatch[3]},${formMatch[4]},${formMatch[5]},${formMatch[6]},(0,${jsxNs}.jsx)(__T3PreviewPinBtn,{onCapture:${captureFn}}),${formMatch[7]},${formMatch[8]}]`,
   );
 
   out += `\nfunction __T3PreviewPinBtn({onCapture}){const[st,setSt]=(0,${reactNs}.useState)({active:!1,count:0});(0,${reactNs}.useEffect)(()=>{if(!globalThis.__t3QuotaUi?.subscribePreviewPins)return;return globalThis.__t3QuotaUi.subscribePreviewPins(setSt)},[]);const zh=globalThis.__t3QuotaUi?globalThis.__t3QuotaUi.isZh():!0;return(0,${jsxNs}.jsxs)("div",{className:"inline-flex shrink-0 items-center gap-1","data-quota-ui-managed":"true",children:[(0,${jsxNs}.jsx)("button",{type:"button",className:"t3-pin-bar-btn"+(st.active?" active":""),title:zh?"点击在预览页面扎图钉写修改意见":"Drop numbered pins on preview to annotate",onClick:()=>globalThis.__t3QuotaUi?.togglePreviewPins?.(),children:zh?(st.active?"📌 退出批注":"📌 批注"):(st.active?"📌 Exit Pins":"📌 Pins")}),st.active?(0,${jsxNs}.jsx)("button",{type:"button",className:"t3-pin-bar-btn send",disabled:st.count===0,onClick:()=>globalThis.__t3QuotaUi?.sendPreviewPins?.(onCapture),children:zh?"发送 ("+st.count+")":"Send ("+st.count+")"}):null]})}\n`;
@@ -3370,12 +3538,12 @@ function patchServerBundle(src) {
   if (out.includes("readdirSync(__p.dirname(profile.geminiHome))")) {
     out = out.replace(
       /\.\.\.\(auth\.authMethod === "oauth-personal" && \(\(\) => \{[\s\S]*?readdirSync\(__p\.dirname\(profile\.geminiHome\)\)[\s\S]*?\}\)\(\) \? \{ SSH_CONNECTION: "127\.0\.0\.1 0 127\.0\.0\.1 0" \} : \{\}\),/,
-      safeSshExpr,
+      () => safeSshExpr,
     );
   } else if (out.includes("AGY_ACP_FORCE_FILE_STORAGE") && !out.includes('"/antigravity-oauth-token"')) {
     out = out.replace(
       /(GEMINI_HOME:\s*profile\.geminiHome,\s*AGY_ACP_FORCE_FILE_STORAGE:\s*"1",)/,
-      `$1 ${safeSshExpr}`,
+      (_, prefix) => `${prefix} ${safeSshExpr}`,
     );
   }
 
@@ -3540,15 +3708,44 @@ function patchServerBundle(src) {
 				}
 			}
 		} catch {}
+		const staleBackups = [];
+		try {
+			const bRoot = __p.join(__home, ".t3", "quota-ui-backups");
+			if (__isSafeDir(bRoot)) {
+				for (const d of __fs.readdirSync(bRoot)) {
+					if (d.startsWith(".")) continue;
+					const bp = __p.join(bRoot, d);
+					if (!__isSafeDir(bp)) continue;
+					let targetApp = "";
+					let recordedVer = "";
+					try { targetApp = __fs.readFileSync(__p.join(bp, "target-app.txt"), "utf8").trim(); } catch {}
+					try { recordedVer = __fs.readFileSync(__p.join(bp, "version.txt"), "utf8").trim(); } catch {}
+					let isStale = false;
+					if (targetApp && !__fs.existsSync(targetApp)) {
+						isStale = true;
+					} else if (targetApp && recordedVer) {
+						try {
+							const plist = __fs.readFileSync(__p.join(targetApp, "Contents", "Info.plist"), "utf8");
+							const vm = plist.match(/<key>CFBundleShortVersionString<\\/key>\\s*<string>([^<]+)<\\/string>/);
+							const installedVer = vm ? vm[1].trim() : "";
+							if (installedVer && installedVer !== recordedVer) isStale = true;
+						} catch {}
+					}
+					if (isStale) staleBackups.push(bp);
+				}
+			}
+		} catch {}
+		const __ACTIVE_T3_LOGS = new Set(["desktop.trace.ndjson", "server.trace.ndjson", "renderer-history.ndjson"]);
 		return [
-			{ id: "t3-logs", labelZh: "T3 运行日志", labelEn: "T3 Runtime Logs", descZh: "客户端与服务端历史日志文件", descEn: "Client & server historical log files", displayPath: "~/.t3/userdata/logs", dirs: [__p.join(__home, ".t3", "userdata", "logs")].filter(__isSafeDir) },
-			{ id: "agy-logs", labelZh: "Antigravity 进程日志", labelEn: "Antigravity ACP Logs", descZh: "多实例 ACP 历史调试日志", descEn: "Historical ACP server debug logs", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/log", dirs: agyLogs },
-			{ id: "agy-cache", labelZh: "Antigravity 临时缓存", labelEn: "Antigravity Temp Cache", descZh: "可安全重建的临时运行缓存（不动登录凭证）", descEn: "Rebuildable runtime cache (keeps auth tokens)", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/cache", dirs: agyCaches },
-			{ id: "app-caches", labelZh: "macOS 应用系统缓存", labelEn: "macOS App Caches", descZh: "系统级缓存与更新残留包", descEn: "System-level caches & updater artifacts", displayPath: "~/Library/Caches/t3*", dirs: libCaches },
-			{ id: "electron-gpu", labelZh: "Electron GPU / 编译缓存", labelEn: "Electron GPU & Code Cache", descZh: "Chromium 渲染与 JS 字节码缓存", descEn: "Chromium GPU & JS bytecode cache", displayPath: "~/Library/Application Support/t3*/{GPUCache,Code Cache,Cache}", dirs: gpuCaches }
+			{ id: "t3-logs", labelZh: "T3 历史运行日志", labelEn: "T3 Historical Logs", descZh: "仅清理历史轮转日志与旧会话日志（保留当前活跃日志）", descEn: "Rotated & historical logs only (keeps active log files)", displayPath: "~/.t3/userdata/logs", dirs: [__p.join(__home, ".t3", "userdata", "logs")].filter(__isSafeDir), skipFile: (full, name, root) => __p.dirname(full) === root && __ACTIVE_T3_LOGS.has(name), defaultSelected: true },
+			{ id: "agy-logs", labelZh: "Antigravity 进程日志", labelEn: "Antigravity ACP Logs", descZh: "多实例 ACP 历史调试日志", descEn: "Historical ACP server debug logs", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/log", dirs: agyLogs, defaultSelected: true },
+			{ id: "agy-cache", labelZh: "Antigravity 临时缓存", labelEn: "Antigravity Temp Cache", descZh: "可安全重建的临时运行缓存（不动登录凭证）", descEn: "Rebuildable runtime cache (keeps auth tokens)", displayPath: "~/.t3/userdata/providers/antigravity/*/antigravity-acp/cache", dirs: agyCaches, defaultSelected: true },
+			{ id: "app-caches", labelZh: "macOS 应用系统缓存", labelEn: "macOS App Caches", descZh: "系统级缓存与更新残留包", descEn: "System-level caches & updater artifacts", displayPath: "~/Library/Caches/t3*", dirs: libCaches, defaultSelected: true },
+			{ id: "electron-gpu", labelZh: "Electron GPU / 编译缓存", labelEn: "Electron GPU & Code Cache", descZh: "Chromium 渲染与 JS 字节码缓存", descEn: "Chromium GPU & JS bytecode cache", displayPath: "~/Library/Application Support/t3*/{GPUCache,Code Cache,Cache}", dirs: gpuCaches, defaultSelected: true },
+			{ id: "old-backups", labelZh: "过期补丁备份", labelEn: "Stale Patch Backups", descZh: "已升级或已卸载应用的旧版 app.asar 备份（自动保留当前版本备份）", descEn: "Outdated app.asar backups from older/removed apps (keeps active backup)", displayPath: "~/.t3/quota-ui-backups", dirs: staleBackups, removeRoot: true, defaultSelected: false }
 		];
 	};
-	const __statDir = (dir) => {
+	const __statDir = (dir, skipFile, rootDir = dir) => {
 		let bytes = 0, files = 0;
 		if (!__isSafeDir(dir)) return { bytes, files };
 		const stack = [dir];
@@ -3560,12 +3757,15 @@ function patchServerBundle(src) {
 				if (e.isSymbolicLink()) continue;
 				const full = __p.join(cur, e.name);
 				if (e.isDirectory()) { if (__isSafeDir(full)) stack.push(full); }
-				else if (e.isFile()) { try { const st = __fs.lstatSync(full); if (!st.isSymbolicLink() && st.isFile()) { bytes += st.size; files += 1; } } catch {} }
+				else if (e.isFile()) {
+					if (typeof skipFile === "function" && skipFile(full, e.name, rootDir)) continue;
+					try { const st = __fs.lstatSync(full); if (!st.isSymbolicLink() && st.isFile()) { bytes += st.size; files += 1; } } catch {}
+				}
 			}
 		}
 		return { bytes, files };
 	};
-	const __cleanDir = (dir) => {
+	const __cleanDir = (dir, skipFile, rootDir = dir) => {
 		let freed = 0, removed = 0;
 		if (!__isSafeDir(dir)) return { freed, removed };
 		let ents;
@@ -3575,10 +3775,11 @@ function patchServerBundle(src) {
 			const full = __p.join(dir, e.name);
 			if (e.isDirectory()) {
 				if (!__isSafeDir(full)) continue;
-				const sub = __cleanDir(full);
+				const sub = __cleanDir(full, skipFile, rootDir);
 				freed += sub.freed; removed += sub.removed;
 				try { __fs.rmdirSync(full); } catch {}
 			} else if (e.isFile()) {
+				if (typeof skipFile === "function" && skipFile(full, e.name, rootDir)) continue;
 				try { const st = __fs.lstatSync(full); if (!st.isSymbolicLink() && st.isFile()) { __fs.unlinkSync(full); freed += st.size; removed += 1; } } catch {}
 			}
 		}
@@ -3592,16 +3793,17 @@ function patchServerBundle(src) {
 			if (!allow.has(def.id)) continue;
 			for (const d of def.dirs) {
 				if (__isSafeDir(d)) {
-					const r = __cleanDir(d);
+					const r = __cleanDir(d, def.skipFile, d);
 					freedBytes += r.freed; removedFiles += r.removed;
+					if (def.removeRoot) { try { __fs.rmdirSync(d); } catch {} }
 				}
 			}
 		}
 	}
 	const items = defs.map((def) => {
 		let bytes = 0, files = 0;
-		for (const d of def.dirs) { if (__isSafeDir(d)) { const s = __statDir(d); bytes += s.bytes; files += s.files; } }
-		return { id: def.id, labelZh: def.labelZh, labelEn: def.labelEn, descZh: def.descZh, descEn: def.descEn, displayPath: def.displayPath, bytes, files };
+		for (const d of def.dirs) { if (__isSafeDir(d)) { const s = __statDir(d, def.skipFile, d); bytes += s.bytes; files += s.files; } }
+		return { id: def.id, labelZh: def.labelZh, labelEn: def.labelEn, descZh: def.descZh, descEn: def.descEn, displayPath: def.displayPath, defaultSelected: def.defaultSelected !== false, bytes, files };
 	});
 	return ${textReplyFn}(JSON.stringify({ freedBytes, removedFiles, items }), { status: 200, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 };
@@ -3612,16 +3814,16 @@ const layerT3CacheCleanRoute = ${addRouteFn}("POST", \`\${ASSET_ROUTE_PREFIX}/__
 	return __t3CacheApiHandle(request, url, true);
 }));
 const layerAssetRoute =`;
-    out = out.replace("const layerAssetRoute =", cacheHelperDef);
+    out = out.replace("const layerAssetRoute =", () => cacheHelperDef);
     out = out.replace(
       `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);`,
-      `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);
+      () => `const suffix = url.value.pathname.slice(\`\${ASSET_ROUTE_PREFIX}/\`.length);
 	if (suffix === "__t3_cache_clean") return ${textReplyFn}(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers: { "content-type": "application/json; charset=utf-8", "allow": "POST" } });
 	if (suffix === "__t3_cache_scan") return __t3CacheApiHandle(request, url, false);`,
     );
     out = out.replace(
       "layerAssetRoute, layerAttachmentUploadRoute",
-      "layerAssetRoute, layerT3CacheCleanRoute, layerAttachmentUploadRoute",
+      () => "layerAssetRoute, layerT3CacheCleanRoute, layerAttachmentUploadRoute",
     );
   }
 
@@ -3745,10 +3947,10 @@ function patchRuntimeLayerBundle(src) {
 	};
 	__t3SyncAgyQuotaAuthV2();`;
 
-  out = out.replace(anchor, helperBlock);
+  out = out.replace(anchor, () => helperBlock);
   out = out.replace(
     "const startedGeneration = generation;",
-    "__t3SyncAgyQuotaAuthV2();\n\t\t\tconst startedGeneration = generation;",
+    () => "__t3SyncAgyQuotaAuthV2();\n\t\t\tconst startedGeneration = generation;",
   );
   return out;
 }
@@ -3859,6 +4061,59 @@ function applyStringPairs(src, pairs) {
   return out;
 }
 
+function validatePatchedBundles(replacements, origTexts) {
+  const jsEntries = [...replacements.entries()].filter(
+    ([rel]) => rel.endsWith(".js") || rel.endsWith(".mjs"),
+  );
+  if (jsEntries.length === 0) return;
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "t3-quota-ui-check-"));
+  const badExpansionRe = /\b(?:none|text|add|json|sync|suspend|andThen|gen)fn\b/g;
+  const leakedInjectedRe = /(?:__T3TopbarQuotaPills,\{providers:|__T3BurnBadge,\{pool:|quotaEntry:)\$\d/;
+
+  try {
+    let idx = 0;
+    for (const [rel, fileBuf] of jsEntries) {
+      const code = fileBuf.toString("utf8");
+      const orig = origTexts?.get(rel) || "";
+      for (const m of code.matchAll(badExpansionRe)) {
+        if (!orig.includes(m[0])) {
+          throw new Error(
+            `Pre-write validation failed for ${rel}: detected newly introduced "$"-expansion identifier "${m[0]}"`,
+          );
+        }
+      }
+      const mLeak = code.match(leakedInjectedRe);
+      if (mLeak) {
+        throw new Error(
+          `Pre-write validation failed for ${rel}: detected unexpanded replace placeholder "${mLeak[0]}"`,
+        );
+      }
+      const isEsm =
+        rel.endsWith(".mjs") ||
+        /(?:^|[;}\n])\s*(?:import\s+[\s\S]{1,120}?from\s*["']|export\s*(?:\{|default\b|const\b|function\b|var\b|let\b))/.test(
+          code,
+        );
+      const ext = isEsm ? ".mjs" : ".cjs";
+      const tmpFile = path.join(tmpDir, `entry-${idx++}${ext}`);
+      fs.writeFileSync(tmpFile, fileBuf);
+      try {
+        execFileSync(process.execPath, ["--check", tmpFile], {
+          stdio: ["ignore", "pipe", "pipe"],
+          encoding: "utf8",
+        });
+      } catch (err) {
+        const stderr = String(err?.stderr || err?.message || err).trim();
+        throw new Error(`Pre-write syntax check failed for ${rel}:\n${stderr}`);
+      }
+    }
+  } finally {
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {}
+  }
+}
+
 function main() {
   const opts = parseArgs(process.argv.slice(2));
   const appPath = path.resolve(opts.app);
@@ -3880,6 +4135,7 @@ function main() {
 
   const allFiles = listFilesRecursive(header);
   const replacements = new Map();
+  const origTexts = new Map();
   const patchedSummary = [];
 
   const readText = (relPath) => {
@@ -3895,6 +4151,7 @@ function main() {
   const writeTextIfChanged = (relPath, nextText, tag) => {
     const prevText = readText(relPath);
     if (prevText === null || prevText === nextText) return false;
+    if (!origTexts.has(relPath)) origTexts.set(relPath, prevText);
     replacements.set(relPath, Buffer.from(nextText, "utf8"));
     patchedSummary.push(`${tag}: ${relPath}`);
     return true;
@@ -3954,7 +4211,7 @@ function main() {
     let html = readText(indexHtmlRel);
     html = html.replace(/<!-- T3_QUOTA_UI_START -->[\s\S]*?<!-- T3_QUOTA_UI_END -->\n?/g, "");
     html = html.replace(/<script>\s*\(function\(\)\{\s*const DICT = \{[\s\S]*?<\/script>(?=<\/head>)/g, "");
-    html = html.replace("</head>", `${assets.headBlock}</head>`);
+    html = html.replace("</head>", () => `${assets.headBlock}</head>`);
     writeTextIfChanged(indexHtmlRel, html, `index-head(${opts.lang})`);
     featureHits.indexAssets = true;
   }
@@ -4133,6 +4390,14 @@ function main() {
     console.warn(`[t3code-quota-ui] WARNING: Core hooks did not match: ${missedCore.join(", ")}`);
   }
 
+  if (replacements.size > 0) {
+    validatePatchedBundles(replacements, origTexts);
+    const checkedJs = [...replacements.keys()].filter(
+      (r) => r.endsWith(".js") || r.endsWith(".mjs"),
+    ).length;
+    console.log(`[t3code-quota-ui] Pre-write validation passed (${checkedJs} JS/MJS bundles syntax & integrity verified).`);
+  }
+
   if (opts.dryRun) {
     console.log("[t3code-quota-ui] Dry run complete (no files written).");
     return;
@@ -4205,7 +4470,7 @@ function main() {
   let plist = fs.readFileSync(plistPath, "utf8");
   plist = plist.replace(
     /(<key>ElectronAsarIntegrity<\/key>[\s\S]*?<key>Resources\/app\.asar<\/key>\s*<dict>[\s\S]*?<key>hash<\/key>\s*<string>)[0-9a-fA-F]{64}(<\/string>)/,
-    `$1${newHeaderHash}$2`,
+    (_, pre, post) => `${pre}${newHeaderHash}${post}`,
   );
   fs.writeFileSync(plistPath, plist, "utf8");
   console.log(`[t3code-quota-ui] Updated ElectronAsarIntegrity: ${newHeaderHash}`);
